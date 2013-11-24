@@ -7,12 +7,14 @@
 // var SAMPLE_RATE = 48000;
 var SAMPLE_RATE = 144000;
 var MASTER_BUFFER_SIZE = 24000;
+var PROCESS_BUFFER_SIZE = 1024;
 // var CHANNEL_BUFFER_SIZE = 48000;
 var BUFFER_FRAMES = 60;
-var BUFFERS = 2;
+// var BUFFERS = 2;
 var CHANNELS = 4;
 var litroAudio = null;
 var VOLUME_TEST = 0.08;
+var LitroSoundGlobal = null;
 
 var DEFAULT_NOTE_LENGTH = 800; //ms
 var KEY_FREQUENCY = [
@@ -37,7 +39,7 @@ function LitroSound() {
 }
 
 LitroSound.prototype = {
-	init : function(sampleRate, bufferNum, channelNum, bufferFrame) {
+	init : function(sampleRate, channelNum, bufferFrame) {
 		this.channel = [];
 		this.channel.length = channelNum;
 		this.bufferFrame = bufferFrame;
@@ -46,6 +48,7 @@ LitroSound.prototype = {
 		this.masterBufferSize = 48000;
 		this.channelBufferSize = 48000;
 		this.mode = 0;
+		LitroSoundGlobal = this;
 		
 		var agent, src, i, data, buf, context;
 
@@ -55,7 +58,7 @@ LitroSound.prototype = {
 			return;
 		}
 		this.context = new AudioContext();
-		this.setSampleRate(sampleRate, MASTER_BUFFER_SIZE);
+		this.setSampleRate(sampleRate, PROCESS_BUFFER_SIZE);
 
 		// 出力開始
 		// src.noteOn(0);
@@ -64,8 +67,91 @@ LitroSound.prototype = {
 	freqByOctaveCodeNum: function(octave, codenum){
 		return KEY_FREQUENCY[octave][codenum];
 	},
-	
 	setSampleRate: function(rate, size){
+		var i, channel, context, scriptProcess;
+		context = this.context;
+		context.sampleRate = rate;
+		
+		scriptProcess = context.createScriptProcessor(size, 1, 1);
+		scriptProcess.onaudioprocess = this.bufferProcess;
+		scriptProcess.parent_audio = this;
+		
+		scriptProcess.connect(context.destination);
+		
+		for(i = 0; i < this.channel.length; i++){
+			channel = new AudioChannel();
+			channel.init(size);
+			this.channel[i] = channel;
+		}
+		return;
+		
+		for(i = 0; i < this.channel.length; i++){
+			channel = new AudioChannel();
+			// モノラル・sampleRate・サンプル数でAudioBufferを作成
+			channel.buffer = context.createScriptProcesser(1, rate, size);
+			// AudioSourceを作成
+			channel.bufferSource = context.createBufferSource();
+			
+			// AudioSourceに作成した音声データを設定
+			channel.bufferSource.buffer = channel.buffer;
+			
+			// 出力先を設定
+			channel.bufferSource.connect(context.destination);
+
+			//ループON
+			channel.bufferSource.loop = true;
+			channel.bufferSource.start(0);
+
+			this.channel[i] = channel;
+
+		}
+
+		// data = this.channelBuffer.getChannelData(0);//monoral
+		
+	},
+	
+	bufferProcess: function(ev)
+	{
+		var parent = LitroSoundGlobal
+			, i
+			, data = ev.outputBuffer.getChannelData(0);
+			// console.log(parent.channel[0]);
+		for(i = 0; i < data.length; i++){
+			data[i] = parent.channel[0].nextWave();
+			for(c = 1; c < parent.channel.length; c++){
+				data[i] += parent.channel[c].nextWave();
+			}
+		}
+		// console.log(parent.channel[0]);
+	},
+	
+	setFrequency: function(channel, freq){
+		var half, i, pulseLength, data;
+		data = this.channel[channel].data;
+		
+		if(freq == 0){
+			for(i = 0; i < data.length; i++){
+				data[i] = 0;
+			}
+			// this.channel[0].waveLength = 0;
+			return;
+		}
+		pulseLength = ((this.context.sampleRate / freq)) | 0;
+		half = (pulseLength / 2) | 0;
+
+		for(i = 0; i < pulseLength; i++){
+			if(i % pulseLength < half){
+				data[i] = VOLUME_TEST;
+			}else{
+				data[i] = -VOLUME_TEST;
+			}
+		}
+		this.channel[channel].waveLength = pulseLength;
+
+	},
+	
+
+	setSampleRate_b: function(rate, size){
 		var i, channel, context;
 		context = this.context;
 		context.sampleRate = rate;
@@ -93,8 +179,7 @@ LitroSound.prototype = {
 		// data = this.channelBuffer.getChannelData(0);//monoral
 		
 	},
-	
-	setFrequency: function(freq){
+	setFrequency_b: function(freq){
 		var half, i, pulseLength, data;
 		data = this.channel[0].buffer.getChannelData(0);
 		
@@ -116,18 +201,26 @@ LitroSound.prototype = {
 		}
 	},
 	
-	onNoteFromCode: function(codenum, octave)
+	onNoteFromCode: function(channel, codenum, octave)
 	{
 		// console.log(codenum + ' ' + octave);
 		var freq = this.freqByOctaveCodeNum(octave, codenum);
 		// console.log(freq);
-		this.setFrequency(freq);
+		this.setFrequency(channel, freq);
 	},
 	
-	offNoteFromCode: function(code, octave)
+	offNoteFromCode: function(channel)
 	{
 		// var freq = this.freqByOctaveCode(octave, code);
-		this.setFrequency(0);
+		
+		if(channel == null){
+			var i;
+			for(i = 0; i < this.channel.length; i++){
+				this.setFrequency(i, 0);
+			}
+			return;
+		}
+		this.setFrequency(channel, 0);
 	},
 	
 	noteOn: function(channel){
@@ -183,12 +276,34 @@ function AudioChannel()
 	return;
 };
 
-AudioChannel.protorype = {
-	init:function(){
-		this.data = [];
+AudioChannel.prototype = {
+	init:function(datasize){
+		// console.log(this.data);
 		this.bufferSource = null;
 		this.buffer = null;
+		this.waveLength = 0;
+		this.waveClockPosition = 0;
+		this.data = this.allocBuffer(datasize);
 	},
+	
+	allocBuffer: function(datasize){
+		var i, data;
+		data = [];
+		for(i = 0; i < datasize; i++){
+			data.push(0);
+		}
+		return data;
+	},
+	
+	nextWave: function(){
+		if(this.waveLength == 0){
+			return 0;
+		}
+		var d = this.data[this.waveClockPosition];
+		this.waveClockPosition = (this.waveClockPosition + 1) % this.waveLength;
+		return d;
+	},
+	
 };
 
 
