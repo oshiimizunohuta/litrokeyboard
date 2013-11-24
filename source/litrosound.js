@@ -6,7 +6,7 @@
 
 // var SAMPLE_RATE = 48000;
 var SAMPLE_RATE = 144000;
-var MASTER_BUFFER_SIZE = 48000;
+var MASTER_BUFFER_SIZE = 24000;
 // var CHANNEL_BUFFER_SIZE = 48000;
 var BUFFER_FRAMES = 60;
 var BUFFERS = 2;
@@ -24,6 +24,11 @@ var KEY_FREQUENCY = [
 	[1046.502,1108.731,1174.659,1244.508,1318.510,1396.913,1479.978,1567.982,1661.219,1760.000,1864.655,1975.533],
 	[2093.005,2217.461,2349.318,2489.016,2637.020,2793.826,2959.955,3135.963,3322.438,3520.000,3729.310,3951.066],
 	[4186.009,4434.922,4698.636,4978.032,5274.041,5587.652,5919.911,6271.927,6644.875,7040.000,7458.620,7902.133],
+];
+
+var LitroKeyboardControllChar = [
+['q', 81],['2', 50],['w', 87],['3', 51],['e', 69],['r', 82],['5', 53],['t', 84],['6', 54],['y', 89],['7', 55],['u', 85],['i', 56],['9', 73],['o', 57],['0', 79],['p', 80],
+['z', 90],['s', 83],['x', 88],['d', 68],['c', 67],['v', 86],['g', 71],['b', 66],['h', 72],['n', 78],['j', 77],['m', 75],[',', 188],['l', 76],['.', 190],[';', 187],['/', 191],
 ];
 
 var KEY_NAME = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -54,6 +59,10 @@ LitroSound.prototype = {
 
 		// 出力開始
 		// src.noteOn(0);
+	},
+	
+	freqByOctaveCodeNum: function(octave, codenum){
+		return KEY_FREQUENCY[octave][codenum];
 	},
 	
 	setSampleRate: function(rate, size){
@@ -105,6 +114,20 @@ LitroSound.prototype = {
 				data[i] = -VOLUME_TEST;
 			}
 		}
+	},
+	
+	onNoteFromCode: function(codenum, octave)
+	{
+		// console.log(codenum + ' ' + octave);
+		var freq = this.freqByOctaveCodeNum(octave, codenum);
+		// console.log(freq);
+		this.setFrequency(freq);
+	},
+	
+	offNoteFromCode: function(code, octave)
+	{
+		// var freq = this.freqByOctaveCode(octave, code);
+		this.setFrequency(0);
 	},
 	
 	noteOn: function(channel){
@@ -174,51 +197,14 @@ var start = function() {
 
 var change = function(){
 	litroAudio.changeWave();
-	console.log(litroAudio.mode);
+	// console.log(litroAudio.mode);
 	litroAudio.mode = (litroAudio.mode + 1) % 4;
 };
 
-var noteon = function()
+//call at 60fps
+function litroSoundMain()
 {
-	// change();
-	var freq = $(this).attr('value');
-	litroAudio.setFrequency(freq);
-	// litroAudio.noteOn(0);
-};
-
-var noteoff = function()
-{
-	litroAudio.setFrequency(0);
-	// litroAudio.noteoff(0);
-};
-
-function main() {
-	requestAnimationFrame(main);
-};
-
-function makeTestKeyboard()
-{
-	var i, j, element, d
-		,e = $(".boardFrame");
-	for(i = 0; i < KEY_FREQUENCY.length; i++){
-		d = $('<div class="octaveRow"></div>');
-		for(j = 0; j < KEY_FREQUENCY[i].length; j++){
-			element = $('<button type="button" class="notekey" value="' + KEY_FREQUENCY[i][j] + '" >' + KEY_NAME[j] + '</button>');
-			d.append(element);
-		}
-		e.append(d);
-	}
-};
-
-$(function() {
-	var requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame || window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
-	window.requestAnimationFrame = requestAnimationFrame;
 	
-	litroAudio = new LitroSound();
-	litroAudio.init(SAMPLE_RATE, BUFFERS, CHANNELS, BUFFER_FRAMES);
-	makeTestKeyboard();
-	$('.notekey').mousedown(noteon);
-	$(window).mouseup(noteoff);
-	
-	requestAnimationFrame(main);
-});
+};
+
+
