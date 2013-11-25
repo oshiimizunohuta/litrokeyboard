@@ -4,10 +4,10 @@
  * @author しふたろう
  */
 
-// var SAMPLE_RATE = 48000;
-var SAMPLE_RATE = 144000;
+var SAMPLE_RATE = 48000;
+// var SAMPLE_RATE = 144000;
 var MASTER_BUFFER_SIZE = 24000;
-var PROCESS_BUFFER_SIZE = 1024;
+var PROCESS_BUFFER_SIZE = 512;
 // var CHANNEL_BUFFER_SIZE = 48000;
 var BUFFER_FRAMES = 60;
 // var BUFFERS = 2;
@@ -48,7 +48,9 @@ LitroSound.prototype = {
 		this.masterBufferSize = 48000;
 		this.channelBufferSize = 48000;
 		this.mode = 0;
+		this.OCTAVE_MAX = 7;
 		LitroSoundGlobal = this;
+		
 		
 		var agent, src, i, data, buf, context;
 
@@ -73,6 +75,7 @@ LitroSound.prototype = {
 		context.sampleRate = rate;
 		
 		scriptProcess = context.createScriptProcessor(size, 1, 1);
+		// scriptProcess = context.createScriptProcessor(null, 1, 1);
 		scriptProcess.onaudioprocess = this.bufferProcess;
 		scriptProcess.parent_audio = this;
 		
@@ -185,7 +188,7 @@ LitroSound.prototype = {
 		
 		if(freq == 0){
 			for(i = 0; i < data.length; i++){
-				data[i] = 0;
+				data[i] = 0.0000001;
 			}
 			return;
 		}

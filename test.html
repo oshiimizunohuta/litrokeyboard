@@ -12,11 +12,105 @@
 		<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 		<script src="http://ajax.googleapis.com/ajax/libs/jquery/2.0.0/jquery.min.js"></script>
 
+		<script src="./lib/keyControll.js"></script>
 		<script src="./source/litrosound.js"></script>
+		<script src="./source/LitroKeyboard.js"></script>
+		<script src="./sample.js"></script>
 		<style>
+			.boardFrame{
+				position: relative;
+				height: 192px;
+			}
+			.octaveRow{
+				clear:both;
+				position:relative;
+				height:96px;
+			}
+			.bottom{
+				margin-left:96px;
+			}
+			
 			.notekey{
+				margin-top:0;
+				position: absolute;
+				top: 0;
+				margin:0;
+				border:1px hsl(50, 40%, 40%) dashed;
+				padding:0;
+				display:table;
+				font-weight: bold;
+			}
+			.keyon{
+				background:linear-gradient(hsl(140, 70%, 96%), hsl(140, 70%, 60%));
+			}
+			button.white{
 				width:32px;
-				height:80px;
+				height:96px;
+				color:black;
+				z-index: 100;
+			}
+			button.black{
+				width:24px;
+				height:60px;
+				left: -14px;
+				background:linear-gradient(hsl(50, 10%, 40%), hsl(50, 10%, 10%));
+				color:white;
+				z-index: 200;
+			}
+			.oct0{
+				background:linear-gradient(hsl(50, 40%, 96%), hsl(50, 30%, 60%));
+			}
+			.oct1{
+				background:linear-gradient(hsl(30, 40%, 96%), hsl(30, 30%, 60%));
+			}
+			.oct2{
+				background:linear-gradient(hsl(10, 40%, 96%), hsl(10, 30%, 60%));
+			}
+			button.keyon{
+				background:linear-gradient(hsl(140, 70%, 96%), hsl(140, 70%, 60%));
+			}
+			.codeName{
+				position:absolute;
+				bottom:14px;
+				border:1px solid hsl(50, 50%, 30%);
+				border-radius: 8px;
+				padding:1px 2px;
+				right:0;
+			}
+			.controllName{
+				position:absolute;
+				bottom:0;
+				left:0;
+			}
+			.octaveFrame{
+				margin: 8px;
+				overflow:hidden;
+				height: 24px;
+			}
+			.octaveLevel{
+				margin: 0 8px;
+				font-weight: bold;
+			}
+			.octaveFrame button{
+				margin:0 4px;
+				width:20px;
+				height:20px;
+				border-radius:12px;
+				background:linear-gradient(hsl(50, 40%, 96%), hsl(50, 30%, 60%));
+				border: 1px solid black;
+				cursor:pointer;
+				color:black;
+				font-size:12px;
+				line-height:12px;
+				overflow:hidden;
+				vertical-align:top;
+				font-weight:bold;
+			}
+			.octaveFrame button:active{
+				background:linear-gradient(hsl(50, 40%, 56%), hsl(50, 30%, 30%));
+				color:white;
+				text-indent:2px;
+				line-height:18px;
 			}
 		</style>
 	</head>
@@ -26,6 +120,17 @@
 			<header>
 				<h1>WEB AUDIO TEST - Litro Sound - </h1>
 			</header>
+
+			<div class="octaveFrame">
+				<span>OCTAVE:</span><span class="octaveLevel">0</span><button class="down">-</button><button class="up">^</button>
+			</div>
+			<div class="boardFrame">
+				
+			</div>
+
+			<!-- <div>
+				<a href="javascript:change();">てすとう</a>
+			</div> -->
 			<nav>
 				<p>
 					<a href="/">Home</a>
@@ -37,13 +142,6 @@
 					<a href="/contact">Contact</a>
 				</p>
 			</nav>
-			<div class="boardFrame">
-				
-			</div>
-
-			<!-- <div>
-				<a href="javascript:change();">てすとう</a>
-			</div> -->
 			<footer>
 				<p>
 					&copy; Copyright  by しふたろう
