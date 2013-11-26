@@ -5,7 +5,11 @@
  */
 
 var LitroKeyboardInstance = null;
-
+var VIEWMULTI = 1;
+var DISPLAY_WIDTH = 320;
+var DISPLAY_HEIGHT = 240;
+var CHIPCELL_SIZE = 16;
+var layerScroll = null;
 
 function LitroKeyboard() {
 	this.CODE_NAME = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -97,6 +101,25 @@ LitroKeyboard.prototype = {
 		}
 		
 		this.initFingerState(this.fingers);
+		this.initCanvas();
+	},
+	
+	initCanvas: function()
+	{
+		imageResource.init();
+		makeScroll('screen', true);
+		makeScroll('view', false);
+		makeScroll('bg1', false);
+		makeScroll('bg2', false);
+		makeScroll('sprite', false);
+		
+		var bg1 = scrollByName('bg1')
+			, bg2 = scrollByName('bg2')
+			, spr = scrollByName('sprite')
+			;
+		bg1.clear(COLOR_BLACK);
+		bg2.clear(COLOR_BLACK);
+		spr.clear();
 	},
 	
 	initFingerState: function(num)
@@ -249,6 +272,39 @@ LitroKeyboard.prototype = {
 		this.offkeyEvent = e;
 	},
 	
+	drawWave: function()
+	{
+		var channel = this.litroSound.channel
+			, data, c, i
+			, layerScale
+			, px, py
+			, pre_y
+			, from, to
+			, spr = scrollByName('sprite')
+			, chOscWidth = 100
+			, chOscHeight = 50
+			, chOscHeight_h = (chOscHeight / 2) | 0
+			,ofsy = 20
+		;
+		
+
+		for(c in channel){
+			data = channel[c].data;
+			for(px = 0; px < chOscWidth; px++){
+				i = (px * (data.length / chOscWidth)) | 0;
+				py = ((-data[i] * (chOscHeight / ltkb.litroSound.WAVE_VOLUME_RESOLUTION)) + chOscHeight_h + ofsy) | 0;
+				from = {x: px, y: py};
+				to = {x: px + 1, y: pre_y == null ? py + 1 : pre_y + 1};
+				spr.line(from, to, COLOR_FONT12);
+				
+				pre_y = py;
+				// console.log(py);
+				// break;
+			}
+			break;
+		}
+	},
+	
 	test: function(){
 		var trigs, untrigs, row, chars, name, cont = this.keyControll
 		;
@@ -289,8 +345,29 @@ LitroKeyboard.prototype = {
 
 
 	}
+	
 
 };
+
+function drawLitroScreen()
+{
+	var i
+	, ltkb = LitroKeyboardInstance
+	, spr = scrollByName('sprite')
+	, bg1 = scrollByName('bg1')
+	, view = scrollByName('view')
+	, scr = scrollByName('screen')
+	;
+	// console.log(1);
+	ltkb.drawWave();
+	bg1.drawto(view);
+	spr.drawto(view);
+	spr.clear();
+	// view.drawto(view);
+	screenView(scr, view, VIEWMULTI);
+
+}
+
 
 //call at 60fps
 function litroKeyboardMain()
@@ -299,6 +376,7 @@ function litroKeyboardMain()
 	, ltkb = LitroKeyboardInstance
 	;
 	ltkb.test();
+	drawLitroScreen();
 };
 
 

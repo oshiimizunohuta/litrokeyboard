@@ -7,13 +7,13 @@
 var SAMPLE_RATE = 48000;
 // var SAMPLE_RATE = 144000;
 var MASTER_BUFFER_SIZE = 24000;
-var PROCESS_BUFFER_SIZE = 512;
+var PROCESS_BUFFER_SIZE = 1024;
 // var CHANNEL_BUFFER_SIZE = 48000;
 var BUFFER_FRAMES = 60;
 // var BUFFERS = 2;
 var CHANNELS = 4;
 var litroAudio = null;
-var VOLUME_TEST = 0.08;
+var VOLUME_TEST = 0.2;
 var LitroSoundGlobal = null;
 
 var DEFAULT_NOTE_LENGTH = 800; //ms
@@ -50,6 +50,8 @@ LitroSound.prototype = {
 		this.mode = 0;
 		this.OCTAVE_MAX = 7;
 		LitroSoundGlobal = this;
+		this.masterVolume = VOLUME_TEST;
+		this.WAVE_VOLUME_RESOLUTION = 16; //波形データのボリューム分解能
 		
 		
 		var agent, src, i, data, buf, context;
@@ -120,9 +122,9 @@ LitroSound.prototype = {
 			, data = ev.outputBuffer.getChannelData(0);
 			// console.log(parent.channel[0]);
 		for(i = 0; i < data.length; i++){
-			data[i] = parent.channel[0].nextWave();
+			data[i] = (parent.channel[0].nextWave() / parent.WAVE_VOLUME_RESOLUTION) * parent.masterVolume;
 			for(c = 1; c < parent.channel.length; c++){
-				data[i] += parent.channel[c].nextWave();
+				data[i] += (parent.channel[c].nextWave() / parent.WAVE_VOLUME_RESOLUTION) * parent.masterVolume;
 			}
 		}
 		// console.log(parent.channel[0]);
@@ -134,7 +136,7 @@ LitroSound.prototype = {
 		
 		if(freq == 0){
 			for(i = 0; i < data.length; i++){
-				data[i] = 0;
+				data[i] = 0.0000000001;
 			}
 			// this.channel[0].waveLength = 0;
 			return;
@@ -144,9 +146,9 @@ LitroSound.prototype = {
 
 		for(i = 0; i < pulseLength; i++){
 			if(i % pulseLength < half){
-				data[i] = VOLUME_TEST;
+				data[i] = (this.WAVE_VOLUME_RESOLUTION / 2) | 0;
 			}else{
-				data[i] = -VOLUME_TEST;
+				data[i] = -(this.WAVE_VOLUME_RESOLUTION / 2) | 0;
 			}
 		}
 		this.channel[channel].waveLength = pulseLength;
