@@ -19,6 +19,8 @@ $(function() {
 	
 	makeTestKeyboard();
 	
+	$('.waveTypeFrame button').mousedown(waveSwitchEvent);
+	
 	$('.octaveFrame button.down').mousedown(decOctave);
 	$('.octaveFrame button.up').mousedown(incOctave);
 
@@ -67,6 +69,23 @@ var keyoff = function(code)
 	}else{
 		$('.notekey[value="' + code + '"]').toggleClass('keyon', false);
 	}
+};
+
+var waveSwitch = function(type)
+{
+	for(var c = 0; c < ltkb.litroSound.channel.length; c++){
+		if(type == null){
+			// ltkb.setWaveType(c, (ltkb.litroSound.channel + 1) % 4);
+		}else{
+			ltkb.litroSound.setWaveType(c, type | 0);
+		}
+	}
+};
+
+var waveSwitchEvent = function()
+{
+	var type = $(this).attr('value');
+	waveSwitch(type);
 };
 
 var noteon = function()

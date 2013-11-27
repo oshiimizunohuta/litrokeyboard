@@ -5,7 +5,7 @@
  */
 
 var LitroKeyboardInstance = null;
-var VIEWMULTI = 1;
+var VIEWMULTI = 2;
 var DISPLAY_WIDTH = 320;
 var DISPLAY_HEIGHT = 240;
 var CHIPCELL_SIZE = 16;
@@ -288,7 +288,8 @@ LitroKeyboard.prototype = {
 		;
 		
 
-		for(c in channel){
+		for(c = 0; c < channel.length; c++){
+		// for(c  in channel){
 			data = channel[c].data;
 			for(px = 0; px < chOscWidth; px++){
 				i = (px * (data.length / chOscWidth)) | 0;
@@ -303,6 +304,21 @@ LitroKeyboard.prototype = {
 			}
 			break;
 		}
+
+		pre_y = null;
+// console.log(ltkb.litroSound);
+		data = ltkb.litroSound.outputBuffer;
+		for(px = 0; px < chOscWidth; px++){
+				i = (px * (data.length / chOscWidth)) | 0;
+				py = (-data[i] * chOscHeight) + chOscHeight_h + ofsy + chOscHeight + ofsy;
+				from = {x: px, y: py};
+				to = {x: px + 1, y: pre_y == null ? py + 1 : pre_y + 1};
+				spr.line(from, to, COLOR_FONT12);
+				
+				pre_y = py;
+			
+		}
+		// console.log(data.length);
 	},
 	
 	test: function(){

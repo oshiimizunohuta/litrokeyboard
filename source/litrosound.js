@@ -52,7 +52,9 @@ LitroSound.prototype = {
 		LitroSoundGlobal = this;
 		this.masterVolume = VOLUME_TEST;
 		this.WAVE_VOLUME_RESOLUTION = 16; //波形データのボリューム分解能
-		
+		this.outputBuffer = [];
+		this.isFirefox = (navigator.userAgent.toLowerCase().indexOf('firefox') > -1) ? true : false;
+
 		
 		var agent, src, i, data, buf, context;
 
@@ -77,6 +79,7 @@ LitroSound.prototype = {
 		context.sampleRate = rate;
 		
 		scriptProcess = context.createScriptProcessor(size, 1, 1);
+		
 		// scriptProcess = context.createScriptProcessor(null, 1, 1);
 		scriptProcess.onaudioprocess = this.bufferProcess;
 		scriptProcess.parent_audio = this;
@@ -85,54 +88,58 @@ LitroSound.prototype = {
 		
 		for(i = 0; i < this.channel.length; i++){
 			channel = new AudioChannel();
-			channel.init(size);
+			channel.init(size, this.WAVE_VOLUME_RESOLUTION);
 			this.channel[i] = channel;
 		}
 		return;
-		
-		for(i = 0; i < this.channel.length; i++){
-			channel = new AudioChannel();
-			// モノラル・sampleRate・サンプル数でAudioBufferを作成
-			channel.buffer = context.createScriptProcesser(1, rate, size);
-			// AudioSourceを作成
-			channel.bufferSource = context.createBufferSource();
-			
-			// AudioSourceに作成した音声データを設定
-			channel.bufferSource.buffer = channel.buffer;
-			
-			// 出力先を設定
-			channel.bufferSource.connect(context.destination);
-
-			//ループON
-			channel.bufferSource.loop = true;
-			channel.bufferSource.start(0);
-
-			this.channel[i] = channel;
-
-		}
-
-		// data = this.channelBuffer.getChannelData(0);//monoral
-		
 	},
 	
 	bufferProcess: function(ev)
 	{
 		var parent = LitroSoundGlobal
 			, i
+			, ch
 			, data = ev.outputBuffer.getChannelData(0);
-			// console.log(parent.channel[0]);
 		for(i = 0; i < data.length; i++){
-			data[i] = (parent.channel[0].nextWave() / parent.WAVE_VOLUME_RESOLUTION) * parent.masterVolume;
+			ch = parent.channel[0];
+
+			data[i] = (ch.nextWave() / parent.WAVE_VOLUME_RESOLUTION) * parent.masterVolume;
 			for(c = 1; c < parent.channel.length; c++){
-				data[i] += (parent.channel[c].nextWave() / parent.WAVE_VOLUME_RESOLUTION) * parent.masterVolume;
+				ch = parent.channel[c];
+				data[i] += (ch.nextWave() / parent.WAVE_VOLUME_RESOLUTION) * parent.masterVolume;
+				
 			}
 		}
+		parent.outputBuffer = data;
 		// console.log(parent.channel[0]);
 	},
 	
-	setFrequency: function(channel, freq){
-		var half, i, pulseLength, data;
-		data = this.channel[channel].data;
+	setWaveType: function(channelNum, type)
+	{
+		this.channel[channelNum].waveType = type;
+		this.refreshWave(channelNum);
+	},
+	
+	setFrequency: function(channel, freq)
+	{
+		var pulseLength;
+		this.channel[channel].frequency = freq;
+		pulseLength = ((this.context.sampleRate / freq)) | 0;
+
+		this.channel[channel].waveLength = pulseLength;
+		
+		this.refreshWave(channel);
+	},
+	
+	refreshWave: function (channelNum)
+	{
+		var i
+		, half = (pulseLength / 2) | 0
+		, channel = this.channel[channelNum]
+		, pulseLength = channel.waveLength
+		, data = channel.data
+		, freq = channel.frequency
+		;
 		
 		if(freq == 0){
 			for(i = 0; i < data.length; i++){
@@ -141,69 +148,22 @@ LitroSound.prototype = {
 			// this.channel[0].waveLength = 0;
 			return;
 		}
-		pulseLength = ((this.context.sampleRate / freq)) | 0;
-		half = (pulseLength / 2) | 0;
-
-		for(i = 0; i < pulseLength; i++){
-			if(i % pulseLength < half){
-				data[i] = (this.WAVE_VOLUME_RESOLUTION / 2) | 0;
-			}else{
-				data[i] = -(this.WAVE_VOLUME_RESOLUTION / 2) | 0;
-			}
-		}
-		this.channel[channel].waveLength = pulseLength;
-
-	},
-	
-
-	setSampleRate_b: function(rate, size){
-		var i, channel, context;
-		context = this.context;
-		context.sampleRate = rate;
-		for(i = 0; i < this.channel.length; i++){
-			channel = new AudioChannel();
-			// モノラル・sampleRate・サンプル数でAudioBufferを作成
-			channel.buffer = context.createBuffer(1, rate, size);
-			// AudioSourceを作成
-			channel.bufferSource = context.createBufferSource();
-			
-			// AudioSourceに作成した音声データを設定
-			channel.bufferSource.buffer = channel.buffer;
-			
-			// 出力先を設定
-			channel.bufferSource.connect(context.destination);
-
-			//ループON
-			channel.bufferSource.loop = true;
-			channel.bufferSource.start(0);
-
-			this.channel[i] = channel;
-
+		// for(i = 0; i < pulseLength; i++){
+			// if(i < 50){
+				// data[i] = (this.WAVE_VOLUME_RESOLUTION / 2) | 0;
+			// }else{
+				// data[i] = -(this.WAVE_VOLUME_RESOLUTION / 2) | 0;
+			// }
+		// }
+		console.log(channel.waveType);
+		switch(channel.waveType){
+			case 0: pulseWave(channel, 1, 1); break;
+			case 1: pulseWave(channel, 1, 2); break;
+			case 2: pulseWave(channel, 1, 3); break;
+			case 3: pulseWave(channel, 1, 2); break;
 		}
 
-		// data = this.channelBuffer.getChannelData(0);//monoral
-		
-	},
-	setFrequency_b: function(freq){
-		var half, i, pulseLength, data;
-		data = this.channel[0].buffer.getChannelData(0);
-		
-		if(freq == 0){
-			for(i = 0; i < data.length; i++){
-				data[i] = 0.0000001;
-			}
-			return;
-		}
-		pulseLength = ((this.context.sampleRate / freq)) | 0;
-		half = (pulseLength / 2) | 0;
 
-		for(i = 0; i < data.length; i++){
-			if(i % pulseLength < half){
-				data[i] = VOLUME_TEST;
-			}else{
-				data[i] = -VOLUME_TEST;
-			}
-		}
 	},
 	
 	onNoteFromCode: function(channel, codenum, octave)
@@ -282,13 +242,16 @@ function AudioChannel()
 };
 
 AudioChannel.prototype = {
-	init:function(datasize){
+	init:function(datasize, resolution){
 		// console.log(this.data);
 		this.bufferSource = null;
 		this.buffer = null;
 		this.waveLength = 0;
 		this.waveClockPosition = 0;
 		this.data = this.allocBuffer(datasize);
+		this.waveType = 0;
+		this.frequency = 1;
+		this.WAVE_VOLUME_RESOLUTION = resolution;
 	},
 	
 	allocBuffer: function(datasize){
@@ -306,11 +269,28 @@ AudioChannel.prototype = {
 		}
 		var d = this.data[this.waveClockPosition];
 		this.waveClockPosition = (this.waveClockPosition + 1) % this.waveLength;
+		
 		return d;
 	},
 	
 };
 
+function pulseWave(channel, widthRate_l, widthRate_r)
+{
+	var i
+		, half
+		, switchPos
+		;
+	switchPos = ((channel.waveLength / (widthRate_l + widthRate_r)) * widthRate_l) | 0;
+	for(i = 0; i < channel.waveLength; i++){
+		if(i < switchPos){
+			channel.data[i] = (channel.WAVE_VOLUME_RESOLUTION / 2) | 0;
+		}else{
+			channel.data[i] = -(channel.WAVE_VOLUME_RESOLUTION / 2) | 0;
+		}
+	}
+
+}
 
 var start = function() {
 };

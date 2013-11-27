@@ -2,16 +2,8 @@ h1{
 	font-size:16px;
 }
 canvas{
-	/*width:320px;
-	height:240px;
-	display:none;*/
-}
-canvas.screen{
-	/*width:640px;
-	height:480px;*/	
-	/*display:inline;*/
-}
 
+}
 .boardFrame {
 	position: relative;
 	height: 192px;
@@ -111,4 +103,13 @@ button.keyon {
 .octaveFrame button:active {
 	text-indent: 2px;
 	line-height: 18px;
+}
+
+.waveTypeFrame button {
+	font-size: 12px;
+	/*background: linear-gradient(hsl(50, 40%, 96%), hsl(50, 30%, 60%));
+	border: 1px solid black;
+	cursor: pointer;
+	color: black;
+	border-radius: 2px;*/
 }
