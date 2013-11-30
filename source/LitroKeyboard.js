@@ -39,6 +39,9 @@ function LitroKeyboard() {
 		// bottom:[90, 83, 88, 68, 67, 86, 71, 66, 72, 78, 77, 75, 188, 76, 190, 187, 191, 186, 226],
 	};
 	this.BLACK_KEY = {'2':0, '3':0, '5':0, '6':0, '7':0, '9':0, '0':0, 's':0, 'd':0, 'g':0, 'h':0, 'j':0, 'l':0, ';':0, ':': 0};
+	this.iWHITE_KEYS = [];
+	this.iBLACK_KEYS = [];
+	this.BLACK_KEY_SKIP = {'2': 0, '3': 0, '5': 1, '6': 1, '7': 1, '9': 2, '0': 2, 's': 2, 'd': 2, 'g': 3, 'h': 3, 'j': 3, 'l': 4, ';': 4,};
 	// this.BLACK_KEY = {'2':0, '3':0, '5':0, '6':0, '7':0, '9':0, '0':0, 's':0, 'd':0, 'f':0, 'h':0, 'j':0, 'l':0, ';':0, ':': 0};
 	this.octaveLevel = 2;
 	this.fingers = 6;
@@ -47,15 +50,26 @@ function LitroKeyboard() {
 	this.offkeyEvent = null;
 	this.octaveEvent = null;
 	this.isFirefox = (navigator.userAgent.toLowerCase().indexOf('firefox') > -1) ? true : false;
+	this.imageLoaded = false;
+	this.loader = imageResource;
+	this.uiImageName = 'ui_16p';
 	
 	this.octaveSeparateCount = [12, 17, 5];
 	
+	this.noteKeysSpriteKeys = {'q': 0, '2': 0 , 'w': 1, '3': 0, 'e': 5, 'r': 3, '5': 0, 't': 1, '6': 0, 'y': 1, '7': 0, 'u': 2, 'i': 0, '9': 0, 'o': 1, '0': 0, 'p': 2
+											, 'z': 0, 's': 0, 'x': 1, 'd': 0, 'c': 2, 'v': 3, 'g': 0, 'b': 4, 'h': 0, 'n': 1, 'j': 0, 'm': 5, ',': 0, 'l': 0, '.': 1, ';': 0, '/': 2,};
+	this.whiteKeysSprite = [[9, 7, 1, 2], [10, 7, 1, 2], [11, 7, 1, 2], [12, 7, 1, 2], [13, 7, 1, 2], [14, 7, 1, 2], ];
+	this.blackKeysSprite = [[9, 5, 1, 2], ];
+	this.whiteKeysCmargin = {x: 2, y: 24};
+	this.blackKeysCmargin = {x: 3, y: 24};
 	return;
 }
 
 LitroKeyboard.prototype = {
 	init : function(litrosoundInstance) {
 		var code, row, chars, i
+		, whiteCount = 0
+		, blackCount = 0
 		, repkeys_ff = this.KEY_REPLACE_FIREFOX;
 		this.litroSound = litrosoundInstance;
 		LitroKeyboardInstance = this;
@@ -83,10 +97,15 @@ LitroKeyboard.prototype = {
 				//補完
 				if(chars[i] in this.BLACK_KEY){
 					this.BLACK_KEY[chars[i]] = code[i];
+					this.iBLACK_KEYS[chars[i]] = blackCount++;
+				}else{
+					this.iWHITE_KEYS[chars[i]] = whiteCount++;
 				}
 			}
+			//重複分戻すキー
+			blackCount -= 2;
+			whiteCount -= 3;
 		}
-		
 		//オクターブ設定
 		for(i in this.OCTAVE_KEYCODE){ 
 			code = this.OCTAVE_KEYCODE[i];
@@ -100,13 +119,13 @@ LitroKeyboard.prototype = {
 			this.CODE_NAME_INDEX[this.CODE_NAME[i]] = i;
 		}
 		
+		this.loadImages();
 		this.initFingerState(this.fingers);
 		this.initCanvas();
 	},
 	
 	initCanvas: function()
 	{
-		imageResource.init();
 		makeScroll('screen', true);
 		makeScroll('view', false);
 		makeScroll('bg1', false);
@@ -129,6 +148,29 @@ LitroKeyboard.prototype = {
 		for(i = 0; i < num; i++){
 			this.status_on.push(null);
 		}
+	},
+	
+	initSprite: function()
+	{
+		var i
+		;
+		this.waveSprite = makePoint(this.uiImageName, 1);
+		for(i = 0; i < this.whiteKeysSprite.length; i++){
+			this.whiteKeysSprite[i] = makeSpriteChunk(this.uiImageName, makeRect(this.whiteKeysSprite[i]));
+		}
+		this.blackKeysSprite[0] = makeSpriteChunk(this.uiImageName, makeRect(this.blackKeysSprite[0]));
+		
+	},
+	
+	loadImages: function()
+	{
+		// this.loader.init();
+		var resorce = loadResource([this.uiImageName]);
+		resorce.onload = function(){
+			ltkb.imageLoaded = true;
+			ltkb.initSprite();
+			ltkb.openFrame();
+		};
 	},
 	
 	isBlackKey: function(name){
@@ -225,7 +267,6 @@ LitroKeyboard.prototype = {
 	{
 		if(this.octaveLevel < this.litroSound.OCTAVE_MAX){
 			this.octaveLevel++;
-			console.log(this.octaveLevel);
 		}
 	},
 	
@@ -233,7 +274,6 @@ LitroKeyboard.prototype = {
 	{
 		if(this.octaveLevel > 0){
 			this.octaveLevel--;
-			console.log(this.octaveLevel);
 		}
 	},
 	
@@ -259,6 +299,16 @@ LitroKeyboard.prototype = {
 		return -1;
 	},
 	
+	indexAtWhite: function(chr)
+	{
+		return this.iWHITE_KEYS[chr] != null ? this.iWHITE_KEYS[chr] : -1;
+	},
+		
+	indexAtBlack: function(chr)
+	{
+		return this.iBLACK_KEYS[chr] != null ? this.iBLACK_KEYS[chr] : -1;
+	},
+		
 	appendOctaveEvent: function(e)
 	{
 		this.octaveEvent = e;
@@ -272,6 +322,98 @@ LitroKeyboard.prototype = {
 		this.offkeyEvent = e;
 	},
 	
+	openFrame: function()
+	{
+		var i, j
+			, noteRollLeft = [1, 0, 2, 1]
+			, noteRollRight = [3, 0, 2, 1]
+			, eventRollLeft = [7, 0, 2, 1]
+			, eventRollRight = [7, 0, 2, 1]
+			, noteFaceLine = [5, 0, 1, 1]
+			, noteFaceSpace = [6, 0, 1, 1]
+			, eventFaceLine = [9, 0, 1, 1]
+			, eventFaceSpace = [9, 0, 1, 1]
+			, leftFrame = [0, 1, 1, 8]
+			, rightFrame = [7, 1, 2, 8]
+			, topFrameLeft = [1, 1, 2, 2]
+			, topFrameCenter_1 = [3, 1, 1, 2]
+			, topFrameCenter_2 = [4, 1, 1, 2]
+			, topFrameRight = [5, 1, 2, 2]
+			, boardFrameLeft_1 = [1, 5, 1, 4]
+			, boardFrameCenter_1 = [2, 5, 1, 4]
+			, boardFrameRight_1 = [3, 5, 1, 4]
+			, boardFrameLeft_2 = [4, 5, 1,4]
+			, boardFrameCenter_2 = [5, 5, 1, 4]
+			, boardFrameRight_2 = [6, 5, 1, 4]
+		;
+		//上半分
+		this.drawFrameLine(eventRollLeft, 0, 0, 1, 1);
+		this.drawFrameLine(noteRollLeft, 0, 1, 1, 6);
+		this.drawFrameLine(eventFaceLine, 2, 0, 16, 1);
+		this.drawFrameLine(noteFaceLine, 2, 1, 16, 2);
+		this.drawFrameLine(noteFaceSpace, 2, 3, 16, 1);
+		this.drawFrameLine(noteFaceLine, 2, 4, 16, 3);
+		this.drawFrameLine(eventRollRight, 18, 0, 1, 1);
+		this.drawFrameLine(noteRollRight, 18, 1, 1, 6);
+		this.drawFrameLine(noteRollRight, 18, 1, 1, 6);
+		
+		//下半分
+		this.drawFrameLine(leftFrame, 0, 7, 1, 1);
+		this.drawFrameLine(rightFrame, 18, 7, 1, 1);
+		this.drawFrameLine(topFrameLeft, 1, 7, 1, 1);
+		this.drawFrameLine(topFrameRight, 16, 7, 1, 1);
+		this.drawFrameLine(topFrameCenter_2, 3, 7, 2, 1);
+		this.drawFrameLine(topFrameCenter_1, 5, 7, 6, 1);
+		this.drawFrameLine(topFrameCenter_2, 11, 7, 2, 1);
+		this.drawFrameLine(topFrameCenter_1, 13, 7, 1, 1);
+		this.drawFrameLine(topFrameCenter_2, 14, 7, 1, 1);
+		this.drawFrameLine(topFrameCenter_1, 15, 7, 1, 1);
+		
+		//鍵盤
+		this.drawFrameLine(boardFrameLeft_1, 1, 11, 1, 1);
+		this.drawFrameLine(boardFrameCenter_1, 2, 11, 1, 1);
+		this.drawFrameLine(boardFrameRight_2, 3, 11, 1, 1);
+		
+		this.drawFrameLine(boardFrameLeft_2, 4, 11, 1, 1);
+		this.drawFrameLine(boardFrameCenter_1, 5, 11, 1, 1);
+		this.drawFrameLine(boardFrameCenter_1, 6, 11, 1, 1);
+		this.drawFrameLine(boardFrameRight_1, 7, 11, 1, 1);
+		
+		this.drawFrameLine(boardFrameLeft_1, 8, 11, 1, 1);
+		this.drawFrameLine(boardFrameCenter_1, 9, 11, 1, 1);
+		this.drawFrameLine(boardFrameRight_1, 10, 11, 1, 1);
+		
+		this.drawFrameLine(boardFrameLeft_2, 11, 11, 1, 1);
+		this.drawFrameLine(boardFrameCenter_2, 12, 11, 1, 1);
+		this.drawFrameLine(boardFrameCenter_1, 13, 11, 1, 1);
+		this.drawFrameLine(boardFrameRight_2, 14, 11, 1, 1);
+		
+		this.drawFrameLine(boardFrameLeft_1, 15, 11, 1, 1);
+		this.drawFrameLine(boardFrameCenter_1, 16, 11, 1, 1);
+		this.drawFrameLine(boardFrameRight_1, 17, 11, 1, 1);
+		
+		// scrollByName('bg1').spriteLine({x:50, y:20},{x:50, y:0}, this.waveSprite);
+
+	},
+	
+	drawFrameLine: function(frameline, cx, cy, rep_x, rep_y, size)
+	{
+		var x, y, sHeight, sWidth
+			, scr = scrollByName('bg1')
+			, sprite = makeSpriteChunk(this.uiImageName, makeRect(frameline))
+		;
+		size = size == null ? CHIPCELL_SIZE : size;
+		rep_y = (rep_y == null ? 1 : rep_y);
+		rep_x = (rep_x == null ? 1 : rep_x);
+		for(y = 0; y < rep_y; y++){
+			sHeight = sprite.length;
+			for(x = 0; x < rep_x; x++){
+				sWidth = sprite[0].length;
+				scr.drawSpriteChunk(sprite, ((x * sWidth) + cx) * size, ((y * sHeight) + cy) * size);
+			}
+		}
+	},
+	
 	drawWave: function()
 	{
 		var channel = this.litroSound.channel
@@ -281,10 +423,13 @@ LitroKeyboard.prototype = {
 			, pre_y
 			, from, to
 			, spr = scrollByName('sprite')
+			, sprite = this.waveSprite
 			, chOscWidth = 100
-			, chOscHeight = 50
+			, chOscHeight = cellhto(6) - 2
 			, chOscHeight_h = (chOscHeight / 2) | 0
-			,ofsy = 20
+			,ofsx = cellhto(4)
+			,ofsy = cellhto(17)
+			;
 		;
 		
 
@@ -293,10 +438,10 @@ LitroKeyboard.prototype = {
 			data = channel[c].data;
 			for(px = 0; px < chOscWidth; px++){
 				i = (px * (data.length / chOscWidth)) | 0;
-				py = ((-data[i] * (chOscHeight / ltkb.litroSound.WAVE_VOLUME_RESOLUTION)) + chOscHeight_h + ofsy) | 0;
-				from = {x: px, y: py};
-				to = {x: px + 1, y: pre_y == null ? py + 1 : pre_y + 1};
-				spr.line(from, to, COLOR_FONT12);
+				py = ((-data[i] * (chOscHeight / ltkb.litroSound.WAVE_VOLUME_RESOLUTION)) + chOscHeight_h) | 0;
+				from = {x: px + ofsx, y: py + ofsy};
+				to = {x: px + ofsx, y: pre_y == null ? py + ofsy : pre_y + ofsy};
+				spr.spriteLine(from, to, sprite);
 				
 				pre_y = py;
 				// console.log(py);
@@ -310,15 +455,49 @@ LitroKeyboard.prototype = {
 		data = ltkb.litroSound.outputBuffer;
 		for(px = 0; px < chOscWidth; px++){
 				i = (px * (data.length / chOscWidth)) | 0;
-				py = (-data[i] * chOscHeight) + chOscHeight_h + ofsy + chOscHeight + ofsy;
-				from = {x: px, y: py};
-				to = {x: px + 1, y: pre_y == null ? py + 1 : pre_y + 1};
-				spr.line(from, to, COLOR_FONT12);
+				py = (-data[i] * chOscHeight) + chOscHeight_h;
+				from = {x: px + ofsx + chOscWidth + 24, y: py + ofsy};
+				to = {x: px + ofsx + chOscWidth + 24, y: pre_y == null ? py + ofsy : pre_y + ofsy};
+				spr.spriteLine(from, to, sprite);
 				
 				pre_y = py;
 			
 		}
 		// console.log(data.length);
+	},
+	
+	drawOnkey: function()
+	{
+		var i
+			, cm_w = this.whiteKeysCmargin
+			, cm_b = this.blackKeysCmargin
+			, spritekeys = this.noteKeysSpriteKeys
+			, wSprite = this.whiteKeysSprite
+			, bSprite = this.blackKeysSprite
+			, sprite = null
+			, scr = scrollByName('sprite')
+			, chr
+			, keyIndex
+			;
+			
+		for(i = 0; i < this.status_on.length; i++){
+			chr = this.status_on[i];
+			if(chr == null){
+				continue;
+			}
+			if(this.isBlackKey(chr)){
+				keyIndex = this.indexAtBlack(chr);
+				sprite = this.blackKeysSprite[spritekeys[chr]];
+				scr.drawSpriteChunk(sprite, cellhto(cm_b.x + ((this.BLACK_KEY_SKIP[chr] + keyIndex) * 2)), cellhto(cm_b.y));
+			}else{
+				keyIndex = this.indexAtWhite(chr);
+				sprite = this.whiteKeysSprite[spritekeys[chr]];
+				// console.log(spritekeys);
+				scr.drawSpriteChunk(sprite, cellhto(cm_w.x + (keyIndex * 2)), cellhto(cm_w.y));
+			}
+			
+			
+		}
 	},
 	
 	test: function(){
@@ -374,8 +553,12 @@ function drawLitroScreen()
 	, view = scrollByName('view')
 	, scr = scrollByName('screen')
 	;
-	// console.log(1);
+	
+	if(ltkb.imageLoaded === false){
+		return;
+	}
 	ltkb.drawWave();
+	ltkb.drawOnkey();
 	bg1.drawto(view);
 	spr.drawto(view);
 	spr.clear();

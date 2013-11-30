@@ -164,16 +164,3 @@ function makeTestKeyboard()
 	// }
 	
 };
-// function makeTestKeyboard()
-// {
-	// var i, j, element, d
-		// ,e = $(".boardFrame");
-	// for(i = 0; i < KEY_FREQUENCY.length; i++){
-		// d = $('<div class="octaveRow"></div>');
-		// for(j = 0; j < KEY_FREQUENCY[i].length; j++){
-			// element = $('<button type="button" class="notekey" value="' + KEY_FREQUENCY[i][j] + '" >' + KEY_NAME[j] + '</button>');
-			// d.append(element);
-		// }
-		// e.append(d);
-	// }
-// };
