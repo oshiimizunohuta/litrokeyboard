@@ -7,7 +7,7 @@ $(function() {
 	window.requestAnimationFrame = requestAnimationFrame;
 	
 	litroAudio = new LitroSound();
-	litroAudio.init(SAMPLE_RATE, 10, BUFFER_FRAMES);
+	litroAudio.init(SAMPLE_RATE, CHANNELS, BUFFER_FRAMES);
 	
 	ltkb = new LitroKeyboard();
 	ltkb.init(litroAudio);

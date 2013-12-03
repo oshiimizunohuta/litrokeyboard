@@ -12,6 +12,9 @@ var CHIPCELL_SIZE = 16;
 var layerScroll = null;
 var COLOR_NOTEPRINT = [0, 168, 0, 255];
 var COLOR_NOTEFACE = [184, 248, 184, 255];
+var COLOR_NOTEPRINT = [0, 168, 0, 255];
+var COLOR_PARAMKEY = [188, 188, 188, 255];
+var COLOR_ARRAY = [[248, 120, 88, 255], [252, 168, 68, 255], [248, 184, 0, 255], [88, 216, 84, 255], [60, 188, 252, 255], [152, 120, 248, 255], [248, 120, 248, 255], [248, 88, 152, 255], ];
 
 function LitroKeyboard() {
 	this.CODE_NAME = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -65,6 +68,28 @@ function LitroKeyboard() {
 	this.whiteKeysCmargin = {x: 2, y: 24};
 	this.blackKeysCmargin = {x: 3, y: 24};
 	
+	this.paramKeys = ['VOLUME', 'TYPE', 'LENGTH', 'DELAY', 'SWEEP', 'ATTACK', 'DECAY', 'SUSTAIN', 'RELEASE' ];
+	this.paramKeysStrLen = 5;
+	this.paramPage = 0;
+	this.paramLimit = 6;
+	
+	this.ltSoundChParamKeys = {
+		'VOLUME': 'volumeLevel',
+		'TYPE': 'waveType',
+		'LENGTH': 'length' ,
+		'DELAY': 'delay',
+		'SWEEP': 'sweep',
+		'ATTACK': 'attack',
+		'DECAY': 'decay',
+		'SUSTAIN': 'sustain',
+		'RELEASE': 'release',
+	};
+	
+	this.corsolKeys = ['up', 'down', 'left', 'right'];
+	
+	this.paramCursor = {x: 0, y: 0};
+	
+	
 	this.word = null;
 	return;
 }
@@ -110,6 +135,10 @@ LitroKeyboard.prototype = {
 			blackCount -= 2;
 			whiteCount -= 3;
 		}
+		
+		//基本キー
+		this.keyControll.initDefaultKey('right');
+		
 		//オクターブ設定
 		for(i in this.OCTAVE_KEYCODE){ 
 			code = this.OCTAVE_KEYCODE[i];
@@ -338,6 +367,22 @@ LitroKeyboard.prototype = {
 		this.offkeyEvent = e;
 	},
 	
+	moveParamCursor: function(dir)
+	{
+		var cur = this.paramCursor
+			, chLength = this.litroSound.channel.length;
+		;
+		this.drawParamCursor(cur.x, cur.y, true);
+		switch(dir){
+			case 'up': cur.y = (cur.y + this.paramLimit - 1) % this.paramLimit; break;
+			case 'down': cur.y = (cur.y + 1) % this.paramLimit; break;
+			case 'left': cur.x = (cur.x + chLength - 1) % chLength; break;
+			case 'right': cur.x = (cur.x + 1) % chLength; break;
+		}
+		
+		this.drawParamCursor(cur.x, cur.y, false);
+	},
+	
 	openFrame: function()
 	{
 		var i, j
@@ -421,8 +466,85 @@ LitroKeyboard.prototype = {
 		this.drawOctaveMeter(this.octaveLevel);
 		
 		this.drawChannelTab_on();
+		
+		this.drawParamKeys();
+		
+		this.drawChannelParams();
+		
+		this.drawParamCursor();
 		// scrollByName('bg1').spriteLine({x:50, y:20},{x:50, y:0}, this.waveSprite);
 
+	},
+	
+	drawParamCursor: function(x, y, unselect)
+	{
+		var keyCm = {x:3, y: 17}
+			, paramCm = {x:8, y: 17}
+			, word = this.word
+			, cur = this.paramCursor
+			, key = this.paramKeys[cur.y]
+			, color
+			, bgcolor
+			, param = this.litroSound.getChannel(cur.x, this.ltSoundChParamKeys[key]) + ''
+			;
+			x = x == null ? 0 : x;
+			y = y == null ? 0 : y;
+			word.setScroll(scrollByName('bg1'));
+			unselect = unselect == null ? false : unselect;
+			color = unselect ? COLOR_PARAMKEY : COLOR_BLACK;
+			bgcolor = unselect ? COLOR_BLACK : COLOR_PARAMKEY;
+			
+			word.print(key.substr(0, this.paramKeysStrLen), cellhto(keyCm.x), cellhto(keyCm.y + cur.y), color, bgcolor);
+			
+			color = unselect ? COLOR_ARRAY[cur.x] : COLOR_BLACK;
+			bgcolor = unselect ? COLOR_BLACK : COLOR_ARRAY[cur.x];
+			word.print(formatNum(param.toString(16), 2), cellhto(paramCm.x + (cur.x * 2)), cellhto(paramCm.y + cur.y), color, bgcolor);
+			
+	},
+	
+	drawParamKeys: function(page, limit)
+	{
+		page = page == null ? this.paramPage : page;
+		limit = limit == null ? this.paramLimit : limit;
+		var i
+			, keys = this.paramKeys
+			// , scr = scrollByName('bg1')
+			, word = this.word
+			, mc = {x:3, y: 17}
+			;
+		word.setScroll(scrollByName('bg1'));
+		
+		for(i = 0; i < limit; i++){
+			word.print(keys[i + (limit * page)], cellhto(mc.x), cellhto(mc.y + i), COLOR_PARAMKEY, COLOR_BLACK);
+		}
+	},
+	
+	drawChannelParams: function(page, limit)
+	{
+		page = page == null ? this.paramPage : page;
+		limit = limit == null ? this.paramLimit : limit;
+		var i
+			, keys = this.paramKeys
+			// , scr = scrollByName('bg1')
+			, word = this.word
+			, mc = {x:8, y: 17}
+			, key
+			, color
+			, chLength = 8
+			, numLength = 2
+			, num
+			;
+		word.setScroll(scrollByName('bg1'));
+		
+		for(i = 0; i < limit; i++){
+			for(j = 0; j < chLength; j++){
+				key = this.ltSoundChParamKeys[keys[i + (limit * page)]];
+				color = COLOR_ARRAY[j];
+				num = (this.litroSound.getChannel(j, key) | 0).toString(16);
+				word.print(formatNum(num, 2), cellhto(mc.x + (j * numLength)), cellhto(mc.y + i), color, COLOR_BLACK);
+			}
+		}
+		
 	},
 	
 	drawOctaveMeter: function(level)
@@ -598,7 +720,7 @@ LitroKeyboard.prototype = {
 		}
 	},
 	
-	test: function(){
+	keycheck: function(){
 		var trigs, untrigs, row, chars, name, cont = this.keyControll
 		;
 		chars = this.ROW_CHARS;
@@ -635,12 +757,27 @@ LitroKeyboard.prototype = {
 				}
 			}
 		}
+		
+		trigs = cont.getTrig(this.corsolKeys);
+		for(key in trigs){
+			if(trigs[key]){
+				this.moveParamCursor(key);
+			}
+		}
 
 
 	}
 	
 
 };
+
+function formatNum(num, keta)
+{
+	var src = num + ''
+		, cnt = keta - src.length;
+	if (cnt <= 0) return src;
+	while (cnt-- > 0) src = "0" + src; return src;
+}
 
 function drawLitroScreen()
 {
@@ -675,7 +812,8 @@ function litroKeyboardMain()
 	var i
 	, ltkb = LitroKeyboardInstance
 	;
-	ltkb.test();
+	// ltkb.test();
+	ltkb.keycheck();
 	drawLitroScreen();
 };
 

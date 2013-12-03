@@ -11,7 +11,7 @@ var PROCESS_BUFFER_SIZE = 1024;
 // var CHANNEL_BUFFER_SIZE = 48000;
 var BUFFER_FRAMES = 60;
 // var BUFFERS = 2;
-var CHANNELS = 4;
+var CHANNELS = 8;
 var litroAudio = null;
 var VOLUME_TEST = 0.2;
 var LitroSoundGlobal = null;
@@ -40,7 +40,7 @@ function LitroSound() {
 
 LitroSound.prototype = {
 	init : function(sampleRate, channelNum, bufferFrame) {
-		this.channel = [];
+		this.channel = [];console.log(channelNum)
 		this.channel.length = channelNum;
 		this.bufferFrame = bufferFrame;
 		this.frameRate = 60;
@@ -116,7 +116,8 @@ LitroSound.prototype = {
 	
 	setWaveType: function(channelNum, type)
 	{
-		this.channel[channelNum].waveType = type;
+		// this.channel[channelNum].waveType = type;
+		this.setChannel(channelNum, 'waveType', type);
 		this.refreshWave(channelNum);
 	},
 	
@@ -129,6 +130,16 @@ LitroSound.prototype = {
 		this.channel[channel].waveLength = pulseLength;
 		
 		this.refreshWave(channel);
+	},
+	
+	getChannel: function(ch, key)
+	{
+		return this.channel[ch].tuneParams[key];
+	},
+	
+	setChannel: function(ch, key, value)
+	{
+		return this.channel[ch].tuneParams[key] = value;
 	},
 	
 	refreshWave: function (channelNum)
@@ -148,15 +159,8 @@ LitroSound.prototype = {
 			// this.channel[0].waveLength = 0;
 			return;
 		}
-		// for(i = 0; i < pulseLength; i++){
-			// if(i < 50){
-				// data[i] = (this.WAVE_VOLUME_RESOLUTION / 2) | 0;
-			// }else{
-				// data[i] = -(this.WAVE_VOLUME_RESOLUTION / 2) | 0;
-			// }
-		// }
-		console.log(channel.waveType);
-		switch(channel.waveType){
+
+		switch(this.getChannel(channelNum, 'waveType')){
 			case 0: pulseWave(channel, 1, 1); break;
 			case 1: pulseWave(channel, 1, 2); break;
 			case 2: pulseWave(channel, 1, 3); break;
@@ -249,9 +253,21 @@ AudioChannel.prototype = {
 		this.waveLength = 0;
 		this.waveClockPosition = 0;
 		this.data = this.allocBuffer(datasize);
-		this.waveType = 0;
+		// this.waveType = 0;
 		this.frequency = 1;
 		this.WAVE_VOLUME_RESOLUTION = resolution;
+		
+		this.tuneParams = {
+			volumeLevel:10,
+			waveType:0,
+			length:10,
+			delay:0,
+			sweep:0,
+			attack:16,
+			decay:12,
+			sustain:6,
+			release:4,
+		};
 	},
 	
 	allocBuffer: function(datasize){
