@@ -40,7 +40,7 @@ function LitroSound() {
 
 LitroSound.prototype = {
 	init : function(sampleRate, channelNum, bufferFrame) {
-		this.channel = [];console.log(channelNum)
+		this.channel = [];
 		this.channel.length = channelNum;
 		this.bufferFrame = bufferFrame;
 		this.frameRate = 60;
@@ -51,7 +51,7 @@ LitroSound.prototype = {
 		this.OCTAVE_MAX = 7;
 		LitroSoundGlobal = this;
 		this.masterVolume = VOLUME_TEST;
-		this.WAVE_VOLUME_RESOLUTION = 16; //波形データのボリューム分解能
+		this.WAVE_VOLUME_RESOLUTION = 15; //波形データのボリューム分解能
 		this.outputBuffer = [];
 		this.isFirefox = (navigator.userAgent.toLowerCase().indexOf('firefox') > -1) ? true : false;
 
@@ -139,7 +139,13 @@ LitroSound.prototype = {
 	
 	setChannel: function(ch, key, value)
 	{
-		return this.channel[ch].tuneParams[key] = value;
+		ch = this.channel[ch];
+		if(value > ch.tuneParamsMax[key]){
+			value = ch.tuneParamsMin[key];
+		}else if(value < ch.tuneParamsMin[key]){
+			value = ch.tuneParamsMax[key];
+		}
+		return ch.tuneParams[key] = value;
 	},
 	
 	refreshWave: function (channelNum)
@@ -154,7 +160,8 @@ LitroSound.prototype = {
 		
 		if(freq == 0){
 			for(i = 0; i < data.length; i++){
-				data[i] = 0.0000000001;
+				// data[i] = 0.0000000001;
+				data[i] = 0.0;
 			}
 			// this.channel[0].waveLength = 0;
 			return;
@@ -163,7 +170,7 @@ LitroSound.prototype = {
 		switch(this.getChannel(channelNum, 'waveType')){
 			case 0: pulseWave(channel, 1, 1); break;
 			case 1: pulseWave(channel, 1, 2); break;
-			case 2: pulseWave(channel, 1, 3); break;
+			case 2: pulseWave(channel, 1, 4); break;
 			case 3: pulseWave(channel, 1, 2); break;
 		}
 
@@ -200,41 +207,6 @@ LitroSound.prototype = {
 		this.channel[channel].bufferSource.stop(0);
 	},
 	
-	changeWave: function(){
-		// console.log(this.channel);
-		var i, data = this.channel[0].buffer.getChannelData(0);
-		if(this.mode == 0){
-			for ( i = 0; i < data.length; i++) {
-				if ((i % 100) < 50) {
-					data[i] = 0.02;
-				} else {
-					data[i] = -0.02;
-				}
-			}
-		}else if(this.mode == 1){
-			for ( i = 0; i < data.length; i++) {
-				if ((i % 100) < 30) {
-					data[i] = 0.02;
-				} else {
-					data[i] = -0.02;
-				}
-			}
-		}else if(this.mode == 2){
-			for ( i = 0; i < data.length; i++) {
-				if ((i % 100) < 20) {
-					data[i] = 0.02;
-				} else {
-					data[i] = -0.02;
-				}
-			}
-		}else{
-			for ( i = 0; i < data.length; i++) {
-				data[i] = 0.00;
-			}
-			
-		}
-	},
-
 	//	console.log(data);
 	startBuffer : function() {
 	},
@@ -268,6 +240,28 @@ AudioChannel.prototype = {
 			sustain:6,
 			release:4,
 		};
+		this.tuneParamsMax = {
+			volumeLevel:15,
+			waveType:3,
+			length:255,
+			delay:32,
+			sweep:32,
+			attack:64,
+			decay:64,
+			sustain:15,
+			release:64,
+		};
+		this.tuneParamsMin = {
+			volumeLevel:0,
+			waveType:0,
+			length:0,
+			delay:0,
+			sweep:-32,
+			attack:0,
+			decay:0,
+			sustain:0,
+			release:0,
+		};
 	},
 	
 	allocBuffer: function(datasize){
@@ -296,13 +290,16 @@ function pulseWave(channel, widthRate_l, widthRate_r)
 	var i
 		, half
 		, switchPos
+		, vol = (channel.WAVE_VOLUME_RESOLUTION * (channel.tuneParams.volumeLevel / channel.WAVE_VOLUME_RESOLUTION)) / 2;
 		;
+		
+	// if(vol == 0){return;}
 	switchPos = ((channel.waveLength / (widthRate_l + widthRate_r)) * widthRate_l) | 0;
 	for(i = 0; i < channel.waveLength; i++){
 		if(i < switchPos){
-			channel.data[i] = (channel.WAVE_VOLUME_RESOLUTION / 2) | 0;
+			channel.data[i] = vol;
 		}else{
-			channel.data[i] = -(channel.WAVE_VOLUME_RESOLUTION / 2) | 0;
+			channel.data[i] = -vol;
 		}
 	}
 
@@ -320,7 +317,10 @@ var change = function(){
 //call at 60fps
 function litroSoundMain()
 {
-	
+	var ch;
+	for(ch = 0; ch < CHANNELS; ch++){
+		LitroSoundGlobal.refreshWave(ch);
+	}
 };
 
 

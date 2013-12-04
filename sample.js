@@ -17,7 +17,7 @@ $(function() {
 	ltkb.appendOctaveEvent(octaveChange);
 	octaveChange();
 	
-	makeTestKeyboard();
+	// makeTestKeyboard();
 	
 	$('.waveTypeFrame button').mousedown(waveSwitchEvent);
 	

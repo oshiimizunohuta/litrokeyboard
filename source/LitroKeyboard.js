@@ -24,9 +24,10 @@ function LitroKeyboard() {
 	this.CHARS_CODE_NAME = {};
 	this.ROW_CHARS = {
 		top:['q', '2', 'w', '3', 'e', 'r', '5', 't', '6', 'y', '7', 'u', 'i', '9', 'o', '0', 'p', ],
-		bottom:['z', 's', 'x', 'd', 'c', 'v', 'g', 'b', 'h', 'n', 'j', 'm', ',', 'l', '.', ';', '/', ],
-		// bottom:['z', 's', 'x', 'd', 'c', 'f', 'v', 'b', 'h', 'n', 'j', 'm', ',', 'l', '.', ';', '/', ':', '\\',  ],
+		bottom:[],
 	};
+	this.ROW_CHARS_BOTTOM_OV = ['z', 's', 'x', 'd', 'c', 'v', 'g', 'b', 'h', 'n', 'j', 'm', ',', 'l', '.', ';', '/', ];
+	this.ROW_CHARS_BOTTOM_ST = ['z', 's', 'x', 'd', 'c', 'f', 'v', 'b', 'h', 'n', 'j', 'm',];
 	
 	this.OCTAVE_KEYCODE = {
 		'-' : 189, '^' : 222,
@@ -40,14 +41,22 @@ function LitroKeyboard() {
 	};
 	this.ROW_KEYCODE = {
 		top:[81, 50, 87, 51, 69, 82, 53, 84, 54, 89, 55, 85, 73, 57, 79, 48, 80],
-		bottom:[90, 83, 88, 68, 67, 86, 71, 66, 72, 78, 74, 77, 188, 76, 190, 187, 191],
-		// bottom:[90, 83, 88, 68, 67, 86, 71, 66, 72, 78, 77, 75, 188, 76, 190, 187, 191, 186, 226],
+		bottom:[],
 	};
-	this.BLACK_KEY = {'2':0, '3':0, '5':0, '6':0, '7':0, '9':0, '0':0, 's':0, 'd':0, 'g':0, 'h':0, 'j':0, 'l':0, ';':0, ':': 0};
+	this.ROW_KEYCODE_BOTTOM_OV = [90, 83, 88, 68, 67, 86, 71, 66, 72, 78, 74, 77, 188, 76, 190, 187, 191];
+	this.ROW_KEYCODE_BOTTOM_ST = [90, 83, 88, 68, 67, 70, 86, 66, 72, 78, 74, 77, ];
+	this.keyBottomType = 'straight';
+	// this.keyBottomType = 'overlap';
+	
+	//初期化でcharが入る
+	this.BLACK_KEY = {};
+	this.BLACK_KEY_OV = {'2':0, '3':0, '5':0, '6':0, '7':0, '9':0, '0':0, 's':0, 'd':0, 'g':0, 'h':0, 'j':0, 'l':0, ';':0, ':': 0};
+	this.BLACK_KEY_ST = {'2':0, '3':0, '5':0, '6':0, '7':0, '9':0, '0':0, 's':0, 'd':0, 'f':0, 'h':0, 'j':0};
 	this.iWHITE_KEYS = [];
 	this.iBLACK_KEYS = [];
-	this.BLACK_KEY_SKIP = {'2': 0, '3': 0, '5': 1, '6': 1, '7': 1, '9': 2, '0': 2, 's': 2, 'd': 2, 'g': 3, 'h': 3, 'j': 3, 'l': 4, ';': 4,};
-	// this.BLACK_KEY = {'2':0, '3':0, '5':0, '6':0, '7':0, '9':0, '0':0, 's':0, 'd':0, 'f':0, 'h':0, 'j':0, 'l':0, ';':0, ':': 0};
+	this.BLACK_KEY_SKIP = {};
+	this.BLACK_KEY_SKIP_OV = {'2': 0, '3': 0, '5': 1, '6': 1, '7': 1, '9': 2, '0': 2, 's': 2, 'd': 2, 'g': 3, 'h': 3, 'j': 3, 'l': 4, ';': 4,};
+	this.BLACK_KEY_SKIP_ST = {'2': 0, '3': 0, '5': 1, '6': 1, '7': 1, '9': 2, '0': 2, 's': 3, 'd': 3, 'f': 3, 'h': 4, 'j': 4};
 	this.octaveLevel = 2;
 	this.fingers = 6;
 	this.status_on = []; //set chars
@@ -61,8 +70,12 @@ function LitroKeyboard() {
 	
 	this.octaveSeparateCount = [12, 17, 5];
 	
-	this.noteKeysSpriteKeys = {'q': 0, '2': 0 , 'w': 1, '3': 0, 'e': 5, 'r': 3, '5': 0, 't': 1, '6': 0, 'y': 1, '7': 0, 'u': 2, 'i': 0, '9': 0, 'o': 1, '0': 0, 'p': 2
+	this.noteKeysSpriteKeys = {};
+	this.noteKeysSpriteKeys_ov = {'q': 0, '2': 0 , 'w': 1, '3': 0, 'e': 5, 'r': 3, '5': 0, 't': 1, '6': 0, 'y': 1, '7': 0, 'u': 2, 'i': 0, '9': 0, 'o': 1, '0': 0, 'p': 2
 											, 'z': 0, 's': 0, 'x': 1, 'd': 0, 'c': 2, 'v': 3, 'g': 0, 'b': 4, 'h': 0, 'n': 1, 'j': 0, 'm': 5, ',': 0, 'l': 0, '.': 1, ';': 0, '/': 2,};
+	this.noteKeysSpriteKeys_st = {'q': 0, '2': 0 , 'w': 1, '3': 0, 'e': 5, 'r': 3, '5': 0, 't': 1, '6': 0, 'y': 1, '7': 0, 'u': 2, 'i': 0, '9': 0, 'o': 1, '0': 0, 'p': 2
+											, 'z': 3, 's': 0, 'x': 4, 'd': 0, 'c': 1, 'f': 0,'v': 5, 'b': 0, 'h': 0, 'n': 1, 'j': 0, 'm': 2,};
+											
 	this.whiteKeysSprite = [[9, 7, 1, 2], [10, 7, 1, 2], [11, 7, 1, 2], [12, 7, 1, 2], [13, 7, 1, 2], [14, 7, 1, 2], ];
 	this.blackKeysSprite = [[9, 5, 1, 2], ];
 	this.whiteKeysCmargin = {x: 2, y: 24};
@@ -86,6 +99,7 @@ function LitroKeyboard() {
 	};
 	
 	this.corsolKeys = ['up', 'down', 'left', 'right'];
+	this.baseKeys = ['<', '>', 'select', 'space'];
 	
 	this.paramCursor = {x: 0, y: 0};
 	
@@ -103,6 +117,24 @@ LitroKeyboard.prototype = {
 		this.litroSound = litrosoundInstance;
 		LitroKeyboardInstance = this;
 		this.keyControll = new KeyControll();
+		
+		//基本キー
+		this.keyControll.initCommonKey();
+		
+		
+		if(this.keyBottomType == 'straight'){
+			this.ROW_KEYCODE.bottom = this.ROW_KEYCODE_BOTTOM_ST;
+			this.BLACK_KEY = this.BLACK_KEY_ST;
+			this.BLACK_KEY_SKIP = this.BLACK_KEY_SKIP_ST;
+			this.ROW_CHARS.bottom = this.ROW_CHARS_BOTTOM_ST;
+			this.noteKeysSpriteKeys = this.noteKeysSpriteKeys_st;
+		}else{
+			this.ROW_KEYCODE.bottom = this.ROW_KEYCODE_BOTTOM_OV;
+			this.BLACK_KEY = this.BLACK_KEY_OV;
+			this.BLACK_KEY_SKIP = this.BLACK_KEY_SKIP_OV;
+			this.ROW_CHARS.bottom = this.ROW_CHARS_BOTTOM_OV;
+			this.noteKeysSpriteKeys = this.noteKeysSpriteKeys_ov;
+		}
 		
 		//キーボード設定
 		for(row in this.ROW_CHARS){
@@ -132,12 +164,11 @@ LitroKeyboard.prototype = {
 				}
 			}
 			//重複分戻すキー
-			blackCount -= 2;
-			whiteCount -= 3;
+			if(this.keyBottomType == 'overlap'){
+				blackCount -= 2;
+				whiteCount -= 3;
+			}
 		}
-		
-		//基本キー
-		this.keyControll.initDefaultKey('right');
 		
 		//オクターブ設定
 		for(i in this.OCTAVE_KEYCODE){ 
@@ -383,6 +414,19 @@ LitroKeyboard.prototype = {
 		this.drawParamCursor(cur.x, cur.y, false);
 	},
 	
+	baseKeyOn: function(key)
+	{
+		var cur = this.paramCursor
+			, param = this.ltSoundChParamKeys[this.paramKeys[cur.y]];
+		;
+		if(key == '<'){
+			this.litroSound.setChannel(cur.x, param, this.litroSound.getChannel(cur.x, param) - 1);
+		}else if(key == '>'){
+			this.litroSound.setChannel(cur.x, param, this.litroSound.getChannel(cur.x, param) + 1);
+		}
+		this.drawParamCursor(cur.x, cur.y, false);
+	},
+	
 	openFrame: function()
 	{
 		var i, j
@@ -485,7 +529,7 @@ LitroKeyboard.prototype = {
 			, key = this.paramKeys[cur.y]
 			, color
 			, bgcolor
-			, param = this.litroSound.getChannel(cur.x, this.ltSoundChParamKeys[key]) + ''
+			, param = this.litroSound.getChannel(cur.x, this.ltSoundChParamKeys[key]) | 0
 			;
 			x = x == null ? 0 : x;
 			y = y == null ? 0 : y;
@@ -495,7 +539,6 @@ LitroKeyboard.prototype = {
 			bgcolor = unselect ? COLOR_BLACK : COLOR_PARAMKEY;
 			
 			word.print(key.substr(0, this.paramKeysStrLen), cellhto(keyCm.x), cellhto(keyCm.y + cur.y), color, bgcolor);
-			
 			color = unselect ? COLOR_ARRAY[cur.x] : COLOR_BLACK;
 			bgcolor = unselect ? COLOR_BLACK : COLOR_ARRAY[cur.x];
 			word.print(formatNum(param.toString(16), 2), cellhto(paramCm.x + (cur.x * 2)), cellhto(paramCm.y + cur.y), color, bgcolor);
@@ -724,7 +767,7 @@ LitroKeyboard.prototype = {
 		var trigs, untrigs, row, chars, name, cont = this.keyControll
 		;
 		chars = this.ROW_CHARS;
-		
+		// console.log(chars);
 		for(row in chars){
 			trigs = cont.getTrig(chars[row]);
 			untrigs = cont.getUntrig(chars[row]);
@@ -762,6 +805,13 @@ LitroKeyboard.prototype = {
 		for(key in trigs){
 			if(trigs[key]){
 				this.moveParamCursor(key);
+			}
+		}
+		
+		trigs = cont.getTrig(this.baseKeys);
+		for(key in trigs){
+			if(trigs[key]){
+				this.baseKeyOn(key);
 			}
 		}
 
