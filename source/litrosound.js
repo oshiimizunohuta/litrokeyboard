@@ -118,7 +118,7 @@ LitroSound.prototype = {
 	{
 		// this.channel[channelNum].waveType = type;
 		this.setChannel(channelNum, 'waveType', type);
-		this.refreshWave(channelNum);
+		// this.refreshWave(channelNum);
 	},
 	
 	setFrequency: function(channel, freq)
@@ -129,7 +129,7 @@ LitroSound.prototype = {
 
 		this.channel[channel].waveLength = pulseLength;
 		
-		this.refreshWave(channel);
+		// this.refreshWave(channel);
 	},
 	
 	getChannel: function(ch, key)
@@ -174,6 +174,7 @@ LitroSound.prototype = {
 			case 3: pulseWave(channel, 1, 2); break;
 		}
 
+		channel.envelopeClock++;
 
 	},
 	
@@ -182,7 +183,9 @@ LitroSound.prototype = {
 		// console.log(codenum + ' ' + octave);
 		var freq = this.freqByOctaveCodeNum(octave, codenum);
 		// console.log(freq);
+		this.channel.envelopeClock = 0;
 		this.setFrequency(channel, freq);
+		this.channel[channel].resetEnvelope();
 	},
 	
 	offNoteFromCode: function(channel)
@@ -197,6 +200,9 @@ LitroSound.prototype = {
 			return;
 		}
 		this.setFrequency(channel, 0);
+		this.channel[channel].resetEnvelope();
+		this.channel.envelopeClock = 0;
+
 	},
 	
 	noteOn: function(channel){
@@ -224,21 +230,22 @@ AudioChannel.prototype = {
 		this.buffer = null;
 		this.waveLength = 0;
 		this.waveClockPosition = 0;
+		this.envelopeClock = 0;
 		this.data = this.allocBuffer(datasize);
 		// this.waveType = 0;
 		this.frequency = 1;
 		this.WAVE_VOLUME_RESOLUTION = resolution;
 		
 		this.tuneParams = {
-			volumeLevel:10,
+			volumeLevel:12,
 			waveType:0,
-			length:10,
+			length:80,
 			delay:0,
 			sweep:0,
-			attack:16,
-			decay:12,
-			sustain:6,
-			release:4,
+			attack:1,
+			decay:8,
+			sustain:10,
+			release:32,
 		};
 		this.tuneParamsMax = {
 			volumeLevel:15,
@@ -246,10 +253,10 @@ AudioChannel.prototype = {
 			length:255,
 			delay:32,
 			sweep:32,
-			attack:64,
+			attack:255,
 			decay:64,
 			sustain:15,
-			release:64,
+			release:255,
 		};
 		this.tuneParamsMin = {
 			volumeLevel:0,
@@ -262,6 +269,13 @@ AudioChannel.prototype = {
 			sustain:0,
 			release:0,
 		};
+		
+	},
+	
+	tune: function(name, param)
+	{
+		var p = this.tuneParams;
+		return p[name] = (param == null) ? p[name] : p[name] + param;
 	},
 	
 	allocBuffer: function(datasize){
@@ -273,26 +287,76 @@ AudioChannel.prototype = {
 		return data;
 	},
 	
+	resetEnvelope: function()
+	{
+		this.envelopeClock = 0;
+		// console.log(1);
+	},
+	
 	nextWave: function(){
 		if(this.waveLength == 0){
 			return 0;
 		}
 		var d = this.data[this.waveClockPosition];
 		this.waveClockPosition = (this.waveClockPosition + 1) % this.waveLength;
-		
+		// console.log(this.envelopeClock);
 		return d;
 	},
 	
 };
+function phase(channel)
+{
+	var clock = channel.envelopeClock
+	;
+	clock -= channel.tune('attack');
+	if(clock < 0){return 'a';}
 
+	clock -= channel.tune('decay');
+	if(clock < 0){return 'd';}
+
+	clock -= channel.tune('length') - channel.tune('attack') - channel.tune('decay') - channel.tune('release');
+	if(clock < 0){ return 's';}
+	return 'r';
+
+}
 function pulseWave(channel, widthRate_l, widthRate_r)
 {
 	var i
 		, half
 		, switchPos
-		, vol = (channel.WAVE_VOLUME_RESOLUTION * (channel.tuneParams.volumeLevel / channel.WAVE_VOLUME_RESOLUTION)) / 2;
+		, vLevel = channel.tune('volumeLevel')
+		, vol = (channel.WAVE_VOLUME_RESOLUTION * (vLevel / channel.WAVE_VOLUME_RESOLUTION)) / 2
+		, sLevel = channel.tune('sustain')
+		, svol = (channel.WAVE_VOLUME_RESOLUTION * (sLevel / channel.WAVE_VOLUME_RESOLUTION)) / 2
+		, dRelease = vLevel / (channel.tune('release') * 1000)
+		, clock = channel.envelopeClock
+		, d
 		;
 		
+	switch(phase(channel)){
+		case 'a': 
+			d = vol / channel.tune('attack');
+			vol = clock * d;
+			break;
+		case 'd': 
+			clock -= channel.tune('attack');
+			d = (vol - svol) / channel.tune('decay');
+			vol -= clock * d;
+			break;
+		case 's': 
+			clock -= channel.tune('attack') + channel.tune('decay');;
+			vol = svol;
+			break;
+		case 'r': 
+			clock -= channel.tune('length') - channel.tune('release') - ((channel.tune('attack') + channel.tune('decay')) );
+			d = (svol) / channel.tune('release');
+			vol = svol - (clock * d);
+			break;
+	}
+	
+	// console.log(fase(channel));
+	
+	if(vol < 0){vol = 0;}
 	// if(vol == 0){return;}
 	switchPos = ((channel.waveLength / (widthRate_l + widthRate_r)) * widthRate_l) | 0;
 	for(i = 0; i < channel.waveLength; i++){

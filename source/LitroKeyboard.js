@@ -84,7 +84,9 @@ function LitroKeyboard() {
 	this.paramKeys = ['VOLUME', 'TYPE', 'LENGTH', 'DELAY', 'SWEEP', 'ATTACK', 'DECAY', 'SUSTAIN', 'RELEASE' ];
 	this.paramKeysStrLen = 5;
 	this.paramPage = 0;
+	this.paramOffset = 0;
 	this.paramLimit = 6;
+	this.paramsScrollOffset = 0;
 	
 	this.ltSoundChParamKeys = {
 		'VOLUME': 'volumeLevel',
@@ -102,6 +104,7 @@ function LitroKeyboard() {
 	this.baseKeys = ['<', '>', 'select', 'space'];
 	
 	this.paramCursor = {x: 0, y: 0};
+	this.paramCursorCurrent = {x: 0, y: 0};
 	
 	
 	this.word = null;
@@ -401,22 +404,42 @@ LitroKeyboard.prototype = {
 	moveParamCursor: function(dir)
 	{
 		var cur = this.paramCursor
-			, chLength = this.litroSound.channel.length;
+			, curr = this.paramCursorCurrent
+			, limit = this.paramLimit
+			, offset = this.paramOffset
+			, chLength = this.litroSound.channel.length
+			, paramsLength = this.paramKeys.length
+			, currentLength = paramsLength - (limit - 1)
 		;
-		this.drawParamCursor(cur.x, cur.y, true);
+		// this.drawParamCursor(curr.x, curr.y, true);
+		
 		switch(dir){
-			case 'up': cur.y = (cur.y + this.paramLimit - 1) % this.paramLimit; break;
-			case 'down': cur.y = (cur.y + 1) % this.paramLimit; break;
+			case 'up': cur.y = (cur.y + paramsLength - 1) % paramsLength;
+							if(--curr.y < 0){
+								curr.y = offset == 0 ? limit - 1 : 0;
+								offset = (offset + currentLength - 1) % currentLength; //4
+							}
+							break;
+			case 'down': cur.y = (cur.y + 1) % paramsLength;
+							if(++curr.y > limit - 1){
+								curr.y = offset + limit - 1 >= paramsLength - 1 ? 0 : limit - 1;
+								offset = (offset + 1) % currentLength;
+							}
+							break;
 			case 'left': cur.x = (cur.x + chLength - 1) % chLength; break;
 			case 'right': cur.x = (cur.x + 1) % chLength; break;
 		}
+		this.paramOffset = offset;
 		
-		this.drawParamCursor(cur.x, cur.y, false);
+		this.drawParamKeys(offset, limit);
+		this.drawChannelParams(offset, limit);
+		this.drawParamCursor(curr.x, curr.y, false);
 	},
 	
 	baseKeyOn: function(key)
 	{
 		var cur = this.paramCursor
+			, curr = this.paramCursorCurrent
 			, param = this.ltSoundChParamKeys[this.paramKeys[cur.y]];
 		;
 		if(key == '<'){
@@ -424,7 +447,7 @@ LitroKeyboard.prototype = {
 		}else if(key == '>'){
 			this.litroSound.setChannel(cur.x, param, this.litroSound.getChannel(cur.x, param) + 1);
 		}
-		this.drawParamCursor(cur.x, cur.y, false);
+		this.drawParamCursor(curr.x, curr.y, false);
 	},
 	
 	openFrame: function()
@@ -526,6 +549,7 @@ LitroKeyboard.prototype = {
 			, paramCm = {x:8, y: 17}
 			, word = this.word
 			, cur = this.paramCursor
+			, curr = this.paramCursorCurrent
 			, key = this.paramKeys[cur.y]
 			, color
 			, bgcolor
@@ -533,38 +557,42 @@ LitroKeyboard.prototype = {
 			;
 			x = x == null ? 0 : x;
 			y = y == null ? 0 : y;
-			word.setScroll(scrollByName('bg1'));
+			word.setScroll(scrollByName('bg2'));
 			unselect = unselect == null ? false : unselect;
 			color = unselect ? COLOR_PARAMKEY : COLOR_BLACK;
 			bgcolor = unselect ? COLOR_BLACK : COLOR_PARAMKEY;
+			word.print(key.substr(0, this.paramKeysStrLen), cellhto(keyCm.x), cellhto(keyCm.y + curr.y), color, bgcolor);
 			
-			word.print(key.substr(0, this.paramKeysStrLen), cellhto(keyCm.x), cellhto(keyCm.y + cur.y), color, bgcolor);
 			color = unselect ? COLOR_ARRAY[cur.x] : COLOR_BLACK;
 			bgcolor = unselect ? COLOR_BLACK : COLOR_ARRAY[cur.x];
-			word.print(formatNum(param.toString(16), 2), cellhto(paramCm.x + (cur.x * 2)), cellhto(paramCm.y + cur.y), color, bgcolor);
+			word.print(formatNum(param.toString(16), 2), cellhto(paramCm.x + (cur.x * 2)), cellhto(paramCm.y + curr.y), color, bgcolor);
 			
 	},
 	
-	drawParamKeys: function(page, limit)
+	drawParamKeys: function(offset, limit)
 	{
-		page = page == null ? this.paramPage : page;
+		// page = page == null ? this.paramPage : page;
+		offset = offset == null ? this.paramOffset : offset;
 		limit = limit == null ? this.paramLimit : limit;
 		var i
+			, index
 			, keys = this.paramKeys
 			// , scr = scrollByName('bg1')
 			, word = this.word
 			, mc = {x:3, y: 17}
 			;
-		word.setScroll(scrollByName('bg1'));
+		word.setScroll(scrollByName('bg2'));
 		
 		for(i = 0; i < limit; i++){
-			word.print(keys[i + (limit * page)], cellhto(mc.x), cellhto(mc.y + i), COLOR_PARAMKEY, COLOR_BLACK);
+			index = (i + offset) % keys.length;
+			word.print(keys[index], cellhto(mc.x), cellhto(mc.y + i), COLOR_PARAMKEY, COLOR_BLACK);
 		}
 	},
 	
-	drawChannelParams: function(page, limit)
+	drawChannelParams: function(offset, limit)
 	{
-		page = page == null ? this.paramPage : page;
+		// page = page == null ? this.paramPage : page;
+		offset = offset == null ? this.paramOffset : offset;
 		limit = limit == null ? this.paramLimit : limit;
 		var i
 			, keys = this.paramKeys
@@ -573,15 +601,16 @@ LitroKeyboard.prototype = {
 			, mc = {x:8, y: 17}
 			, key
 			, color
-			, chLength = 8
+			, chLength = this.litroSound.channel.length
 			, numLength = 2
 			, num
 			;
-		word.setScroll(scrollByName('bg1'));
+		word.setScroll(scrollByName('bg2'));
 		
 		for(i = 0; i < limit; i++){
 			for(j = 0; j < chLength; j++){
-				key = this.ltSoundChParamKeys[keys[i + (limit * page)]];
+				index = (i +offset) % keys.length;
+				key = this.ltSoundChParamKeys[keys[index]];
 				color = COLOR_ARRAY[j];
 				num = (this.litroSound.getChannel(j, key) | 0).toString(16);
 				word.print(formatNum(num, 2), cellhto(mc.x + (j * numLength)), cellhto(mc.y + i), color, COLOR_BLACK);
@@ -595,7 +624,7 @@ LitroKeyboard.prototype = {
 		var i
 			, cm = {x: 37.5, y: 12.25}
 			, cDistance = 3.5
-			, scr = scrollByName('bg2')
+			, scr = scrollByName('bg1')
 			, noteRollRight = [3, 0, 2, 1]
 		;
 		// this.drawFrameLine(noteRollRight, 18, 0.75, 1, 1);
@@ -847,7 +876,7 @@ function drawLitroScreen()
 	ltkb.drawOnkey();
 	ltkb.drawOctaveButton();
 	bg1.drawto(view);
-	bg2.drawto(view);
+	bg2.drawto(view, ltkb.paramsScrollOffset.y);
 	spr.drawto(view);
 	spr.clear();
 	// view.drawto(view);
