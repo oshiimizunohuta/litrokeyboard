@@ -86,10 +86,13 @@ LitroSound.prototype = {
 		
 		scriptProcess.connect(context.destination);
 		
+		//チャンネル設定
 		for(i = 0; i < this.channel.length; i++){
 			channel = new AudioChannel();
 			channel.init(size, this.WAVE_VOLUME_RESOLUTION);
+			channel.id = i;
 			this.channel[i] = channel;
+			this.setFrequency(i, 0);
 		}
 		return;
 	},
@@ -182,6 +185,7 @@ LitroSound.prototype = {
 	{
 		// console.log(codenum + ' ' + octave);
 		var freq = this.freqByOctaveCodeNum(octave, codenum);
+		this.channel[channel].clearWave();
 		// console.log(freq);
 		this.channel.envelopeClock = 0;
 		this.setFrequency(channel, freq);
@@ -205,6 +209,15 @@ LitroSound.prototype = {
 
 	},
 	
+	fadeOutNote: function(channelNum)
+	{
+		if(channelNum == null){
+			return;
+		}
+		// this.channel[channel].resetEnvelope();
+		this.channel[channelNum].skiptoReleaseClock();
+	},
+	
 	noteOn: function(channel){
 		this.channel[channel].bufferSource.start(0);
 	},
@@ -226,6 +239,7 @@ function AudioChannel()
 AudioChannel.prototype = {
 	init:function(datasize, resolution){
 		// console.log(this.data);
+		this.id = null;
 		this.bufferSource = null;
 		this.buffer = null;
 		this.waveLength = 0;
@@ -239,7 +253,7 @@ AudioChannel.prototype = {
 		this.tuneParams = {
 			volumeLevel:12,
 			waveType:0,
-			length:80,
+			length:40,
 			delay:0,
 			sweep:0,
 			attack:1,
@@ -287,10 +301,27 @@ AudioChannel.prototype = {
 		return data;
 	},
 	
+	skiptoReleaseClock: function()
+	{
+		var clock = this.tune('attack') + this.tune('decay') + this.tune('length');
+		this.envelopeClock = this.envelopeClock < clock ? clock : this.envelopeClock;
+	},
+	
 	resetEnvelope: function()
 	{
 		this.envelopeClock = 0;
 		// console.log(1);
+	},
+	
+	clearWave: function()
+	{
+		 var i
+		;
+		for(i = 0; i < this.waveLength; i++){
+			this.data[i] = 0;
+		}
+		
+		// this.waveLength = 0;
 	},
 	
 	nextWave: function(){
@@ -314,9 +345,14 @@ function phase(channel)
 	clock -= channel.tune('decay');
 	if(clock < 0){return 'd';}
 
-	clock -= channel.tune('length') - channel.tune('attack') - channel.tune('decay') - channel.tune('release');
+	// clock -= channel.tune('length') - channel.tune('attack') - channel.tune('decay') - channel.tune('release');
+	clock -= channel.tune('length');
 	if(clock < 0){ return 's';}
-	return 'r';
+	
+	clock -= channel.tune('release');
+	if(clock < 0){ return 'r';}
+	
+	return '';
 
 }
 function pulseWave(channel, widthRate_l, widthRate_r)
@@ -328,11 +364,9 @@ function pulseWave(channel, widthRate_l, widthRate_r)
 		, vol = (channel.WAVE_VOLUME_RESOLUTION * (vLevel / channel.WAVE_VOLUME_RESOLUTION)) / 2
 		, sLevel = channel.tune('sustain')
 		, svol = (channel.WAVE_VOLUME_RESOLUTION * (sLevel / channel.WAVE_VOLUME_RESOLUTION)) / 2
-		, dRelease = vLevel / (channel.tune('release') * 1000)
 		, clock = channel.envelopeClock
 		, d
 		;
-		
 	switch(phase(channel)){
 		case 'a': 
 			d = vol / channel.tune('attack');
@@ -344,19 +378,23 @@ function pulseWave(channel, widthRate_l, widthRate_r)
 			vol -= clock * d;
 			break;
 		case 's': 
-			clock -= channel.tune('attack') + channel.tune('decay');;
+			clock -= channel.tune('attack') + channel.tune('decay');
 			vol = svol;
 			break;
 		case 'r': 
-			clock -= channel.tune('length') - channel.tune('release') - ((channel.tune('attack') + channel.tune('decay')) );
+			clock -= channel.tune('length') + channel.tune('attack') + channel.tune('decay');
 			d = (svol) / channel.tune('release');
 			vol = svol - (clock * d);
 			break;
+		default: vol = 0; break;
 	}
-	
+	// if(channel.id == 0){
+		// printDebug((vol + '').substr(0, 5), channel.id);
+	// }
+
 	// console.log(fase(channel));
 	
-	if(vol < 0){vol = 0;}
+	if(vol < 0){vol = 0; channel.waveLength = 0;}
 	// if(vol == 0){return;}
 	switchPos = ((channel.waveLength / (widthRate_l + widthRate_r)) * widthRate_l) | 0;
 	for(i = 0; i < channel.waveLength; i++){
