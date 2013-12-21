@@ -88,7 +88,8 @@ function LitroKeyboard() {
 	this.whiteKeysCmargin = {x: 2, y: 24};
 	this.blackKeysCmargin = {x: 3, y: 24};
 	
-	this.paramKeys = ['VOLUME', 'TYPE', 'LENGTH', 'DELAY', 'SWEEP', 'ATTACK', 'DECAY', 'SUSTAIN', 'RELEASE' ];
+	// this.paramKeys = ['VOLUME', 'TYPE', 'LENGTH', 'DELAY', 'DETUNE', 'SWEEP', 'ATTACK', 'DECAY', 'SUSTAIN', 'RELEASE' ];
+	this.paramKeys = ['TYPE', 'ATTACK', 'DECAY', 'VOLUME', 'LENGTH', 'SUSTAIN', 'RELEASE' , 'DELAY', 'DETUNE', 'SWEEP', ];
 	this.paramKeysStrLen = 5;
 	this.paramPage = 0;
 	this.paramOffset = 0;
@@ -100,6 +101,7 @@ function LitroKeyboard() {
 		'TYPE': 'waveType',
 		'LENGTH': 'length' ,
 		'DELAY': 'delay',
+		'DETUNE': 'detune',
 		'SWEEP': 'sweep',
 		'ATTACK': 'attack',
 		'DECAY': 'decay',
@@ -118,8 +120,8 @@ function LitroKeyboard() {
 	
 	this.noteSprite = 176;
 	
-	this.noteScrollCmargin = {x: 4, y: 3};
-	this.noteCmargin = {x: 4, y: 11.5};
+	this.noteScrollCmargin = {x: 3, y: 3};
+	this.noteCmargin = {x: 3, y: 11.5};
 	this.noteScrollPos = {x: 0, y: 0};
 	
 	this.noteRange = 1; // position multiple
@@ -398,10 +400,13 @@ LitroKeyboard.prototype = {
 		}
 		
 		//仮使用
-		this.notePutPos= ((this.notePutPos+ (this.noteRangeScale / this.noteRangeCells)) | 0) % this.noteRangeScale;
+		
+		// console.log(this.notePutPos);
 		this.setNote(channel, this.makeNote(code, octave));
+		this.notePutPos = (this.notePutPos + ((this.noteRangeScale / this.noteRangeCells) | 0));
+		this.notePutPos = this.notePutPos > this.noteRangeScale ? 0 : this.notePutPos;
+		
 		this.drawNoteScroll();
-		// console.log(this.setNotePos);
 
 	},
 	
@@ -573,7 +578,7 @@ LitroKeyboard.prototype = {
 				break;
 			case 'select': 
 				this.editMode = (this.editMode + 1) % this.modeNames.length;
-				printDebug(this.modeNames[this.editMode], 10);
+				// printDebug(this.modeNames[this.editMode], 10);
 				// this.litroSound.setChannel(cur.x, param, this.litroSound.getChannel(cur.x, param) + 1);
 				// this.drawParamCursor(curr.x, curr.y, false);
 				break;
@@ -687,7 +692,7 @@ LitroKeyboard.prototype = {
 			, mc = this.seekCmargin
 			, x = this.notePutPos * this.noteRange * (cellhto(this.noteRangeCells) / this.noteRangeScale)
 		;
-		printDebug(x);
+		// printDebug(x);
 		scr.drawSprite(sprite, cellhto(mc.x) + x, mc.y);
 	},
 	
@@ -726,7 +731,7 @@ LitroKeyboard.prototype = {
 		keyStart = this.octaveLevel * this.octaveInKeys;
 		keyEnd = keyStart + this.octaveRangeScale;
 		
-		scrollByName('bg2').clear(null, makeRect(cellhto(cm.x), cellhto(cm.y), cellhto(this.noteRangeCells), cellhto(this.octaveRangeCells / 2)));
+		scrollByName('bg2').clear(null, makeRect(cellhto(cm.x), cellhto(cm.y), cellhto(this.noteRangeCells + 2), cellhto(this.octaveRangeCells / 2)));
 		// this.noteData[0] = [{time: 0, key:24}, {time: 300, key:26}, {time: 600, key:40}];
 		for(ch = 0; ch < this.litroSound.channel.length; ch++){
 			// noteData = this.getTimeNoteByRange(ch, timeStart, timeEnd);
@@ -737,10 +742,10 @@ LitroKeyboard.prototype = {
 				chr = this.CHARS_INDEX[note.key - (this.octaveLevel * this.octaveInKeys)];
 				whiteCount = this.whiteKeyCount(chr) + (this.iWHITE_KEYS.length * this.octaveLevel);
 				x = (((note.time - timeStart) / this.noteRangeScale) * this.noteRangeCells) | 0;
+				x = (((note.time - timeStart) * this.noteRangeCells / this.noteRangeScale)) | 0;
+
 				y = whiteCount;
 				this.drawNote(ch, x, y);
-				// console.log(chr,  this.CHARS_INDEX.length, whiteCount, y, this.BLACK_KEY_SKIP_SUM);
-				// this.drawNote(t, noteData.key);
 			}
 		}
 		
@@ -783,12 +788,13 @@ LitroKeyboard.prototype = {
 			// , scr = scrollByName('bg1')
 			, word = this.word
 			, mc = {x:3, y: 17}
+			, sublen = 5
 			;
 		word.setScroll(scrollByName('bg2'));
 		
 		for(i = 0; i < limit; i++){
 			index = (i + offset) % keys.length;
-			word.print(keys[index], cellhto(mc.x), cellhto(mc.y + i), COLOR_PARAMKEY, COLOR_BLACK);
+			word.print(str_pad(keys[index], sublen, "　", "STR_PAD_RIGHT") , cellhto(mc.x), cellhto(mc.y + i), COLOR_PARAMKEY, COLOR_BLACK);
 		}
 	},
 	
@@ -929,7 +935,7 @@ LitroKeyboard.prototype = {
 			, from, to
 			, spr = scrollByName('sprite')
 			, sprite = this.waveSprite
-			, chOscWidth = 60
+			, chOscWidth = 64
 			, chOscHeight = cellhto(6) - 2
 			, chOscHeight_h = (chOscHeight / 2) | 0
 			, cm = {x: 26, y: 17}
@@ -1079,7 +1085,7 @@ function drawLitroScreen()
 	, view = scrollByName('view')
 	, scr = scrollByName('screen')
 	;
-	
+	// printDebug(ltkb.litroSound.channel[0].isRefreshClock(), 1);
 	if(ltkb.imageLoaded === false){
 		return;
 	}
