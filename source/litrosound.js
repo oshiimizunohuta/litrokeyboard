@@ -18,7 +18,6 @@ var litroAudio = null;
 var VOLUME_TEST = 0.2;
 var LitroSoundGlobal = null;
 
-var NOISE_BUFFER = SAMPLE_RATE
 
 var DEFAULT_NOTE_LENGTH = 800; //ms
 var KEY_FREQUENCY = [
@@ -78,6 +77,11 @@ LitroSound.prototype = {
 	freqByOctaveCodeNum: function(octave, codenum){
 		return KEY_FREQUENCY[octave][codenum];
 	},
+	
+	freqByKey: function(key){
+		return KEY_FREQUENCY[(key / KEY_FREQUENCY[0].length) | 0][key % KEY_FREQUENCY[0].length];
+	},
+	
 	setSampleRate: function(rate, size){
 		var i, channel, context, scriptProcess;
 		context = this.context;
@@ -183,7 +187,7 @@ LitroSound.prototype = {
 		}
 		
 		channel.frequency += channel.frequency * 0.001 * (channel.sweepClock * channel.tuneParams.sweep);
-		channel.frequency += (channel.frequency * channel.tuneParams.detune * 0.0001) ;
+		detuneFreq = (channel.frequency * channel.tuneParams.detune * 0.0001);
 
 		if(channel.frequency < minFreq()){
 			channel.frequency = minFreq();
@@ -191,7 +195,7 @@ LitroSound.prototype = {
 			channel.frequency = maxFreq();
 		}
 		channel.prevLength = channel.waveLength;
-		channel.waveLength = ((this.context.sampleRate / channel.frequency)) | 0;
+		channel.waveLength = (this.context.sampleRate / (channel.frequency + detuneFreq)) | 0;
 
 		switch(this.getChannel(channelNum, 'waveType')){
 			case 0: pulseWave(channel, 1, 1); break;
@@ -221,6 +225,19 @@ LitroSound.prototype = {
 		channel.refreshClock = 0;
 	},
 	
+	onNoteKey: function(channel, key)
+	{
+		// console.log(codenum + ' ' + octave);
+		var freq = this.freqByKey(key);
+		this.channel[channel].clearWave();
+		// console.log(freq);
+		this.channel[channel].envelopeClock = 0;
+		this.channel[channel].detuneClock = 0;
+		this.channel[channel].sweepClock = 0;
+		this.channel[channel].refreshClock = 0;
+		this.setFrequency(channel, freq);
+		this.channel[channel].resetEnvelope();
+	},	
 	onNoteFromCode: function(channel, codenum, octave)
 	{
 		// console.log(codenum + ' ' + octave);
@@ -276,12 +293,6 @@ LitroSound.prototype = {
 
 function AudioChannel()
 {
-	this.noiseData = []; //static
-	var i
-	;
-	for(i < 0; i < NOISE_BUFFER; i++){
-		this.noiseData.push(0);
-	}
 	return;
 };
 AudioChannel.prototype = {

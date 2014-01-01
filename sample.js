@@ -12,21 +12,21 @@ $(function() {
 	ltkb = new LitroKeyboard();
 	ltkb.init(litroAudio);
 	
-	ltkb.appendOnkeyEvent(keyon);
-	ltkb.appendOffkeyEvent(keyoff);
-	ltkb.appendOctaveEvent(octaveChange);
-	octaveChange();
+	// ltkb.appendOnkeyEvent(keyon);
+	// ltkb.appendOffkeyEvent(keyoff);
+	// ltkb.appendOctaveEvent(octaveChange);
+	// octaveChange();
 	
 	// makeTestKeyboard();
 	
-	$('.waveTypeFrame button').mousedown(waveSwitchEvent);
+	// $('.waveTypeFrame button').mousedown(waveSwitchEvent);
 	
-	$('.octaveFrame button.down').mousedown(decOctave);
-	$('.octaveFrame button.up').mousedown(incOctave);
+	// $('.octaveFrame button.down').mousedown(decOctave);
+	// $('.octaveFrame button.up').mousedown(incOctave);
 
-	$('.notekey').mousedown(noteon);
-	$(window).mouseup(noteoff);
-	$('.notekey').mouseup(noteoff);
+	// $('.notekey').mousedown(noteon);
+	// $(window).mouseup(noteoff);
+	// $('.notekey').mouseup(noteoff);
 	
 	requestAnimationFrame(main);
 	
@@ -40,7 +40,7 @@ function main() {
 	
 	requestAnimationFrame(main);
 };
-
+/*
 var octaveChange = function()
 {
 	$('.octaveLevel').text(ltkb.octaveLevel);
@@ -103,8 +103,8 @@ var noteoff = function()
 	// console.log(code);
 	ltkb.offCode(code);
 	keyoff(code);
-};
-
+};*/
+/*
 function makeTestKeyboard()
 {
 	var row, i, j, element, d, span
@@ -163,4 +163,4 @@ function makeTestKeyboard()
 		// $('.octaveFrame').find('select').append('<option value="' + i +'">' + i + '</option>');
 	// }
 	
-};
+};*/
