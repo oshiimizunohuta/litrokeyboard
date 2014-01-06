@@ -8,8 +8,9 @@ var SAMPLE_RATE = 48000;
 // var SAMPLE_RATE = 144000;
 // var MASTER_BUFFER_SIZE = 24000;
 var MASTER_BUFFER_SIZE = 24000;
-var PROCESS_BUFFER_SIZE = 1024;
-// var PROCESS_BUFFER_SIZE = 2048;
+// var PROCESS_BUFFER_SIZE = 8192;
+// var PROCESS_BUFFER_SIZE = 4096;
+var PROCESS_BUFFER_SIZE = 2048;
 // var CHANNEL_BUFFER_SIZE = 48000;
 var BUFFER_FRAMES = 60;
 // var BUFFERS = 2;
@@ -58,8 +59,10 @@ LitroSound.prototype = {
 		this.WAVE_VOLUME_RESOLUTION = 15; //波形データのボリューム分解能
 		this.outputBuffer = [];
 		this.isFirefox = (navigator.userAgent.toLowerCase().indexOf('firefox') > -1) ? true : false;
-
-		
+		this.gain = null; //ゲイン
+		this.analyser = null; //波形分析
+		this.delay = null; //遅延
+		this.source = null; //重要バッファ
 		var agent, src, i, data, buf, context;
 
 		window.AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -69,7 +72,7 @@ LitroSound.prototype = {
 		}
 		this.context = new AudioContext();
 		this.setSampleRate(sampleRate, PROCESS_BUFFER_SIZE);
-
+		
 		// 出力開始
 		// src.noteOn(0);
 	},
@@ -82,18 +85,54 @@ LitroSound.prototype = {
 		return KEY_FREQUENCY[(key / KEY_FREQUENCY[0].length) | 0][key % KEY_FREQUENCY[0].length];
 	},
 	
+	/**
+	 * 視覚用波形出力
+	 * @param {Object} size
+	 */
+	getAnalyseData: function(size)
+	{
+		var data = new Uint8Array(size);
+		this.analyser.getByteTimeDomainData(data);
+		// if(this.analysedData_b.length < size){
+			// this.analysedData_b = data;
+		// }else{
+			// this.analysedData = this.analysedData_b.concat(data);
+		// }
+		return data;
+		// analyser.getByteFrequencyData(data); //Spectrum Data
+	},
+	
 	setSampleRate: function(rate, size){
-		var i, channel, context, scriptProcess;
+		var i, channel, context, scriptProcess, src;
 		context = this.context;
 		context.sampleRate = rate;
 		
-		scriptProcess = context.createScriptProcessor(size, 1, 1);
+		//ゲイン
+		this.gain = context.createGain();
+		this.gain.gain.value = this.masterVolume;
+		this.gain.connect(context.destination);
 		
-		// scriptProcess = context.createScriptProcessor(null, 1, 1);
+		//プロセス
+		scriptProcess = context.createScriptProcessor(size, 0, 1);
 		scriptProcess.onaudioprocess = this.bufferProcess;
 		scriptProcess.parent_audio = this;
 		
-		scriptProcess.connect(context.destination);
+		scriptProcess.connect(this.gain);
+
+		this.source = this.context.createBufferSource();
+		this.source.connect(scriptProcess);
+		this.source.start(0);
+		
+		//解析
+		this.analyser = this.context.createAnalyser();
+		this.analyser.fft = 512;
+		scriptProcess.connect(this.analyser);
+		
+		// console.log(scriptProcess);
+		// this.delay = this.context.createDelay();
+		// this.delay.delayTime.value = 1.0;
+		// this.delay.connect(context.destination);
+		// scriptProcess.connect(this.delay);
 		
 		//チャンネル設定
 		for(i = 0; i < this.channel.length; i++){
@@ -111,23 +150,17 @@ LitroSound.prototype = {
 		var parent = LitroSoundGlobal
 			, i
 			, ch
+			// , data = ev.outputBuffer.getChannelData(0);
 			, data = ev.outputBuffer.getChannelData(0);
 		for(i = 0; i < data.length; i++){
 			ch = parent.channel[0];
-			// if(ch.isRefreshClock()){
-				// parent.refreshWave(0);
-			// }
 			ch.refreshClock++;
 			
-			data[i] = (ch.nextWave() / parent.WAVE_VOLUME_RESOLUTION) * parent.masterVolume;
-			// data[i] = (ch.nextWave() / parent.WAVE_VOLUME_RESOLUTION) * parent.masterVolume;
+			data[i] = ch.nextWave();
 
 			for(c = 1; c < parent.channel.length; c++){
 				ch = parent.channel[c];
-				data[i] += (ch.nextWave() / parent.WAVE_VOLUME_RESOLUTION) * parent.masterVolume;
-				// if(ch.isRefreshClock()){
-					// parent.refreshWave(c);
-				// }
+				data[i] += ch.nextWave();
 				ch.refreshClock++;
 			}
 		}
@@ -176,13 +209,11 @@ LitroSound.prototype = {
 		, data = channel.data
 		, freq
 		;
-		// if(channel.frequency == 0){
-		if(channel.isFinishEnverope()){
+		if(channel.isFinishEnverope() && channel.dataUpdateFlag){
 			for(i = 0; i < data.length; i++){
-				// data[i] = 0.0000000001;
 				data[i] = 0.0;
 			}
-			// this.channel[0].waveLength = 0;
+			channel.dataUpdateFlag = false;
 			return;
 		}
 		
@@ -196,6 +227,7 @@ LitroSound.prototype = {
 		}
 		channel.prevLength = channel.waveLength;
 		channel.waveLength = (this.context.sampleRate / (channel.frequency + detuneFreq)) | 0;
+		 // channel.waveLength = (channel.waveLength / ((channel.isNoiseType() | 0) + 1)) | 0;
 
 		switch(this.getChannel(channelNum, 'waveType')){
 			case 0: pulseWave(channel, 1, 1); break;
@@ -235,6 +267,7 @@ LitroSound.prototype = {
 		this.channel[channel].detuneClock = 0;
 		this.channel[channel].sweepClock = 0;
 		this.channel[channel].refreshClock = 0;
+		this.channel[channel].dataUpdateFlag = true;
 		this.setFrequency(channel, freq);
 		this.channel[channel].resetEnvelope();
 	},	
@@ -248,6 +281,7 @@ LitroSound.prototype = {
 		this.channel[channel].detuneClock = 0;
 		this.channel[channel].sweepClock = 0;
 		this.channel[channel].refreshClock = 0;
+		this.channel[channel].dataUpdateFlag = true;
 		this.setFrequency(channel, freq);
 		this.channel[channel].resetEnvelope();
 	},
@@ -310,6 +344,7 @@ AudioChannel.prototype = {
 		this.prevLength = 0;
 		this.data = this.allocBuffer(datasize);
 		this.bufferSize = datasize;
+		this.dataUpdateFlag = false;
 		this.noiseParam = {
 			volume : 0,
 			shortType : 1,
@@ -324,7 +359,7 @@ AudioChannel.prototype = {
 		this.tuneParams = {
 			volumeLevel:12,
 			waveType:0,
-			length:40,
+			length:8,
 			delay:0,
 			detune:0,
 			sweep:0,
@@ -458,15 +493,10 @@ AudioChannel.prototype = {
 	nextNoise: function(){
 		var p = this.noiseParam
 			, vol = envelopedVolume(this)
-			, fluct
-			// , type = this.getNoiseType()
 		;
 		this.waveClockPosition = (this.waveClockPosition + 1) % this.bufferSize;
-		// p.clock = (p.clock + 1 ) % this.waveLength;
-		// p.clock = (p.clock + 1 ) % p.halfLength;
 		
 		if(p.clock++ >= p.halfLength){
-			// printDebug(p.halfLength);
 			p.reg >>= 1;
 			p.reg |= ((p.reg ^ (p.reg >> p.shortType)) & 1) << 15;
 			p.volume =  ((p.reg & 1) * vol * 2.0) - vol;
@@ -503,7 +533,9 @@ function envelopedVolume(channel)
 {
 		var i
 		, vLevel = channel.tuneParams.volumeLevel
-		, vol = channel.WAVE_VOLUME_RESOLUTION / channel.WAVE_VOLUME_RESOLUTION / 2
+		// , vol = channel.WAVE_VOLUME_RESOLUTION / channel.WAVE_VOLUME_RESOLUTION / 2
+		// , vol = 1 / channel.WAVE_VOLUME_RESOLUTION
+		, vol = (1 / 2) / channel.WAVE_VOLUME_RESOLUTION  // +1 / -1 
 		, sLevel = channel.tuneParams.sustain
 		, svol = vol * sLevel
 		, clock = channel.envelopeClock
