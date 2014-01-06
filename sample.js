@@ -25,6 +25,7 @@ function main() {
 	requestAnimationFrame(main);
 };
 
-window.addEventListener("beforeunload", function() {
-	return "LitroKeyboardを中断します";
-}, false);
+window.onbeforeunload = function(event){
+	event = event || window.event;
+	return event.returnValue = 'LitroKeyboardを中断します';
+};
