@@ -2,14 +2,19 @@ var ltkb;
 
 $(function() {
 	var cont
-		, i,
-	requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame || window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
+		, i
+		, litroAudio = new LitroSound()
+		, litroPlayer = new LitroPlayer()
+		, ltkb = new LitroKeyboard()
+
+		,requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame || window.webkitRequestAnimationFrame || window.msRequestAnimationFrame
+	;
 	window.requestAnimationFrame = requestAnimationFrame;
 	
-	litroAudio = new LitroSound();
 	litroAudio.init(SAMPLE_RATE, CHANNELS, BUFFER_FRAMES);
 	
-	ltkb = new LitroKeyboard();
+	litroPlayer.init(litroAudio);
+	
 	ltkb.init(litroAudio);
 	
 	requestAnimationFrame(main);

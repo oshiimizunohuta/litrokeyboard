@@ -4,6 +4,7 @@
  * @author しふたろう
  */
 
+// var SAMPLE_RATE = 24000;
 var SAMPLE_RATE = 48000;
 // var SAMPLE_RATE = 144000;
 // var MASTER_BUFFER_SIZE = 24000;
@@ -17,7 +18,7 @@ var BUFFER_FRAMES = 60;
 var CHANNELS = 8;
 var litroAudio = null;
 var VOLUME_TEST = 0.2;
-var LitroSoundGlobal = null;
+var litroSoundInstance = null;
 
 
 var DEFAULT_NOTE_LENGTH = 800; //ms
@@ -54,7 +55,7 @@ LitroSound.prototype = {
 		this.maxFreq = (sampleRate / 2) | 0;
 		this.mode = 0;
 		this.OCTAVE_MAX = 7;
-		LitroSoundGlobal = this;
+		litroSoundInstance = this;
 		this.masterVolume = VOLUME_TEST;
 		this.WAVE_VOLUME_RESOLUTION = 15; //波形データのボリューム分解能
 		this.outputBuffer = [];
@@ -147,7 +148,7 @@ LitroSound.prototype = {
 	
 	bufferProcess: function(ev)
 	{
-		var parent = LitroSoundGlobal
+		var parent = litroSoundInstance
 			, i
 			, ch
 			// , data = ev.outputBuffer.getChannelData(0);
@@ -320,15 +321,112 @@ LitroSound.prototype = {
 		this.channel[channel].bufferSource.stop(0);
 	},
 	
-	//	console.log(data);
-	startBuffer : function() {
-	},
 };
 
-function AudioChannel()
-{
-	return;
+var litroPlayerInstance = null;
+/**
+ * 再生
+ */
+function LitroPlayer(){return;};
+LitroPlayer.prototype = {
+	init: function(litroSound)
+	{
+		litroPlayerInstance = this;
+		this.noteData = []; //note data
+		this.noteSeekTime= 0; //note をセットする位置
+		this.playSoundFlag = false;
+		this.loopStart = 0;
+		this.loopEnd = -1;
+		this.litroSound = litroSoundInstance;
+		this.systemTime = 0;
+		this.timeOutNote = [];
+		
+		for(var i = 0; i < litroSound.channel.length; i++){
+			this.noteData.push({});
+		}
+
+	},
+	
+	setTimeOutNote: function(ch, time, key)
+	{
+		this.timeOutNote.push({time: time, ch: ch, key: key});
+		setTimeout(function(){
+			var removes = [], i, self = litroPlayerInstance, note;
+			for(i = 0; i < self.timeOutNote.length; i++){
+				note = self.timeOutNote[i];
+				if(note.time <= self.noteSeekTime){
+					litroSoundInstance.onNoteKey(note.ch, note.key);
+					removes.push(i);
+				}
+			}
+			if(removes.length > 0){
+				self.timeOutNote.splice(0, removes.length);
+			}
+		}, time);
+	},
+	isPlay: function()
+	{
+		return this.playSoundFlag;
+	},
+	play: function(toggle)
+	{
+		this.systemTime = performance.now();
+		this.playSoundFlag = true;
+	},
+	
+	stop: function(toggle)
+	{
+		this.systemTime = performance.now();
+		this.playSoundFlag = false;
+	},
+	
+	playSound: function()
+	{
+		if(!this.playSoundFlag){return;}
+		var t
+			, ch
+			// , perFrameTime = 16
+			, now = performance.now()
+			, perFrameTime = (now - this.systemTime) | 0
+		;
+		for(t = 0; t < perFrameTime; t++){
+			for(ch in this.noteData){
+				if(this.noteData[ch][this.noteSeekTime] == null){continue;}
+				if(t > 0){
+					this.setTimeOutNote(ch, t, this.noteData[ch][this.noteSeekTime].key);
+				}else{
+					litroSoundInstance.onNoteKey(ch, this.noteData[ch][this.noteSeekTime].key);
+				}
+				
+			}
+			this.seekMoveForword(1);
+		}
+		this.systemTime = now;
+		// console.log(this.noteSeekTime);
+	},
+	
+	seekMoveForword: function(ftime)
+	{
+		ftime = ftime == null ? 1 : ftime;
+		if(ftime < 0){
+			ftime = this.loopEnd  < 0 ? 0 : this.loopEnd;
+		}
+		this.noteSeekTime += ftime;
+	},
+	seekMoveBack: function(ftime)
+	{
+		ftime = ftime == null ? this.noteRange * this.noteRangeScale / this.noteRangeCells : ftime;
+		if(ftime < 0){
+			ftime = this.noteSeekTime;
+		}
+		this.noteSeekTime -= ftime;
+		this.noteSeekTime = this.noteSeekTime < 0 ? 0 : this.noteSeekTime;
+	},
 };
+/**
+ * 波形生成
+ */
+function AudioChannel(){return;};
 AudioChannel.prototype = {
 	init:function(datasize, resolution){
 		// console.log(this.data);
@@ -506,8 +604,6 @@ AudioChannel.prototype = {
 		this.data[this.waveClockPosition] = p.volume;
 		return this.data[this.waveClockPosition];
 	},
-	
-	
 };
 function phase(channel)
 {
@@ -755,8 +851,9 @@ function litroSoundMain()
 // printDebug(maxFreq(), 1);
 
 	for(ch = 0; ch < CHANNELS; ch++){
-		LitroSoundGlobal.refreshWave(ch);
+		litroSoundInstance.refreshWave(ch);
 	}
+	litroPlayerInstance.playSound();
 };
 
 
