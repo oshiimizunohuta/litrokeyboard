@@ -3,7 +3,6 @@
  * Since 2013-11-19 07:43:37
  * @author しふたろう
  */
-
 // var SAMPLE_RATE = 24000;
 var SAMPLE_RATE = 48000;
 // var SAMPLE_RATE = 144000;
@@ -399,13 +398,13 @@ LitroPlayer.prototype = {
 				}
 				
 			}
-			this.seekMoveForword(1);
+			this.seekMoveForward(1);
 		}
 		this.systemTime = now;
 		// console.log(this.noteSeekTime);
 	},
 	
-	seekMoveForword: function(ftime)
+	seekMoveForward: function(ftime)
 	{
 		ftime = ftime == null ? 1 : ftime;
 		if(ftime < 0){
@@ -422,6 +421,50 @@ LitroPlayer.prototype = {
 		this.noteSeekTime -= ftime;
 		this.noteSeekTime = this.noteSeekTime < 0 ? 0 : this.noteSeekTime;
 	},
+	
+	//Note検索 end:0前方・-1後方
+	searchNearForward: function(ch, start, end, ignore)
+	{
+		var t, data;
+		start = start == null ? this.noteSeekTime : start;
+			//後方一致
+		for(t in this.noteData[ch]){
+			t |= 0;
+			data = this.noteData[ch][t];
+			if(ignore.time == t && ignore.type == 'note'){
+				continue;
+			}
+			if(t >= start && (end >= 0 && t <= end)){
+				return t;
+			}else if(t >= start && end < 0){
+				return t;
+			}
+		}
+		return -1;
+	},
+	searchNearBack: function(ch, start, end, ignore)
+	{
+		var t, data, noteTimes = [];
+		start = start == null ? this.noteSeekTime : start;
+		//後方一致
+		for(t in this.noteData[ch]){
+			t |= 0;
+			data = this.noteData[ch][t];
+			noteTimes.push(t);
+		}
+		noteTimes.reverse();
+		for(t = 0; t < noteTimes.length; t++){
+			if(ignore.time == noteTimes[t] && ignore.type == 'note'){
+				continue;
+			}
+			if(noteTimes[t] <= start && noteTimes[t] >= end){
+				return noteTimes[t];
+			}
+		}
+		
+		return -1;
+	},
+	
 };
 /**
  * 波形生成
