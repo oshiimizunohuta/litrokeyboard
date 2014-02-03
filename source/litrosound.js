@@ -194,10 +194,10 @@ LitroSound.prototype = {
 	setChannel: function(ch, key, value)
 	{
 		ch = this.channel[ch];
-		if(value > ch.tuneParamsMax[key]){
-			value = ch.tuneParamsMin[key];
-		}else if(value < ch.tuneParamsMin[key]){
-			value = ch.tuneParamsMax[key];
+		if(value > AudioChannel.tuneParamsMax[key]){
+			value = AudioChannel.tuneParamsMin[key];
+		}else if(value < AudioChannel.tuneParamsMin[key]){
+			value = AudioChannel.tuneParamsMax[key];
 		}
 		return ch.tuneParams[key] = value;
 	},
@@ -332,34 +332,74 @@ LitroPlayer.prototype = {
 	{
 		litroPlayerInstance = this;
 		this.noteData = []; //note data
+		this.eventsetData = []; //ControllChangeともいう
 		this.noteSeekTime= 0; //note をセットする位置
 		this.playSoundFlag = false;
 		this.loopStart = 0;
 		this.loopEnd = -1;
 		this.litroSound = litroSoundInstance;
 		this.systemTime = 0;
-		this.timeOutNote = [];
+		// this.timeOutNote = [];
+		this.timeOutEvent = [];
+		this.timeOutCC = [];
+		this.fversion = 0.01;
+		this.eventsetKeyIndex = {};
 		
-		for(var i = 0; i < litroSound.channel.length; i++){
+		var type, ch;
+		for(ch = 0; ch < litroSound.channel.length; ch++){
 			this.noteData.push({});
+			this.eventsetData.push({});
+			this.eventsetData[ch].note = {};
+			for(i = 0; i < AudioChannel.sortParam.length; i++){
+				this.eventsetData[ch][AudioChannel.sortParam[i]] = {};
+			}
 		}
-
+		for(i = 0; i < AudioChannel.sortParam.length; i++){
+			this.eventsetKeyIndex[AudioChannel.sortParam[i]] = i;
+		}
 	},
 	
-	setTimeOutNote: function(ch, time, key)
+	dataToString: function()
 	{
-		this.timeOutNote.push({time: time, ch: ch, key: key});
+		var str = '';
+		str = JSON.stringify(this.eventsetData);
+		console.log(str.length);
+		// this.eventsetData
+		// this.loopStart
+		// this.loopEnd
+	},
+	
+	loadFromCookie: function()
+	{
+		
+	},
+	
+	saveToCookie: function()
+	{
+		var data
+		;
+		data = this.dataToString();
+		document.cookie = data + ";expires=Tue, 31-Dec-2030 23:59:59;";
+	},
+	
+	setTimeOutEvent: function(ch, time, type, value)
+	{
+		this.timeOutEvent.push({time: time, ch: ch, type: type, value: value});
 		setTimeout(function(){
-			var removes = [], i, self = litroPlayerInstance, note;
-			for(i = 0; i < self.timeOutNote.length; i++){
-				note = self.timeOutNote[i];
-				if(note.time <= self.noteSeekTime){
-					litroSoundInstance.onNoteKey(note.ch, note.key);
+			var removes = [], i, self = litroPlayerInstance, data;
+			for(i = 0; i < self.timeOutEvent.length; i++){
+				data = self.timeOutEvent[i];
+				if(data.time <= self.noteSeekTime){
+					if(data.type == 'note'){
+						litroSoundInstance.onNoteKey(data.ch, data.value);
+					}else{
+						litroSoundInstance.channel[data.ch].tune(data.type, data.value);
+					}
 					removes.push(i);
 				}
 			}
 			if(removes.length > 0){
-				self.timeOutNote.splice(0, removes.length);
+				self.timeOutEvent.splice(0, removes.length);
 			}
 		}, time);
 	},
@@ -382,26 +422,45 @@ LitroPlayer.prototype = {
 	playSound: function()
 	{
 		if(!this.playSoundFlag){return;}
-		var t
-			, ch
-			// , perFrameTime = 16
+		var t, ch, s
+			, data
 			, now = performance.now()
 			, perFrameTime = (now - this.systemTime) | 0
+			, sort = AudioChannel.sortParam
 		;
 		for(t = 0; t < perFrameTime; t++){
-			for(ch in this.noteData){
-				if(this.noteData[ch][this.noteSeekTime] == null){continue;}
-				if(t > 0){
-					this.setTimeOutNote(ch, t, this.noteData[ch][this.noteSeekTime].key);
-				}else{
-					litroSoundInstance.onNoteKey(ch, this.noteData[ch][this.noteSeekTime].key);
+			for(ch in this.eventsetData){
+				for(s = 0; s < sort.length; s++){
+					type = sort[s];
+					if(this.eventsetData[ch][type][this.noteSeekTime] != null){
+						data = this.eventsetData[ch][type][this.noteSeekTime];
+						if(t > 0){
+							this.setTimeOutEvent(ch, t, type, data.value);
+						}else{
+							if(type == 'note'){
+								litroSoundInstance.onNoteKey(ch, data.value);
+							}else{
+								litroSoundInstance.channel[ch].tune(type, data.value);
+							}
+						}
+					}
 				}
-				
 			}
 			this.seekMoveForward(1);
 		}
 		this.systemTime = now;
 		// console.log(this.noteSeekTime);
+	},
+	
+	getEventsFromTime: function(ch, time)
+	{
+		var type, res = {};
+		for(type in this.eventsetData[ch]){
+			if(this.eventsetData[ch][type][time] != null){
+				res[type] = this.eventsetData[ch][type][time];
+			}
+		}
+		return res;
 	},
 	
 	seekMoveForward: function(ftime)
@@ -421,48 +480,130 @@ LitroPlayer.prototype = {
 		this.noteSeekTime -= ftime;
 		this.noteSeekTime = this.noteSeekTime < 0 ? 0 : this.noteSeekTime;
 	},
+	//eventset-time-type
+	allStackEventset: function(ch, types)
+	{
+		var tindex, type, t, events = {}
+		, typeKeys = this.searchTypes()
+		, len = types.length
+		, timedStack = []
+		;
+		for(tindex = 0; tindex < len; tindex++){
+			type = types[tindex];
+			for(t in this.eventsetData[ch][type]){
+				t |= 0;
+				if(this.eventsetData[ch][type][t] != null){
+					events[t] = events[t] == null ? {} : events[t];
+					events[t][type] = this.eventsetData[ch][type][t];
+				}
+			}
+		}
+		for(t in events){
+			for(type in events[t]){
+				timedStack.push(events[t][type]);
+			}
+		}
+		return timedStack;
+	}, 
+	// allStackEventset: function(ch, types)
+	// {
+		// var tindex, type, t, events = [];
+		// for(tindex = 0; tindex < types.length; tindex++){
+			// type  = types[tindex];
+			// for(t in this.eventsetData[ch][type]){
+				// t |= 0;
+				// if(this.eventsetData[ch][type][t] != null){
+					// events.push(this.eventsetData[ch][type][t]);
+				// }
+			// }
+		// }
+		// return events;
+	// }, 
 	
-	//Note検索 end:0前方・-1後方
-	searchNearForward: function(ch, start, end, ignore)
+	
+	
+	searchTypes: function(type)
 	{
-		var t, data;
-		start = start == null ? this.noteSeekTime : start;
-			//後方一致
-		for(t in this.noteData[ch]){
-			t |= 0;
-			data = this.noteData[ch][t];
-			if(ignore.time == t && ignore.type == 'note'){
-				continue;
-			}
-			if(t >= start && (end >= 0 && t <= end)){
-				return t;
-			}else if(t >= start && end < 0){
-				return t;
-			}
-		}
-		return -1;
-	},
-	searchNearBack: function(ch, start, end, ignore)
-	{
-		var t, data, noteTimes = [];
-		start = start == null ? this.noteSeekTime : start;
-		//後方一致
-		for(t in this.noteData[ch]){
-			t |= 0;
-			data = this.noteData[ch][t];
-			noteTimes.push(t);
-		}
-		noteTimes.reverse();
-		for(t = 0; t < noteTimes.length; t++){
-			if(ignore.time == noteTimes[t] && ignore.type == 'note'){
-				continue;
-			}
-			if(noteTimes[t] <= start && noteTimes[t] >= end){
-				return noteTimes[t];
-			}
-		}
+		var types = [], t, params = []
+			, ignores = {'note': 1, }
+			, del = {}
+			;
 		
-		return -1;
+		if(type == 'ALL'){
+			//すべてのタイプを検索
+			types = AudioChannel.sortParam;
+		}else if(type == 'TUNE'){
+			//イベントセットの検索
+			params = AudioChannel.sortParam;
+			for(t = 0; t < params.length; t++){
+				if(params[t] in ignores){
+					continue;
+				}
+				types.push(params[t]);
+			}
+		}else{
+			//指定のタイプを見る
+			types.push(type);
+		}
+		return types;
+	},
+	//Note検索 end:0前方・-1後方
+	//return eventset / null
+	searchNearForward: function(ch, start, end, type, ignore)
+	{
+		var t, tindex, events ={}, types = [], eventset
+			, keyIndex = this.eventsetKeyIndex
+		;
+		start = start == null ? this.noteSeekTime : start;
+		//前方一致
+		types = this.searchTypes(type == null ? 'ALL' : type);
+		events = this.allStackEventset(ch, types);
+
+		for(t = 0; t < events.length; t++){
+			for(tindex = 0; tindex < types.length; tindex++){
+				type = types[tindex];
+				eventset = events[t];
+				if(ignore.time == eventset.time){
+					if(ignore.type == eventset.type || keyIndex[ignore.type] >= keyIndex[eventset.type]){
+						continue;
+					}
+				}
+				if(eventset.time >= start && (end >= 0 && eventset.time <= end)){
+					return eventset;
+				}else if(eventset.time >= start && end < 0){
+					return eventset;
+				}
+			}
+		}
+		return null;
+	},
+	//return eventset / null
+	searchNearBack: function(ch, start, end, type, ignore)
+	{
+		var t, tindex, events ={}, types = [], eventset
+			, keyIndex = this.eventsetKeyIndex
+		;
+		start = start == null ? this.noteSeekTime : start;
+		types = this.searchTypes(type == null ? 'ALL' : type);
+		//後方一致
+		events = this.allStackEventset(ch, types);
+		// console.log(events, types[type], this.eventsetData[ch][types[type]]);
+		events.reverse();
+		for(t = 0; t < events.length; t++){
+			for(tindex = 0; tindex < types.length; tindex++){
+				type  = types[tindex];
+				eventset = events[t];
+				if(ignore.time == eventset.time){
+					if(ignore.type == eventset.type || keyIndex[ignore.type] <= keyIndex[eventset.type]){
+						continue;
+					}
+				}
+				if(eventset.time <= start && eventset.time >= end){
+					return eventset;
+				}
+			}
+		}
+		return null;
 	},
 	
 };
@@ -470,6 +611,49 @@ LitroPlayer.prototype = {
  * 波形生成
  */
 function AudioChannel(){return;};
+AudioChannel.sortParam = [
+	'volumeLevel',
+	'waveType',
+	'length',
+	'delay',
+	'detune',
+	'sweep',
+	'attack',
+	'decay',
+	'sustain',
+	'release',
+	'enable',
+	'note'
+];
+AudioChannel.tuneParamsMax = {
+	volumeLevel:15,
+	waveType:15,
+	length:255,
+	delay:32,
+	detune:15,
+	sweep:32,
+	attack:255,
+	decay:64,
+	sustain:15,
+	release:255,
+	enable:1,
+	turn:2,
+};
+AudioChannel.tuneParamsMin = {
+	volumeLevel:0,
+	waveType:0,
+	length:0,
+	delay:0,
+	detune:-15,
+	sweep:-32,
+	attack:0,
+	decay:0,
+	sustain:0,
+	release:0,
+	enable:0,
+	turn:-2,
+};
+
 AudioChannel.prototype = {
 	init:function(datasize, resolution){
 		// console.log(this.data);
@@ -496,7 +680,7 @@ AudioChannel.prototype = {
 		// this.waveType = 0;
 		this.frequency = 1;
 		this.WAVE_VOLUME_RESOLUTION = resolution;
-		
+
 		this.tuneParams = {
 			volumeLevel:12,
 			waveType:0,
@@ -508,30 +692,8 @@ AudioChannel.prototype = {
 			decay:8,
 			sustain:10,
 			release:32,
-		};
-		this.tuneParamsMax = {
-			volumeLevel:15,
-			waveType:15,
-			length:255,
-			delay:32,
-			detune:15,
-			sweep:32,
-			attack:255,
-			decay:64,
-			sustain:15,
-			release:255,
-		};
-		this.tuneParamsMin = {
-			volumeLevel:0,
-			waveType:0,
-			length:0,
-			delay:0,
-			detune:-15,
-			sweep:-32,
-			attack:0,
-			decay:0,
-			sustain:0,
-			release:0,
+			enable:1,
+			turn:1,
 		};
 		
 	},
@@ -542,7 +704,7 @@ AudioChannel.prototype = {
 	tune: function(name, param)
 	{
 		var p = this.tuneParams;
-		return p[name] = (param == null) ? p[name] : p[name] + param;
+		return p[name] = (param == null) ? p[name] : param;
 	},
 	
 	allocBuffer: function(datasize){

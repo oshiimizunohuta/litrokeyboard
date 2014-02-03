@@ -1,6 +1,6 @@
 var ltkb;
 
-$(function() {
+window.addEventListener('load', function() {
 	var cont
 		, i
 		, litroAudio = new LitroSound()
@@ -18,8 +18,8 @@ $(function() {
 	ltkb.init(litroAudio);
 	
 	requestAnimationFrame(main);
-	
-});
+	removeEventListener('load', this, false);
+}, false);
 
 function main() {
 	litroSoundMain();
