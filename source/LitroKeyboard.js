@@ -2604,7 +2604,7 @@ function drawLitroScreen()
 	bg2.rasterto(view, 0, 0, null, DISPLAY_HEIGHT / 2, ltkb.bg2x.t + cellhto(ltkb.noteScrollCmargin.x), 0);
 	bg2.rasterto(view, 0, DISPLAY_HEIGHT / 2, null, DISPLAY_HEIGHT / 2, ltkb.bg2x.b + cellhto(ltkb.noteScrollCmargin.x), 0);
 	// bg2.drawto(view);
-	// bg1.drawto(view);
+	bg1.drawto(view);
 	spr.drawto(view);
 	spr.clear();
 	// view.drawto(view);
