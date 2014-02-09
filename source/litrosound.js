@@ -328,7 +328,7 @@ var litroPlayerInstance = null;
  */
 function LitroPlayer(){return;};
 LitroPlayer.prototype = {
-	init: function(litroSound)
+	init: function()
 	{
 		litroPlayerInstance = this;
 		this.noteData = []; //note data
@@ -344,9 +344,17 @@ LitroPlayer.prototype = {
 		this.timeOutCC = [];
 		this.fversion = 0.01;
 		this.eventsetKeyIndex = {};
+		this.FORMAT_LAVEL = 'litrosoundformat';
+		this.fileUserName = 'guest_user_';
+		this.fileOtherInfo = 'xxxxxxxxxxxxxxxx';
+		this.DATA_LENGTH16 = {ch:2, type:2, timeval:4, time:6, value:2};
+		this.DATA_LENGTH36 = {ch:1, type:2, timeval:3, time:4, value:2};
+		this.CHARCODE_LENGTH16 = 8;//4byte
+		this.CHARCODE_LENGTH36 = 6;//3byte
+		this.CHARCODE_MODE = 36;
 		
 		var type, ch;
-		for(ch = 0; ch < litroSound.channel.length; ch++){
+		for(ch = 0; ch < this.litroSound.channel.length; ch++){
 			this.noteData.push({});
 			this.eventsetData.push({});
 			this.eventsetData[ch].note = {};
@@ -359,27 +367,186 @@ LitroPlayer.prototype = {
 		}
 	},
 	
+	pad0: function(str, num)
+	{
+		while(num - str.length > 0){
+			str = '0' + str;
+		}
+		return str;
+	},
+	
+	/**
+	 * cookie
+	 * [header: 64]
+	 * litrosoundformat
+	 * version-xx.xx.xx
+	 * auth_xxxxxxxxxxx
+	 * (xxxxxxxxxxxxxxxx)
+	 * [datachunk: 4096 - 64]
+	 * <CH><TYPEID><LENGTH><DATA>
+	 * <CH><TYPEID><LENGTH><DATA>
+	 * DATA:<time><value>
+	 * 4.6h
+	 */
+	
+	headerInfo: function()
+	{
+		this.fileUserName = this.fileUserName.substr(0, 11);
+		this.fileOtherInfo = this.fileOtherInfo.substr(0, 16);
+		return this.FORMAT_LAVEL + 'version-00.00.01' + 'auth_' + this.fileUserName + this.fileOtherInfo;
+	},
+	
 	dataToString: function()
 	{
-		var str = '';
-		str = JSON.stringify(this.eventsetData);
-		console.log(str.length);
-		// this.eventsetData
-		// this.loopStart
-		// this.loopEnd
-	},
-	
-	loadFromCookie: function()
-	{
+		// AudioChannel.tuneParamsID
+		var str = ''
+			, ch, time, type, chstr, timeDats, typeDatsNum
+			, typestr
+			, edat = this.eventsetData
+			, keyId = AudioChannel.tuneParamsID
+			, mode = this.CHARCODE_MODE
+			, datLen = this.DATA_LENGTH36
+		;
+		// console.log(keyId);
+		for(ch in edat){
+			chstr = this.pad0((ch | 0).toString(mode), datLen.ch); //+2
+			// console.log('ch', chstr);
+
+			for(type in edat[ch]){
+				timeDatsNum = 0;
+				for(time in edat[ch][type]){
+					timeDatsNum++;
+				}
+				
+				typestr = this.pad0((keyId[type] | 0).toString(mode), datLen.type);//+2
+				typestr += this.pad0((timeDatsNum | 0).toString(mode), datLen.timeval);//+4
+			// console.log('length', this.pad0((timeDatsNum | 0).toString(mode), 4));
+			// console.log('type', this.pad0((type | 0).toString(mode), 2));
+				for(time in edat[ch][type]){
+					typestr += this.pad0((time | 0).toString(mode), datLen.time);//+6
+					typestr += this.pad0((edat[ch][type][time].value | 0).toString(mode), datLen.value);//+2
+			// console.log('time', this.pad0((time | 0).toString(mode), 6));
+			// console.log('value', edat[ch][type][time], this.pad0((edat[ch][type][time].value | 0).toString(mode), 2));
+				}
+				if(timeDatsNum == 0){continue;}
+				str += chstr + typestr;
+			// console.log(chstr + typestr);
+			}
+		}
 		
+//		str = JSON.stringify(this.eventsetData);
+		// console.log(str, str.length);
+		return str;
 	},
 	
+	dataStrToCharCode: function(str)
+	{
+		var i, len, clen = 0, sepLen = this.CHARCODE_LENGTH36
+			, charCode = ''
+		;
+		len = str.length;
+		if(len % sepLen > 0){
+			str += '00000000'.substr(0, len % sepLen);
+			len += len % sepLen;
+		}
+		
+		while(len > clen){
+			charCode += String.fromCharCode(parseInt(str.substr(clen, sepLen), 16));
+			// console.log(str.substr(clen, sepLen), String.fromCharCode(parseInt(str.substr(clen, sepLen), 16)));
+			clen += sepLen;
+		}
+		// console.log(charCode, charCode.length);
+		return charCode;
+	},
+	//%04%E6%90%80%E2%B0%80%EF%90%80%EB%B0%80
+
 	saveToCookie: function()
 	{
 		var data
 		;
 		data = this.dataToString();
-		document.cookie = data + ";expires=Tue, 31-Dec-2030 23:59:59;";
+		// data = this.dataStrToCharCode(data); //mode16
+		data =this.headerInfo() + data;
+		// console.log('save ok', data, data.length);
+		document.cookie = 'd=' + encodeURIComponent(data) + ";expires=Tue, 31-Dec-2030 23:59:59;";
+	},
+	charCodeToDataStr: function(code)
+	{
+		var sepLen = this.CHARCODE_LENGTH36, clen = code.length
+			, rlen = 0, str = '', sepStr
+		, mode = this.CHARCODE_MODE
+		;
+		// console.log(code);
+		while(clen > rlen){
+			sepStr = code.substr(rlen, 1).charCodeAt(0).toString(mode);
+			// console.log(sepStr);
+			str += '00000000'.substr(0, sepLen - sepStr.length) + sepStr;
+			// console.log(sepStr, '00000000'.substr(0, sepLen - sepStr.length) + sepStr);
+			rlen += 1;
+		}
+		return str;
+	},
+	timevalData: function(type, timeval)
+	{
+		var i, res = {}, datLen = this.DATA_LENGTH36
+		, mode = this.CHARCODE_MODE
+		, chunkLen = datLen.time + datLen.value
+		, length = (timeval.length / chunkLen) | 0
+		, time, value
+		;
+		// console.log(timeval, length);
+		for(i = 0; i < length; i++){
+			time = parseInt(timeval.substr(chunkLen * i, datLen.time), mode);
+			value = parseInt(timeval.substr((chunkLen * i) +  datLen.time, datLen.value), mode);
+			res[time] = {type: type, time: time, value: parseInt(timeval.substr((chunkLen * i) +  datLen.time, datLen.value), mode)};
+		}
+		// console.log(type, res);
+		return res;
+	},
+	parseDataStr: function(data)
+	{
+		var dlen = data.length
+			, mode = this.CHARCODE_MODE
+			, datLen = this.DATA_LENGTH36
+			, rlen = 0, res = '', tvalLen = 0
+			, idKey = AudioChannel.tuneParamsIDKey()
+			, minLen = datLen.ch + datLen.type + datLen.timeval
+		;
+		// console.log(data);
+		while(dlen > rlen + minLen){
+			ch = parseInt(data.substr(rlen, this.DATA_LENGTH36.ch), mode);
+			rlen += this.DATA_LENGTH36.ch;
+			type = idKey[parseInt(data.substr(rlen, this.DATA_LENGTH36.type), mode) | 0];
+			rlen += this.DATA_LENGTH36.type;
+			tvalLen = parseInt(data.substr(rlen, this.DATA_LENGTH36.timeval), mode);
+			rlen += this.DATA_LENGTH36.timeval;
+			tval = this.timevalData(type, data.substr(rlen, (this.DATA_LENGTH36.time + this.DATA_LENGTH36.value) * tvalLen));
+			rlen += (this.DATA_LENGTH36.time + this.DATA_LENGTH36.value) * tvalLen;
+			// console.log(tval, dlen, rlen, tvalLen);
+			// if(dlen <= rlen + minLen){break;}
+			// console.log('ch: ' + ch, 'type: ' + type, 'tvalLen: ' + tvalLen, 'tval: ' + tval);
+			this.eventsetData[ch][type] = tval;
+			// console.log(this.eventsetData[ch]);
+		}
+	},
+	
+	loadFromCookie: function()
+	{
+		var cookies = document.cookie.split('; ')
+			, i, dic, str
+			, headerLength = 64
+		;
+		this.init();//初期化
+		for(i = 0; i < cookies.length; i++){
+			dic = cookies[i].split('=');
+			if(dic[1] != null && dic[1].indexOf(this.FORMAT_LAVEL) >= 0){
+				break;
+			}
+		}
+		// str = this.charCodeToDataStr(decodeURIComponent(dic[1]).substr(headerLength));//mode16
+		this.parseDataStr(decodeURIComponent(dic[1]).substr(headerLength));
+		// console.log('load ok', dic[1], dic[1].length);
+		// console.log(this.eventsetData);
 	},
 	
 	setTimeOutEvent: function(ch, time, type, value)
@@ -652,6 +819,36 @@ AudioChannel.tuneParamsMin = {
 	release:0,
 	enable:0,
 	turn:-2,
+};
+AudioChannel.tuneParamsID = {
+	'void': 0,
+	enable:1,
+	restart:2,
+	end:3,
+	prestart:4,
+	preend:5,
+	noteon:6,
+	noteoff:7,
+	noteextend:8,
+	note: 128,
+	waveType:129,
+	volumeLevel:130,
+	attack:131,
+	decay:132,
+	sustain:133,
+	length:134,
+	release:135,
+	delay:136,
+	detune:137,
+	sweep:138,
+};
+AudioChannel.tuneParamsIDKey = function()
+{
+	var k, keys = {};
+	for(k in AudioChannel.tuneParamsID){
+		keys[AudioChannel.tuneParamsID[k]] = k;
+	}
+	return keys;
 };
 
 AudioChannel.prototype = {

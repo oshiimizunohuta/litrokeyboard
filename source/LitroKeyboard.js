@@ -89,7 +89,7 @@ function LitroKeyboard() {
 	this.blackKeysCmargin = {x: 3, y: 24};
 	
 	// this.paramKeys = ['VOLUME', 'TYPE', 'LENGTH', 'DELAY', 'DETUNE', 'SWEEP', 'ATTACK', 'DECAY', 'SUSTAIN', 'RELEASE' ];
-	this.paramKeys = ['TYPE', 'ATTACK', 'DECAY', 'VOLUME', 'LENGTH', 'SUSTAIN', 'RELEASE' , 'DELAY', 'DETUNE', 'SWEEP'];
+	this.paramKeys = ['TYPE', 'VOLUME', 'ATTACK', 'DECAY', 'SUSTAIN', 'LENGTH', 'RELEASE' , 'DELAY', 'DETUNE', 'SWEEP'];
 	this.paramKeysStrLen = 5;
 	this.paramPage = 0;
 	this.paramOffset = 0;
@@ -98,11 +98,11 @@ function LitroKeyboard() {
 	
 	this.ltSoundChParamKeys = {
 		'TYPE': 'waveType',
+		'VOLUME': 'volumeLevel',
 		'ATTACK': 'attack',
 		'DECAY': 'decay',
-		'VOLUME': 'volumeLevel',
-		'LENGTH': 'length' ,
 		'SUSTAIN': 'sustain',
+		'LENGTH': 'length' ,
 		'RELEASE': 'release',
 		'DELAY': 'delay',
 		'DETUNE': 'detune',
@@ -162,15 +162,16 @@ function LitroKeyboard() {
 	this.menuCindent = 1;
 
 	this.catchMenuList = ['KEEP'];
-	// this.noteMenuList = ['CATCH', 'PASTE', 'REMOVE'];
 	this.noteMenuList = ['CHANNEL', 'CATCH', 'PASTE', 'REMOVE', 'FILE'];
 	this.noteMenuCursor = {x:0, y:0};
 	
-	this.fileMenuList = ['LOAD', 'SAVE', 'CLEAR'];
-	this.fileTypeList = ['COOKIE', 'STRINGS', 'SERVER'];
+	// this.fileMenuList = ['LOAD', 'SAVE', 'CLEAR'];
+	// this.fileTypeList = ['COOKIE', 'STRINGS', 'SERVER'];
+	this.fileMenuList = ['LOAD', 'SAVE'];
+	this.fileTypeList = ['COOKIE'];
 	this.clearMenuList = ['FILE', 'CURRENT'];
 	this.eventsetMenuList = ['SET'];
-	this.finalConf = ["OK", "NO"];
+	this.finalConf = ["NO", "OK"];
 	this.fileMenuMap = {};
 	this.commandPath = [];
 	this.fileMenuCursor = {x:0, y:0};
@@ -326,7 +327,11 @@ LitroKeyboard.prototype = {
 		var bg1 = scrollByName('bg1')
 			, bg2 = scrollByName('bg2')
 			, spr = scrollByName('sprite')
+			, view = scrollByName('view')
+			, scr = scrollByName('screen')
 			;
+		scr.clear(COLOR_BLACK);
+		view.clear(COLOR_BLACK);
 		bg1.clear(COLOR_BLACK);
 		bg2.clear();
 		spr.clear();
@@ -851,6 +856,7 @@ LitroKeyboard.prototype = {
 		}
 		switch(com_method){
 			case 'SAVE': if(com_type == 'COOKIE'){this.player.saveToCookie();} break;
+			case 'LOAD': if(com_type == 'COOKIE'){this.player.loadFromCookie();} break;
 		}
 		
 	},
@@ -1328,7 +1334,7 @@ LitroKeyboard.prototype = {
 				this.commandPath = [];
 				break;
 			case 'FILE':
-				cur.y = 0;
+				// cur.y = 0;
 				if(key == '<'){
 					break;
 				}
@@ -1340,15 +1346,16 @@ LitroKeyboard.prototype = {
 				break;
 			case 'OK':
 				this.commandExecute();
-				this.backMenu();
+				this.changeEditMode('note');
 				this.getActiveModeCursor().y = 0;
 				break;
 			case 'NO':
 				this.backMenu();
+				this.backMenu();
 				this.getActiveModeCursor().y = 0;
 				break;
 			default: 
-				cur.y = 0;
+				// cur.y = 0;
 		}
 		this.drawNoteScroll(this.noteScrollPage);
 		this.drawNoteScroll(this.noteScrollPage + 1);
@@ -1398,6 +1405,12 @@ LitroKeyboard.prototype = {
 			, com
 		;
 		com = this.baseKeyMenuCommon(fcur, key);
+		if(key == '<' && this.fileMenuList.indexOf(com) >= 0){
+			this.changeEditMode('note');
+		}else if(key == '>'){
+			fcur.y = 0;
+		}
+		console.log(com);
 		this.drawMenu();
 	},	
 
@@ -2591,7 +2604,7 @@ function drawLitroScreen()
 	bg2.rasterto(view, 0, 0, null, DISPLAY_HEIGHT / 2, ltkb.bg2x.t + cellhto(ltkb.noteScrollCmargin.x), 0);
 	bg2.rasterto(view, 0, DISPLAY_HEIGHT / 2, null, DISPLAY_HEIGHT / 2, ltkb.bg2x.b + cellhto(ltkb.noteScrollCmargin.x), 0);
 	// bg2.drawto(view);
-	bg1.drawto(view);
+	// bg1.drawto(view);
 	spr.drawto(view);
 	spr.clear();
 	// view.drawto(view);
