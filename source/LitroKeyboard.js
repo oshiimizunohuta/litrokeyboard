@@ -38,6 +38,9 @@ function LitroKeyboard() {
 		'[' : 219, ']' : 221,
 	},
 	this.zoomKeys = ['[', ']'];
+	this.EXTEND_KEYCODE = {
+		'ext' : 16,
+	},
 	
 	this.KEY_REPLACE_FIREFOX = {
 		187 : 59, 189 : 173, 222 : 160,
@@ -122,6 +125,7 @@ function LitroKeyboard() {
 	this.paramCursorBlinkFlag = false; //paramカーソルの点滅
 
 	this.editMode = 'note';
+	this.prevEditMode = 'tune';
 	// this.modeNames = ['tune', 'note', 'file', 'play'];
 	// this.modeNames = {0:'tune', 1:'note', 2:'play', 3:'catch'};
 	this.modeNames = ['tune', 'note', 'play', 'catch', 'file', 'error'];
@@ -165,7 +169,7 @@ function LitroKeyboard() {
 	this.menuCindent = 1;
 
 	this.catchMenuList = ['KEEP'];
-	this.noteMenuList = ['CHANNEL', 'CATCH', 'PASTE', 'REMOVE', 'FILE'];
+	this.noteMenuList = ['EVENTSET', 'CATCH', 'PASTE', 'REMOVE', 'FILE'];
 	this.noteMenuCursor = {x:0, y:0};
 	
 	// this.fileMenuList = ['LOAD', 'SAVE', 'CLEAR'];
@@ -174,8 +178,9 @@ function LitroKeyboard() {
 	this.fileTypeList = ['COOKIE', 'SERVER'];
 	this.clearMenuList = ['FILE', 'CURRENT'];
 	this.fileListList = ['FILESELECT'];
-	this.fileTitleList = ['FINISH', 'CANCEL'];
-	this.eventsetMenuList = ['SET'];
+	this.fileTitleList = ['', '', '', 'CANCEL', 'FINISH'];
+	// this.eventsetMenuList = ['SET'];
+	this.eventsetMenuList = ['NOTEOFF', 'RESTART', 'END', ];
 	this.finalConf = ["NO", "OK"];
 	this.serverFileList = [];
 	this.fileMenuMap = {};
@@ -209,7 +214,12 @@ function LitroKeyboard() {
 	this.charBoardCurrent = {x: 0, y: 0};
 	this.charBoardCursor = {x:0, y: 0};
 	this.charBoardLimit = {x: 20, y:13};
-	
+	this.fileTitleCursor = {x: 0, y:0};
+	this.charBoardDispNum = {x: 20, y: 2};
+	this.charBoardCmargin = {x: 3, y: 19};
+	// this.topFrameCenter_1 = 19;
+	// this.topFrameCenter_2 = 20;
+	this.topFrameCenter = [20, 20, 19, 19, 19, 19, 19, 19, 20, 20, 19, 20, 19, ];
 	return;
 }
 
@@ -292,6 +302,11 @@ LitroKeyboard.prototype = {
 		for(i in this.ZOOM_KEYCODE){
 			this.keyControll.setKey(i, this.ZOOM_KEYCODE[i]);
 		}
+		
+		//拡張キー
+		for(i in this.EXTEND_KEYCODE){
+			this.keyControll.setKey(i, this.EXTEND_KEYCODE[i]);
+		}
 
 		
 		for(i = 0; i < this.CODE_NAME.length; i++){
@@ -312,8 +327,9 @@ LitroKeyboard.prototype = {
 			STRINGS: this.finalConf,
 			FILESELECT: this.finalConf,
 			SERVER: this.fileListList,
-			TITLE: this.finalConf,
+			TITLE: this.fileTitleList,
 			FILE: this.fileMenuList,
+			FINISH: this.fileMenuList,
 			CURRENT: this.finalConf,
 		};
 		
@@ -325,6 +341,23 @@ LitroKeyboard.prototype = {
 		this.initWords();
 		this.setBg2Position(this.noteScrollPos.x);
 		this.initCatchEvent();
+		this.initEventFunc();
+	},
+	
+	initEventFunc: function()
+	{
+		var self = this;
+		this.litroSound.setSetChannelEvent(function(ch, key, value){
+			var eventset = {};
+			eventset[key] = self.makeEventset(key, value, 0);
+			self.drawChannelParams(null, null, null, null, eventset, ch);
+		});
+		this.litroSound.setOnNoteKeyEvent(function(ch, key){
+			if(ch == self.paramCursor.x){
+				self.status_on[0] = self.key2Char(key);
+			}
+			return;
+		});
 	},
 	
 	initWords: function()
@@ -355,8 +388,6 @@ LitroKeyboard.prototype = {
 		bg1.clear(COLOR_BLACK);
 		bg2.clear();
 		spr.clear();
-
-		
 	},
 	
 	initFingerState: function(num)
@@ -401,7 +432,7 @@ LitroKeyboard.prototype = {
 	},
 	selectEventset: function(ch, eventset, pop)
 	{
-		if(this.selectNote.time > 0 && !pop){
+		if(this.selectNote.time >= 0 && !pop){
 			this.selectNoteHistory.push({time: this.selectNote.time, ch: this.selectNote.ch, type:this.selectNote.type});
 		}
 		this.selectNote = {time: eventset.time, ch: ch, type:eventset.type};
@@ -481,6 +512,15 @@ LitroKeyboard.prototype = {
 		}
 	},
 	
+	key2Char: function(key)
+	{
+		var i = 0, chr, sepcnt = this.octaveSeparateCount
+			, index = key - (this.octaveLevel * this.octaveInKeys)
+			, chars = this.ROW_CHARS.top.concat(this.ROW_CHARS.bottom)
+		;
+		return chars[index] == null ? null : chars[index];
+	},
+	
 	getCodeNameFromKeyChar: function(chr){
 		var chars, row, i;
 		for(row in this.ROW_CHARS){
@@ -536,6 +576,14 @@ LitroKeyboard.prototype = {
 		
 	},
 	
+	getEventsetMenuList: function()
+	{
+		if(this.commandPath.length == 0){
+			return this.eventsetMenuList;
+		}
+		return null;
+	},
+	
 	getActiveModeMenuList: function()
 	{
 		switch(this.getMode())
@@ -545,6 +593,7 @@ LitroKeyboard.prototype = {
 			case 'play': return this.getFileMenuList();
 			case 'catch': return this.getCatchMenuList();
 			case 'file': return this.getFileMenuList();
+			case 'eventset': return this.getEventsetMenuList();
 			default: return [];
 		}
 	},
@@ -558,6 +607,7 @@ LitroKeyboard.prototype = {
 			case 'play': return this.fileMenuCursor;
 			case 'catch': return {};
 			case 'file': return this.fileMenuCursor;
+			case 'eventset': return this.eventsetMenuCursor;
 			default: return {};
 		}
 	},
@@ -957,9 +1007,29 @@ LitroKeyboard.prototype = {
 	
 	loadCommand: function(type)
 	{
+		var self = this, tid;
 		switch(type){
 			case 'COOKIE': this.player.loadFromCookie(); this.changeEditMode('note');break;
-			case 'SERVER': this.player.loadFromSever(); break;
+			case 'SERVER': this.player.loadFromServer(USER_ID, this.serverFileList[this.fileListCursor.y].sound_id, 
+				function(data){
+					if(data == null || data === false){
+						self.changeEditMode('error');
+						self.drawMenu();
+						return;
+					}
+					self.changeEditMode('note');
+					self.drawMenu();
+					self.selectMenuItem();//drawNoteのため
+					self.drawParamKeys();
+					self.drawChannelParams();
+					self.drawParamCursor();
+					return;
+				},
+				function(){
+					self.changeEditMode('error');
+					self.drawMenu();
+				});
+				this.changeEditMode('loading'); break;
 		}
 	},
 		
@@ -1081,17 +1151,24 @@ LitroKeyboard.prototype = {
 		var cur = this.paramCursor
 			, chLength = this.litroSound.channel.length
 		;
-		if(dir == 'right'){
-			cur.x = (cur.x + 1) % chLength;
-		}else{
-			cur.x = (cur.x + chLength - 1) % chLength;
+		switch(dir){
+			case 'up': this.litroSound.toggleOutput(cur.x, true);
+							this.drawChannelTab_on(cur.x, true)
+							break;
+			case 'down': this.litroSound.toggleOutput(cur.x, false);
+							this.drawChannelTab_on(cur.x, false)
+							break;
+			case 'left': cur.x = (cur.x + chLength - 1) % chLength;
+							break;
+			case 'right': cur.x = (cur.x + 1) % chLength;
+							break;
 		}
-		this.drawParamKeys();
+		// this.drawParamKeys();
 		this.drawChannelParams();
 		this.drawParamCursor();
 	},
 	
-	moveChannelParamCursor: function(dir)
+	moveChannelParamCursor: function(dir, ext)
 	{
 		var cur = this.paramCursor
 			, curr = this.paramCursorCurrent
@@ -1102,37 +1179,38 @@ LitroKeyboard.prototype = {
 			, currentLength = paramsLength - (limit - 1)
 		;
 		// this.drawParamCursor(curr.x, curr.y, true);
-		
-		switch(dir){
-			case 'up': cur.y = (cur.y + paramsLength - 1) % paramsLength;
-							if(--curr.y < 0){
-								curr.y = offset == 0 ? limit - 1 : 0;
-								offset = (offset + currentLength - 1) % currentLength; //4
-							}
-							break;
-			case 'down': cur.y = (cur.y + 1) % paramsLength;
-							if(++curr.y > limit - 1){
-								curr.y = offset + limit - 1 >= paramsLength - 1 ? 0 : limit - 1;
-								offset = (offset + 1) % currentLength;
-							}
-							break;
-			case 'left': this.litroSound.setChannel(cur.x, param, this.litroSound.getChannel(cur.x, param) - 1);
-							this.drawParamCursor();
-							break;
-			case 'right': this.litroSound.setChannel(cur.x, param, this.litroSound.getChannel(cur.x, param) + 1);
-							this.drawParamCursor();
-							break;
-			// case 'left': this.moveMenuCursorCommon(null, dir, []); break;
-			// case 'right': this.moveMenuCursorCommon(null, dir, []); break;
+		if(!ext){
+			switch(dir){
+				case 'up': cur.y = (cur.y + paramsLength - 1) % paramsLength;
+								if(--curr.y < 0){
+									curr.y = offset == 0 ? limit - 1 : 0;
+									offset = (offset + currentLength - 1) % currentLength; //4
+								}
+								break;
+				case 'down': cur.y = (cur.y + 1) % paramsLength;
+								if(++curr.y > limit - 1){
+									curr.y = offset + limit - 1 >= paramsLength - 1 ? 0 : limit - 1;
+									offset = (offset + 1) % currentLength;
+								}
+								break;
+				case 'left': this.litroSound.setChannel(cur.x, param, this.litroSound.getChannel(cur.x, param) - 1);
+								this.drawParamCursor();
+								break;
+				case 'right': this.litroSound.setChannel(cur.x, param, this.litroSound.getChannel(cur.x, param) + 1);
+								this.drawParamCursor();
+								break;
+			}
+			this.paramOffset = offset;
+			this.drawParamKeys(offset, limit);
+			this.drawChannelParams(offset, limit);
+			this.drawParamCursor();
+		}else{
+			//描画込み
+			this.channelMove(dir);
 		}
-		this.paramOffset = offset;
-		
-		this.drawParamKeys(offset, limit);
-		this.drawChannelParams(offset, limit);
-		this.drawParamCursor();
 	},
 	
-	moveCatchCursor: function(dir)
+	moveCatchCursor: function(dir, ext)
 	{
 		var cur = this.paramCursor
 			, curr = this.paramCursorCurrent
@@ -1140,13 +1218,21 @@ LitroKeyboard.prototype = {
 			, offset = this.paramOffset
 			, searchTime = -1
 			, catchKey = ['note', 'TUNE', 'ALL']
-			, catchVal, eventset
+			, catchVal, eventset = null
 			, ignore = this.selectNote
-			, prevNote
+			, prevNote, ltime, ltype
 			, ch = cur.x
 		;
-
-		// this.drawParamCursor(curr.x, curr.y, true);
+		if(ext){
+			do{
+				ltime = eventset == null ? 0 : eventset.time;
+				ltype = eventset == null ? '' : eventset.type;
+				
+				eventset = this.moveCatchCursor(dir, false);
+				if(eventset == null){return;}
+			}while(eventset.time != ltime || eventset.type != ltype)
+		}
+		//キャッチタイプのインデックス
 		for(catchVal = 0; catchVal < catchKey.length; catchVal++){
 			if(catchKey[catchVal] == this.catchType){break;}
 		}
@@ -1155,18 +1241,20 @@ LitroKeyboard.prototype = {
 							break;
 			case 'down': this.catchType = catchKey[(catchVal + 1) % catchKey.length];
 							break;
-			case 'left': eventset = this.player.searchNearBack(ch, this.player.noteSeekTime, 0, this.catchType, ignore); break;
+			case 'left':
+							eventset = this.player.searchNearBack(ch, this.player.noteSeekTime, 0, this.catchType, ignore);
+							break;
 			case 'right': eventset = this.player.searchNearForward(ch, this.player.noteSeekTime, -1, this.catchType, ignore); break;
 		}
 		this.drawMenu(this.editMode);
 
+
 		if(eventset != null){
-			if((this.catchType != 'ALL' && this.catchType != 'TUNE') && (this.selectNote.ch != ch || this.selectNote.type != this.catchType)){
+			if(this.catchType != 'ALL' && ((this.catchType == 'TUNE' && this.selectNote.type == 'note') || (this.catchType == 'note' && this.selectNote.type != 'note')) && (this.selectNote.ch != ch || this.selectNote.type != this.catchType)){
 				//違うチャンネルをキャッチした
 				this.initCatchEvent();
 				this.initSelect();
 			}
-			// console.log(prevNote);
 			prevNote = this.selectNoteHistory.pop();
 			if(eventset.time == prevNote.time && eventset.type == prevNote.type){
 				//もどった
@@ -1197,52 +1285,61 @@ LitroKeyboard.prototype = {
 			this.drawNoteScroll(this.noteScrollPage + 1);
 			this.drawNoteScroll(null, true);
 		}
-		// this.drawParamKeys(offset, limit);
-		// this.drawChannelParams(offset, limit);
-		// this.drawParamCursor(curr.x, curr.y, false);
+		
+		return eventset;
 	},
 	
-	moveFileTitleCursor: function(dir)
+	moveCharBoardCursor: function(dir)
 	{
-		var cur =  this.charBoardCursor
-			, curr = this.paramCursorCurrent
-			, limit = this.charBoardLimit
+		var skip = 3
+			,Ccur =  this.charBoardCursor, Fcur =  this.fileMenuCursor
+			, Climit = this.charBoardLimit, Flimit = this.getActiveModeMenuList().length - skip
+			, curr = this.charBoardCurrent, dispNum = this.charBoardDispNum
+			y = Fcur.y;
 		;
-		if(list == null){
-			 return;
-		}
-		if(cur.x == limit.x){
-			cur = this.fileMenuCursor;
-			limit = this.getActiveModeMenuList();
+		if(Fcur.x == 0){
+			y -= skip;
 			switch(dir){
-				case 'up': cur.y = (cur.y + limit.y - 1) % limit.y; break;
-				case 'down': cur.y = (cur.y + 1) % limit.y; break;
-				case 'left': cur.x = cur.x - 1; break;
-				case 'right': cur.x = cur.x + 1; break;
-				// case 'left': cur.x = (cur.x + limit.x - 1) % limit.x; break;
-				// case 'right': cur.x = (cur.x + 1) % limit.x; break;
+				case 'up': Fcur.y = ((y + Flimit - 1) % Flimit) + skip; break;
+				case 'down': Fcur.y = ((y + 1) % Flimit) + skip; break;
+				case 'left': Fcur.x = Fcur.x - 1; break;
+				case 'right': Fcur.x = Fcur.x + 1; break;
+			}
+			if(Fcur.x > 0){
+				Ccur.x = 0;
+				this.drawCharBoard();
+				this.drawFileMenu();
+			}else if(Fcur.x < 0){
+				Ccur.x = Climit.x - 1;
+				this.drawCharBoard();
+				this.drawFileMenu();
+			}else{
+				this.drawMenu();
+				this.drawFileCursor();
 			}
 		}else{
 			switch(dir){
-				case 'up': cur.y = (cur.y + limit.y - 1) % limit.y; break;
-				case 'down': cur.y = (cur.y + 1) % limit.y; break;
-				case 'left': cur.x = cur.x - 1; break;
-				case 'right': cur.x = cur.x + 1; break;
-				// case 'left': cur.x = (cur.x + limit.x - 1) % limit.x; break;
-				// case 'right': cur.x = (cur.x + 1) % limit.x; break;
+				case 'up': Ccur.y = (Ccur.y + Climit.y - 1) % Climit.y; break;
+				case 'down': Ccur.y = (Ccur.y + 1) % Climit.y; break;
+				case 'left': Ccur.x = Ccur.x - 1; break;
+				case 'right': Ccur.x = Ccur.x + 1; break;
 			}
-		}
-		if(cur.x > limit.x){
-			cur.x = 0;
-		}else if(cur.x < 0){
-			cur.x = limit.x;
+			curr.y = Ccur.y - curr.y >= dispNum.y ? Ccur.y - dispNum.y + 1 : curr.y;
+			curr.y = Ccur.y - curr.y < 0 ? Ccur.y : curr.y;
+			if(Ccur.x >= Climit.x || Ccur.x < 0){
+				Fcur.x = 0;
+				this.drawFileCursor();
+				this.drawCharBoard();
+			}else{
+				this.drawCharBoard();
+			}
 		}
 	},
 	
 	moveFileMenuCursor: function(dir)
 	{
 		if(this.getLastCommand() == 'TITLE'){
-			this.moveFileTitleCursor(dir);
+			this.moveCharBoardCursor(dir);
 			return;
 		}
 		var cur = this.fileMenuCursor
@@ -1283,17 +1380,22 @@ LitroKeyboard.prototype = {
 			this.drawFileCursor();
 		}
 	},
-	moveEventsetCursor: function(dir)
-	{		var cur = this.noteMenuCursor
-			, list = this.noteMenuList
+	
+	moveEventsetCursor: function(dir, ext)
+	{
+		var cur = this.getActiveModeCursor()
+			, list = this.getActiveModeMenuList()
 		;
-		switch(dir)
-		{
-			case 'up': this.moveChannelParamCursor(dir); break;
-			case 'down': this.moveChannelParamCursor(dir); break;
-			case 'left': this.moveMenuCursorCommon(cur, dir, list); break;
-			case 'right': this.moveMenuCursorCommon(cur, dir, list); break;
-		}
+		// this.moveMenuCursorCommon(cur, dir, list);
+		this.drawEventsetMenu();
+
+		// switch(dir)
+		// {
+			// case 'up': this.moveChannelParamCursor(dir, ext); break;
+			// case 'down': this.moveChannelParamCursor(dir, ext); break;
+			// case 'left': this.moveMenuCursorCommon(cur, dir, list); break;
+			// case 'right': this.moveMenuCursorCommon(cur, dir, list); break;
+		// }
 	},
 	
 	moveNoteMenuCursor: function(dir)
@@ -1303,6 +1405,7 @@ LitroKeyboard.prototype = {
 		;
 		this.moveMenuCursorCommon(cur, dir, list);
 	},
+
 	
 	setMenuCommandPath: function()
 	{
@@ -1331,10 +1434,27 @@ LitroKeyboard.prototype = {
 		return list == null ? p : list[cur.y];
 	},
 	
+	commonTabKey: function()
+	{
+		var mode;
+		if(this.editMode == 'tune'){
+			this.changeEditMode(this.prevEditMode);
+			this.prevEditMode = 'tune';
+		}else{
+			mode = this.editMode;
+			this.changeEditMode(this.prevEditMode);
+			this.prevEditMode = mode;
+		}
+		this.drawParamKeys();
+		// this.drawSelectEvents(this.selectNote);
+		this.drawChannelParams();
+		this.drawParamCursor();
+		this.drawMenu();		
+	},
+	
 	baseKeyOnChannel: function(key)
 	{
-		var cur = this.paramCursor
-			, curr = this.paramCursorCurrent
+		var cur = this.paramCursor, curr = this.paramCursorCurrent
 			, param = this.ltSoundChParamKeys[this.paramKeys[cur.y]]
 		;
 		switch(key){
@@ -1349,14 +1469,8 @@ LitroKeyboard.prototype = {
 				// this.drawParamCursor();
 				break;
 			case 'select': 
-				this.changeEditMode(this.editMode == 'tune' ? 'note' : 'tune');
-				this.commandPath = [];
-				
-				this.drawParamKeys();
-				// this.drawSelectEvents(this.selectNote);
-				this.drawChannelParams();
-				this.drawParamCursor();
-				this.drawMenu();
+				this.commonTabKey();
+				// this.changeEditMode(this.editMode == 'tune' ? 'note' : 'tune');
 				break;
 			case 'space': 
 				this.playKeyOn();
@@ -1419,15 +1533,7 @@ LitroKeyboard.prototype = {
 				this.drawMenu();
 				break;
 			case 'select': 
-				// this.editMode = this.editMode == 'tune' ? 'note' : 'tune';
-				this.changeEditMode(this.editMode == 'tune' ? 'note' : 'tune');
-				this.commandPath = [];
-				
-				this.drawParamKeys();
-				this.drawChannelParams();
-				this.drawParamCursor();
-				// this.drawSelectEvents(this.selectNote);
-				this.drawMenu();
+				this.commonTabKey();
 				break;
 			case 'space': 
 				this.playStartLitro();
@@ -1478,7 +1584,7 @@ LitroKeyboard.prototype = {
 					cur.y = 0;
 					break;
 				}
-				this.commandPath = [];
+				this.changeEditMode('eventset');
 				break;
 			case 'CHANNEL':
 				cur = this.paramCursor;
@@ -1510,8 +1616,16 @@ LitroKeyboard.prototype = {
 				if(key == '<'){
 					break;
 				}
-				this.clearLeftScreen();
-				this.drawCharBoard();
+				break;
+			case 'FINISH':
+				this.getActiveModeCursor().y = 0;
+				if(key == '<'){
+					break;
+				}
+				this.word.setLineCols(this.player.titleMaxLength + 1);
+				this.player.titleCodes = this.word.makeStrId(this.player.title);
+				// console.log(this.player.titleCodes, this.player.titleCodes.length, this.player.titleMaxLength, this.word.cols);
+				this.changeEditMode('file');
 				break;
 			case 'OK':
 				this.getActiveModeCursor().y = 0;
@@ -1520,6 +1634,7 @@ LitroKeyboard.prototype = {
 				}
 				this.commandExecute();
 				break;
+			case 'CANCEL':
 			case 'NO':
 				this.getActiveModeCursor().y = 0;
 				if(key == '>'){
@@ -1559,7 +1674,7 @@ LitroKeyboard.prototype = {
 				this.setEventChange(cur.x, this.makeEventset(this.getParamKeyName(), this.getTuneParam()));
 				break;
 			case 'select': 
-				this.changeEditMode('note');
+				this.commonTabKey();
 				break;
 			case 'space': 
 				this.playKeyOn();
@@ -1572,17 +1687,69 @@ LitroKeyboard.prototype = {
 		this.drawNoteScroll(null, true);
 	},
 	
+	baseKeyOnTitle: function(key)
+	{
+		var cur = this.fileTitleCursor, limit = this.player.titleMaxLength
+			, Ccur = this.charBoardCursor, Climit = this.charBoardLimit
+			, title = this.player.title
+		;
+		switch(key){
+			case '<': 
+				cur.x = cur.x > 0 ? cur.x - 1 : cur.x;
+				title = title.slice(0, cur.x);
+				break;
+			case '>': 
+				title = title.length < limit
+				? title.concat(this.word.indexOf(Ccur.x + (Ccur.y * Climit.x)))
+				: title.substr(0, title.length - 1) + this.word.indexOf(Ccur.x + (Ccur.y * Climit.x));
+				cur.x = cur.x < limit ? cur.x + 1 : cur.x;
+				break;
+			case 'select': 
+				break;
+			case 'space': 
+				this.playKeyOn();
+				break;
+		}
+		this.player.title = title;
+	},
+	
 	baseKeyOnFile: function(key)
 	{
-		var fcur = this.fileMenuCursor
+		var fcur = this.fileMenuCursor, ccur = this.charBoardCursor
+			, cLimit = this.charBoardLimit
 			, com
 		;
+		if(this.getLastCommand() == 'TITLE'){
+			if(key == 'select'){
+				if(fcur.x == 0){
+					ccur.x = 0; fcur.x = 2;
+					this.drawFileMenu();
+				}else{
+					fcur.x = 0;	ccur.x = -1;
+					this.drawFileCursor();
+				}
+				this.drawCharBoard();
+				return;
+			}
+			if(this.fileMenuCursor.x != 0){
+				this.baseKeyOnTitle();
+				this.drawCharBoard();
+				return;
+			}
+		}
 		com = this.baseKeyMenuCommon(fcur, key);
 		if(key == '<' && this.fileMenuList.indexOf(com) >= 0){
 			this.changeEditMode('note');
 			this.drawMenu();
 		}else if(com == 'FILELIST'){
 			this.commandExecute();
+		}else if(com == 'TITLE'){
+			this.fileMenuCursor.x = -1;
+			this.fileMenuCursor.y = 3;
+			this.charBoardCursor.x = 0;
+			this.clearLeftScreen();
+			this.drawCharBoard();
+			return;
 		}else if(key == '>'){
 			fcur.y = 0;
 		}
@@ -1600,9 +1767,12 @@ LitroKeyboard.prototype = {
 			this.drawMenu('play');
 			this.drawOscillo();
 		}else{
-			this.editMode = 'note';
+			this.getActiveModeCursor().y = 0;
+			this.changeEditMode('note');
+			// this.editMode = 'note';
 			this.drawMenu();
 		}
+		this.initFingerState(this.fingers);
 		player.isPlay() == true ? player.stop() : player.play();
 	},
 	
@@ -1629,15 +1799,15 @@ LitroKeyboard.prototype = {
 		this.baseKeyOn(key);
 	},
 	
-	moveCursor: function(dir)
+	moveCursor: function(dir, ext)
 	{
 		switch(this.editMode){
-			case 'tune': this.moveChannelParamCursor(dir);break;
-			case 'note': this.moveNoteMenuCursor(dir);break;
-			case 'play': this.moveChannelParamCursor(dir);break;
-			case 'catch': this.moveCatchCursor(dir);break;
-			case 'eventset': this.moveEventsetCursor(dir);break;
-			case 'file': this.moveFileMenuCursor(key);break;
+			case 'tune': this.moveChannelParamCursor(dir, ext);break;
+			case 'note': this.moveNoteMenuCursor(dir, ext);break;
+			case 'play': this.moveChannelParamCursor(dir, ext);break;
+			case 'catch': this.moveCatchCursor(dir, ext);break;
+			case 'eventset': this.moveEventsetCursor(dir, ext);break;
+			case 'file': this.moveFileMenuCursor(dir, ext);break;
 			// case 2: this.movefileMenuCursor(dir);break;
 			// case 3: this.baseKeyOnChannel(dir);break;
 		}
@@ -1675,6 +1845,7 @@ LitroKeyboard.prototype = {
 	
 	keycheck: function(){
 		var hold, trigs, untrigs, row, chars, name, cont = this.keyControll
+			, ext = cont.getState('ext')
 		;
 		chars = this.ROW_CHARS;
 		// console.log(chars);
@@ -1716,7 +1887,7 @@ LitroKeyboard.prototype = {
 		hold = cont.getHold(this.corsolKeys);
 		for(key in trigs){
 			if(trigs[key] || hold[key]){
-				this.moveCursor(key);
+				this.moveCursor(key, ext);
 			}
 		}
 		
@@ -1919,44 +2090,76 @@ LitroKeyboard.prototype = {
 		}
 		
 	},
+	drawTitleCursor: function()
+	{
+		var cm = this.paramskeysCmargin
+			, cur = this.fileTitleCursor
+		;
+		this.paramCursorBlinkFlag = !this.paramCursorBlinkFlag;
+		if(this.paramCursorBlinkFlag){return;}
+		this.word.setScroll(scrollByName('sprite'));
+		this.word.print('　', cellhto(cm.x + cur.x), cellhto(cm.y + 0), COLOR_BLACK, COLOR_NOTEFACE);
+		this.word.print('　', cellhto(cm.x + cur.x), cellhto(cm.y + 1), COLOR_BLACK, COLOR_NOTEFACE);
+		
+	},
 	
 	drawCharBoard: function()
 	{
 		var scr = scrollByName('bg1')
 			, word = this.word, x, y, i = 0
-			, cm = this.paramskeysCmargin
-			, dispNum = {x: 20, y: 3}
+			, cm = this.charBoardCmargin
+			, tcm = this.paramskeysCmargin
+			, dispNum = this.charBoardDispNum
 			, ofstr = this.charBoardCurrent.y * dispNum.x
-			, spr, ofs, tspr
+			, spr, tspr, rev, chrNum
 			, maxCurrent = 200
+			, cur = this.charBoardCursor
 		;
 		word.setScroll(scr);
 		word.setMarkAlign('vertical');
-		function setsprite(code){
+		function setsprite(code, reverse){
 			sprite = makeSprite(word.imageName, code);
-			sprite.swapColor(COLOR_NOTEFACE, COLOR_FONT8);
-			sprite.swapColor(COLOR_BLACK, COLOR_TRANSPARENT);
+			sprite.swapColor(reverse ? COLOR_BLACK : COLOR_NOTEFACE, COLOR_FONT8);
+			sprite.swapColor(reverse ? COLOR_NOTEFACE : COLOR_BLACK, COLOR_TRANSPARENT);
 			return sprite;
 		}
-		for(y = 0; y < 3; y++){
-			ofs = 0;
-			for(x = 0; x < 20; x++){
-				// ofs = ((x > 4) | 0) + ((x > 9) | 0);
-				if(i in word.soundmarks){
-					tspr = setsprite(i + ofstr);
-					spr = setsprite(word.soundmarks[i]);
+		
+		for(x = 0; x < this.player.titleMaxLength; x++){
+			chrNum = word.SearchNum(this.player.title.substr(x, 1));
+//			rev = this.fileTitleCursor.x == x;
+			y = 0;
+			if(x >= this.player.title.length){
+				tspr = setsprite(word.SPACE_CODE, rev);
+				spr = setsprite(word.HYPHEN_CODE, rev);
+				y = cellhto(0.25);
+			}else if(chrNum in word.soundmarks){
+				tspr = setsprite(chrNum, rev);
+				spr = setsprite(word.soundmarks[chrNum], rev);
+			}else{
+				tspr = setsprite(word.SPACE_CODE, rev);
+				spr = setsprite(chrNum, rev);
+			}
+			scr.drawSprite(tspr, cellhto(x + cm.x), cellhto(tcm.y) + y);
+			scr.drawSprite(spr, cellhto(x + cm.x), cellhto(tcm.y + 1) + y);
+		}
+		for(y = 0; y < dispNum.y; y++){
+			for(x = 0; x < dispNum.x; x++){
+				rev = cur.x == x && cur.y - this.charBoardCurrent.y == y ;
+				if(i + ofstr in word.soundmarks){
+					tspr = setsprite(i + ofstr, rev);
+					spr = setsprite(word.soundmarks[i + ofstr], rev);
 				}else{
-					tspr = setsprite(word.SPACE_CODE);
-					spr = setsprite(i + ofstr);
+					tspr = setsprite(word.SPACE_CODE, rev);
+					spr = setsprite(i + ofstr, rev);
 				}
-				scr.drawSprite(tspr, cellhto(x + cm.x + ofs), cellhto((y * 2) + cm.y));
-				scr.drawSprite(spr, cellhto(x + cm.x + ofs), cellhto((y * 2) + cm.y + 1));
+				scr.drawSprite(tspr, cellhto(x + cm.x), cellhto((y * 2) + cm.y));
+				scr.drawSprite(spr, cellhto(x + cm.x), cellhto((y * 2) + cm.y + 1));
 				i++;
 			}
 		}
 		word.setMarkAlign('horizon');
 		
-	},
+	},	
 	
 	drawNoteTest: function()
 	{
@@ -2262,7 +2465,6 @@ LitroKeyboard.prototype = {
 			, word = this.word
 			, key = list[y]
 			;
-		
 		if(list == null){
 			list = ['？？？'];
 		}
@@ -2405,7 +2607,7 @@ LitroKeyboard.prototype = {
 			, keys = []
 			, word = this.word
 			, mc = (xc == null || yc == null) ? this.channelParamsCmargin: {x: xc, y: yc}
-			, chLength = 0
+			, chLeft = 0, chLength = 0
 			, numLength = 2
 			, tuneKeyLavel = {}
 			, tuneLavelKey = this.ltSoundChParamKeys
@@ -2433,7 +2635,8 @@ LitroKeyboard.prototype = {
 			}
 			chLength = 1;
 		}
-					
+		chLeft = (fixch != null) && (xc == null) ? fixch * numLength : 0;
+		
 		word.setScroll(scrollByName('bg1'));
 		for(j = 0; j < chLength; j++){
 			for(i = 0; i < limit; i++){
@@ -2450,16 +2653,16 @@ LitroKeyboard.prototype = {
 						if(this.isCatch(params[key].time, fixch, params[key].type)){
 							sprite = word.getSpriteArray(formatNum(num, 2), color, COLOR_BLACK);
 							noref = !(params[key].time in this.player.eventsetData[fixch][params[key].type]);
-							this.blinkDrawParams.push({sprite: sprite, x: cellhto(mc.x + (j * numLength)), y: cellhto(mc.y + i), noref: noref});
+							this.blinkDrawParams.push({sprite: sprite, x: cellhto(mc.x + (j * numLength) + chLeft), y: cellhto(mc.y + i), noref: noref});
 							continue;
 						}
 					}
-					word.print(formatNum(num, 2), cellhto(mc.x + (j * numLength)), cellhto(mc.y + i), color, COLOR_BLACK);
+					word.print(formatNum(num, 2), cellhto(mc.x + (j * numLength) + chLeft), cellhto(mc.y + i), color, COLOR_BLACK);
 				}
 			}
 		}
-
 	},
+
 	drawScrollTime: function(time)
 	{
 		var cm = {x: 0, y: 9}
@@ -2535,24 +2738,34 @@ LitroKeyboard.prototype = {
 		}
 	},
 	
-	drawChannelTab_on: function(ch)
+	drawChannelTab_on: function(ch, toggle)
 	{
 		var i
 			, scr = scrollByName('bg1')
-			, tabsprite = makeSpriteChunk(this.uiImageName, makeRect([0, 9, 1, 1]))
-			, draws = makeSpriteChunk(this.uiImageName, makeRect([0, 9, 1, 1]))
-			, cm = {x: 8, y: 14}
+			, chOnId = 144, chOffId = 160, chOffset = 1
+			, tabsprite, cm = {x: 6, y: 14}
+			, x, y
 		;
+		chId = toggle == null || toggle ? chOnId : chOffId;
 		if(ch == null){
 			ch = [0, 1, 2, 3, 4, 5, 6, 7];
+			//背景
+			for(i = 0; i < this.topFrameCenter.lenth; i++){
+				tabsprite = makeSprite(this.uiImageName, this.topFrameCenter[i]);
+				scr.drawSpriteChunk(tabsprite, cellhto(cm.x + (i * 2)), cellhto(cm.y));
+			}
+			for(i = 0; i < ch.length; i++){
+				tabsprite = makeSprite(this.uiImageName, chId + ch[i]);
+				scr.drawSpriteChunk(tabsprite, cellhto(cm.x + ((ch[i] + chOffset) * 2)), cellhto(cm.y));
+			}
 		}
-		if(ch.length == null){
-			ch = [ch];
-		}
-		for(i = 0; i < ch.length; i++){
-			//xだけ変更してchannelスプライト変更
-			draws[0][0].x = tabsprite[0][0].x + (ch[i] * cellhto(2)); //よくない
-			scr.drawSpriteChunk(draws, cellhto(cm.x + (ch[i] * 2)), cellhto(cm.y));
+		else{
+			x = cellhto(cm.x + ((ch + chOffset) * 2));
+			y = cellhto(cm.y);
+			tabsprite = makeSprite(this.uiImageName, this.topFrameCenter[ch + chOffset]);
+			scr.drawSpriteChunk(tabsprite, x, y);
+			tabsprite = makeSprite(this.uiImageName, ch + chId);
+			scr.drawSpriteChunk(tabsprite, x, y);
 		}
 		
 	},
@@ -2634,6 +2847,7 @@ LitroKeyboard.prototype = {
 			case 'note': ; break;
 			case 'play': this.drawOutputWave(); break;
 			case 'catch': ; break;
+			case 'file': if(this.getLastCommand() == 'TITLE'){this.drawTitleCursor();} break;
 			
 		}
 		this.drawSeek();
@@ -2654,7 +2868,7 @@ LitroKeyboard.prototype = {
 			case 'play': this.drawOscillo(); break;
 			case 'catch': this.drawCatchMenu(); this.drawMenuListCursor(this.catchMenuList, this.noteMenuCursor.y); break;
 			case 'eventset': this.drawEventsetMenu(); this.drawMenuListCursor(this.eventsetMenuList, this.eventsetMenuCursor.y); break;
-			case 'file': this.drawFileMenu(); this.drawMenuListCursor(this.getActiveModeMenuList(), this.getActiveModeCursor().y); break;
+			case 'file': this.drawFileMenu(); if(this.getLastCommand() != 'TITLE'){this.drawMenuListCursor(this.getActiveModeMenuList(), this.getActiveModeCursor().y);} break;
 			case 'error': break;
 			
 		}
@@ -2796,49 +3010,6 @@ LitroKeyboard.prototype = {
 	},
 	
 };
-
-function LitroSoundFile()
-{
-	return;
-};
-LitroSoundFile.prototype = {
-	init: function()
-	{
-		this.fileVersion = 0.01;
-		this.fileList = [];
-		
-	},
-	
-	loadFromPath: function(path)
-	{
-	},
-	loadFromURL: function(url)
-	{
-	},
-	loadFromCookie: function()
-	{
-	},
-	saveToPath: function(path, data)
-	{
-	},
-	saveToURL: function(url, data)
-	{
-	},
-	saveToCookie: function(data)
-	{
-	},
-	
-	decode: function(audioParams)
-	{
-		
-	},
-	
-	encode: function(str)
-	{
-		
-	}
-};
-
 
 function printDebug(val, row){
 		var scr = scrollByName('sprite'), ltkb = litroKeyboardInstance
