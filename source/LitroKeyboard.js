@@ -2,6 +2,7 @@
  * Litro Keyboard Interface
  * Since 2013-11-19 07:43:37
  * @author しふたろう
+ * ver 0.02.00
  */
 var litroKeyboardInstance = null;
 var VIEWMULTI = 2;
@@ -357,7 +358,6 @@ LitroKeyboard.prototype = {
 		};
 		
 		//
-		console.log(allcontrolls)
 		this.loadImages();
 		this.initFingerState(this.fingers);
 		this.initCanvas();
@@ -642,6 +642,11 @@ LitroKeyboard.prototype = {
 			case 'eventset': return this.eventsetMenuCursor;
 			default: return {};
 		}
+	},
+	
+	editChannel: function()
+	{
+		return this.paramCursor.x;
 	},
 	
 	/**
@@ -1228,6 +1233,9 @@ LitroKeyboard.prototype = {
 		// this.drawParamKeys();
 		this.drawChannelParams();
 		this.drawParamCursor();
+		this.drawNoteScroll(this.noteScrollPage);
+		this.drawNoteScroll(this.noteScrollPage + 1);
+		this.drawNoteScroll(null, true);
 	},
 	
 	moveChannelParamCursor: function(dir, ext)
@@ -1393,6 +1401,7 @@ LitroKeyboard.prototype = {
 			}else{
 				this.drawMenu();
 				this.drawFileCursor();
+				this.drawCharBoard();
 			}
 		}else{
 			switch(dir){
@@ -1474,13 +1483,6 @@ LitroKeyboard.prototype = {
 		this.drawEventsetMenu();
 		this.drawEventsetCursor();
 
-		// switch(dir)
-		// {
-			// case 'up': this.moveChannelParamCursor(dir, ext); break;
-			// case 'down': this.moveChannelParamCursor(dir, ext); break;
-			// case 'left': this.moveMenuCursorCommon(cur, dir, list); break;
-			// case 'right': this.moveMenuCursorCommon(cur, dir, list); break;
-		// }
 	},
 	
 	moveNoteMenuCursor: function(dir)
@@ -1913,7 +1915,12 @@ LitroKeyboard.prototype = {
 			this.prevEditMode = 'note';
 			// this.changeEditMode('note');
 			// this.editMode = 'note';
+			
+			this.drawParamKeys();
+			this.drawParamCursor();
+			this.drawChannelParams();
 			this.drawMenu();
+			// this.drawChannelCursor();
 		}
 		this.initFingerState(this.fingers);
 		player.isPlay() == true ? player.stop() : player.play();
@@ -1956,7 +1963,7 @@ LitroKeyboard.prototype = {
 		}
 	},
 	
-	zoomKeyOn: function(key)
+	zoomKeyOn: function(key, ext)
 	{
 		var r = this.noteRangeScale
 			, c = this.noteRangeCells
@@ -1971,13 +1978,17 @@ LitroKeyboard.prototype = {
 				if((c + p) * 16 > r){break;}
 				p += c;
 			}
+			c = ext ? min : c;
 			this.noteRangeScale = r + c >= max ? max : r + c;
 		}else if(key == ']'){
 			for(c; c < max; c += c){
 				if((c + p) * 16 >= r){break;}
 				p += c;
 			}
+			c = ext ? min : c;
 			this.noteRangeScale = r - c <= min ? min : r - c;
+		}else if(key == '[]'){
+			this.noteRangeScale = ext ? min * 10 : this.NOTE_RANGE_SCALE_DEFAULT;
 		}
 		this.drawZoomScale(this.noteRangeScale);
 		this.updateForwardSeek();
@@ -1987,7 +1998,7 @@ LitroKeyboard.prototype = {
 	},
 	
 	keycheck: function(){
-		var hold, trigs, untrigs, row, chars, name, cont = this.keyControll
+		var state, hold, trigs, untrigs, row, chars, name, cont = this.keyControll
 			, ext = cont.getState('ext')
 		;
 		chars = this.ROW_CHARS;
@@ -2050,6 +2061,10 @@ LitroKeyboard.prototype = {
 			if(trigs[key] || hold[key]){
 				this.zoomKeyOn(key, ext);
 			}
+		}
+		state = cont.getState(this.zoomKeys);
+		if(state['['] && state[']']){
+			this.zoomKeyOn('[]', ext);
 		}
 	},
 	
@@ -2377,8 +2392,8 @@ LitroKeyboard.prototype = {
 	
 	drawDataScroll: function(page, catchMode)
 	{
-		var eventset, settype, type, data, t, x, y, note, noref, drawCnt = 0, noteCnt = 0
-			, tuneWrited = {}
+		var eventset, settype, type, data, ch, i, t, x, y, note, noref, drawCnt = 0, noteCnt = 0
+			, tuneWrited = {}, chSort = []
 			, bottom = (page % 2 == 0) ? false : true
 			, scrollTop = !bottom ? 0 : (DISPLAY_HEIGHT / 2)
 			, testcolor = !bottom ? COLOR_ADD : COLOR_PARAMKEY
@@ -2407,6 +2422,13 @@ LitroKeyboard.prototype = {
 			timeEnd = timeStart + this.noteRangeScale;
 		}
 		for(ch = 0; ch < channelsData.length; ch++){
+			if(this.editChannel() != ch){chSort.push(ch);}
+		}
+		chSort.push(this.editChannel());
+		
+		for(i = 0; i < channelsData.length; i++){
+			ch = chSort[i];
+			if(this.litroSound.getChannel(ch, 'enable', false) == 0){continue;}
 			tuneWrited = {};
 			for(type in channelsData[ch]){
 				if(!catchMode){
