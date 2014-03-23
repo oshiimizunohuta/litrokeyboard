@@ -2,7 +2,7 @@
  * Litro Keyboard Interface
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.02.00
+ * ver 0.02.01
  */
 var litroKeyboardInstance = null;
 var VIEWMULTI = 2;
@@ -876,7 +876,6 @@ LitroKeyboard.prototype = {
 		this.status_on[channel] = null;
 		// this.litroSound.offNoteFromCode(channel);
 		// this.litroSound.channel[channel].refChannel = -1;
-
 		this.litroSound.fadeOutNote(channel, paramChannel);
 	},
 	

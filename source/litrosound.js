@@ -2,7 +2,7 @@
  * Litro Sound Library
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.02.00
+ * ver 0.02.01
  */
 // var SAMPLE_RATE = 24000;
 var SAMPLE_RATE = 48000;
@@ -337,7 +337,7 @@ LitroSound.prototype = {
 		var freq = this.freqByKey(key);
 		this.channel[ch].clearWave();
 		// console.log(freq);
-		this.channel[ch].refChannel = -1;
+		this.channel[ch].refChannel = ch;
 		this.channel[ch].noteKey = key;
 		this.channel[ch].envelopeClock = 0;
 		this.channel[ch].detuneClock = 0;
@@ -389,10 +389,17 @@ LitroSound.prototype = {
 			return;
 		}
 		// this.channel[channel].resetEnvelope();
-		this.channel[channelNum].refChannel = channelNum;
-		this.channel[channelNum].skiptoReleaseClock();
+		this.skiptoReleaseClock(channelNum, true);
+		this.channel[channelNum].refChannel = refChannel;
+		// console.log(this.channel[channelNum].refChannel);
 	},
 	
+	skiptoReleaseClock: function(ch, refEnable)
+	{
+		var clock = this.getChannel(ch, 'attack', refEnable) + this.getChannel(ch, 'decay', refEnable) + this.getChannel(ch, 'length', refEnable);
+		this.envelopeClock = this.envelopeClock < clock ? clock : this.envelopeClock;
+	},
+		
 	noteOn: function(channel){
 		this.channel[channel].bufferSource.start(0);
 	},
@@ -1287,12 +1294,12 @@ AudioChannel.prototype = {
 		var type = this.tuneParams.waveType;
 		return type > 11 && type < 16;
 	},
-	
-	skiptoReleaseClock: function()
-	{
-		var clock = this.tune('attack') + this.tune('decay') + this.tune('length');
-		this.envelopeClock = this.envelopeClock < clock ? clock : this.envelopeClock;
-	},
+// 	
+	// skiptoReleaseClock: function()
+	// {
+		// var clock = this.tune('attack') + this.tune('decay') + this.tune('length');
+		// this.envelopeClock = this.envelopeClock < clock ? clock : this.envelopeClock;
+	// },
 	
 	resetEnvelope: function()
 	{
