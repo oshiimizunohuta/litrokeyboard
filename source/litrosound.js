@@ -390,14 +390,16 @@ LitroSound.prototype = {
 		}
 		// this.channel[channel].resetEnvelope();
 		this.skiptoReleaseClock(channelNum, true);
-		this.channel[channelNum].refChannel = refChannel;
+		this.channel[channelNum].refChannel = refChannel == null ? channelNum : refChannel;
 		// console.log(this.channel[channelNum].refChannel);
 	},
 	
 	skiptoReleaseClock: function(ch, refEnable)
 	{
-		var clock = this.getChannel(ch, 'attack', refEnable) + this.getChannel(ch, 'decay', refEnable) + this.getChannel(ch, 'length', refEnable);
-		this.envelopeClock = this.envelopeClock < clock ? clock : this.envelopeClock;
+		var clock = this.getChannel(ch, 'attack', refEnable) + this.getChannel(ch, 'decay', refEnable) + this.getChannel(ch, 'length', refEnable)
+			, channel = this.channel[ch]
+		;
+		channel.envelopeClock = channel.envelopeClock < clock ? clock : channel.envelopeClock;
 	},
 		
 	noteOn: function(channel){
@@ -853,8 +855,8 @@ LitroPlayer.prototype = {
 			litroSoundInstance.onNoteKey(ch, value);
 		}else if(type == 'event'){
 			switch(value){
-				case tuneId.return: this.seekMoveBack(-1), this.seekMoveForward(this.commonEventTime('restart')); this.timeOutEvent = {};return true;
-				case tuneId.noteoff: litroSoundInstance.fadeOutNote(ch); break;
+				case tuneId['return']: this.seekMoveBack(-1), this.seekMoveForward(this.commonEventTime('restart')); this.timeOutEvent = {};return true;
+				case tuneId.noteoff: litroSoundInstance.fadeOutNote(ch, ch); break;
 			}
 		}else{
 			litroSoundInstance.setChannel(ch, type, value);
@@ -879,7 +881,7 @@ LitroPlayer.prototype = {
 					if(this.eventsetData[ch][type][this.noteSeekTime] != null){
 						data = this.eventsetData[ch][type][this.noteSeekTime];
 						if(delay > 0){
-							this.setTimeOutEvent(ch, t + delay, delay + t + data.time, type, data.value)
+							this.setTimeOutEvent(ch, t + delay, delay + t + data.time, type, data.value);
 						}else if(t > 0){
 							this.setTimeOutEvent(ch, t, t + data.time, type, data.value);
 						}else{
@@ -1099,6 +1101,7 @@ AudioChannel.sortParam = [
 	'enable',
 	'note'
 ];
+//TODO キー={各state}とするべきか
 AudioChannel.tuneParamsMax = {
 	volumeLevel:15,
 	waveType:15,
