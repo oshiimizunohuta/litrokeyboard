@@ -2,7 +2,7 @@
  * Litro Sound Library
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.02.01
+ * ver 0.03.01
  */
 // var SAMPLE_RATE = 24000;
 var SAMPLE_RATE = 48000;
@@ -68,7 +68,7 @@ LitroSound.prototype = {
 		this.gain = null; //ゲイン
 		this.analyser = null; //波形分析
 		this.delay = null; //遅延
-		this.source = null; //重要バッファ]
+		this.source = null; //重要バッファ
 		this.setChannelEventFunc = function(){return;};
 		this.onNoteKeyEventFunc = function(){return;};
 		this.fadeoutEventFunc = function(){return;};
@@ -514,6 +514,8 @@ function LitroPlayer(){return;};
 LitroPlayer.prototype = {
 	init: function()
 	{
+		//v0.03:-値対応
+		this.fversion = 0.03;
 		litroPlayerInstance = this;
 		this.sound_id = null;
 		this.user_id = null;
@@ -529,7 +531,6 @@ LitroPlayer.prototype = {
 		this.timeOutEvent = {};
 		// this.timeOutEvent = [];
 		this.timeOutCC = [];
-		this.fversion = 0.02;
 		this.eventsetKeyIndex = {};
 		this.FORMAT_LAVEL = 'litrosoundformat';
 		this.fileUserName = 'guest_user_';
@@ -653,7 +654,7 @@ LitroPlayer.prototype = {
 			// console.log('type', this.pad0((type | 0).toString(mode), 2));
 				for(time in edat[ch][type]){
 					typestr += this.pad0((time | 0).toString(mode), datLen.time);//+6
-					typestr += this.pad0((edat[ch][type][time].value | 0).toString(mode), datLen.value);//+2
+					typestr += this.pad0(((edat[ch][type][time].value | 0) - prop[type].min).toString(mode), datLen.value);//+2
 			// console.log('time', this.pad0((time | 0).toString(mode), 6));
 			// console.log('value', edat[ch][type][time], this.pad0((edat[ch][type][time].value | 0).toString(mode), 2));
 				}
@@ -711,12 +712,13 @@ LitroPlayer.prototype = {
 		errorFunc = errorFunc == null ? function(){return;} : errorFunc;
 		
 		if(sound_id == 0){
+			//insert needs sound_id:0
 			this.sendToAPIServer('POST', 'fileinsert', params, func, errorFunc);
 		}else{
+			//update needs sound_id > 0
 			params.sound_id = sound_id;
 			this.sendToAPIServer('POST', 'fileupdate', params, func, errorFunc);
 		}
-		
 	},
 	
 	charCodeToDataStr: function(code)
@@ -735,6 +737,7 @@ LitroPlayer.prototype = {
 		}
 		return str;
 	},
+	//datastr parse のみ有効
 	timevalData: function(type, timeval)
 	{
 		var i, res = {}, datLen = this.DATA_LENGTH36
@@ -742,12 +745,13 @@ LitroPlayer.prototype = {
 		, chunkLen = datLen.time + datLen.value
 		, length = (timeval.length / chunkLen) | 0
 		, time, value
+		, prop = AudioChannel.tuneParamsProp
 		;
 		// console.log(timeval, length);
 		for(i = 0; i < length; i++){
 			time = parseInt(timeval.substr(chunkLen * i, datLen.time), mode);
-			value = parseInt(timeval.substr((chunkLen * i) +  datLen.time, datLen.value), mode);
-			res[time] = {type: type, time: time, value: parseInt(timeval.substr((chunkLen * i) +  datLen.time, datLen.value), mode)};
+			value = parseInt(timeval.substr((chunkLen * i) + datLen.time, datLen.value), mode) + prop[type].min;
+			res[time] = {type: type, time: time, value: value};
 		}
 		// console.log(type, res);
 		return res;
@@ -1443,7 +1447,7 @@ function noiseWave(channel, type)
 function sawstairWave(channel, widthRate_l, widthRate_r)
 {
 	var i
-		, vol = litroSoundInstance.envelopedVolume(channel.id)
+		, vol = litroSoundInstance.envelopedVolume(channel.id) * Math.sqrt(2)
 		, vResolute = 8 //volume reso
 		, wResolute = vResolute //wave reso
 		, cellVol = vol / (vResolute) //volume per stair

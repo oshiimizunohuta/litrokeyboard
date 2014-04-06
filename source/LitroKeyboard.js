@@ -2,7 +2,7 @@
  * Litro Keyboard Interface
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.02.01
+ * ver 0.03.00
  */
 var litroKeyboardInstance = null;
 var VIEWMULTI = 2;
@@ -191,7 +191,7 @@ function LitroKeyboard() {
 	this.catchMenuList = ['KEEP'];
 	this.catchKeepMenuList = ['PASTE', 'REMOVE'];
 	this.catchMenuCursor = {x: 0, y:0};
-	this.noteMenuList = ['EVENTSET', 'CATCH', 'PASTE', 'REMOVE', 'FILE'];
+	this.noteMenuList = ['EVENTSET', 'CATCH', 'FILE'];
 	this.noteMenuCursor = {x:0, y:0};
 	
 	// this.fileMenuList = ['LOAD', 'SAVE', 'CLEAR'];
@@ -1796,7 +1796,19 @@ LitroKeyboard.prototype = {
 				cur = this.fileMenuCursor;
 				cur.y = 0;
 				break;
+			case 'COOKIE':
+				cur = this.fileMenuCursor;
+				if(key == '<'){
+					cur.y = 0;
+					break;
+				}
+			break;
 			case 'SERVER':
+				cur = this.fileMenuCursor;
+				if(key == '<'){
+					cur.y = 0;
+					break;
+				}
 				this.changeEditMode('loading', false);
 				this.loadList(this.fileListPage);
 				this.getActiveModeCursor().y = 0;
@@ -2127,6 +2139,12 @@ LitroKeyboard.prototype = {
 			if(trigs[key] || hold[key]){
 				this.moveCursor(key, ext);
 			}
+		}
+		
+		trigs = cont.getTrig('select');
+		if(trigs && ext){
+			captureScreen('view');
+			return;
 		}
 		
 		//操作キー
