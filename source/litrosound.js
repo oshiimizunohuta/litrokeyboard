@@ -1612,15 +1612,13 @@ function minWavlen()
 //call at 60fps
 function litroSoundMain()
 {
-	var ch;
-// printDebug(maxFreq(), 1);
-
-	for(ch = 0; ch < CHANNELS; ch++){
+	// var ch;
+	// for(ch = 0; ch < CHANNELS; ch++){
 		// litroSoundInstance.refreshWave(ch);
-	}
-	if(litroSoundInstance.channel != null){
-		printDebug(litroSoundInstance.channel[0].data[0], 1);
-	}
+	// }
+	// if(litroSoundInstance.channel != null){
+		// printDebug(litroSoundInstance.channel[0].data[0], 1);
+	// }
 	litroPlayerInstance.playSound();
 };
 
