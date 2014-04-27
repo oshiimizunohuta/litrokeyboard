@@ -2,7 +2,7 @@
  * Litro Keyboard Interface
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.03.00
+ * ver 0.04.00
  */
 var litroKeyboardInstance = null;
 var VIEWMULTI = 2;
