@@ -168,24 +168,27 @@ LitroSound.prototype = {
 	bufferProcess: function(ev)
 	{
 		var parent = litroSoundInstance
-			, i, ch
+			, i, ch, isNoises = parent.isNoises(true)
 			, data = ev.outputBuffer.getChannelData(0);
 		for(i = 0; i < data.length; i++){
 			ch = parent.channel[0];
 			if(ch.refreshClock > parent.refreshRate){
-				// console.log(ch.refreshClock);
 				parent.refreshWave(0);
 				ch.refreshClock = 0;
+				isNoises = parent.isNoises(true);
 			}
-			data[i] = ch.nextWave();
+			// data[i] = ch.nextWave();
+			data[i] = isNoises[0] ? ch.nextNoise() : ch.nextWave();
 			ch.refreshClock++;
 			for(c = 1; c < parent.channel.length; c++){
 				ch = parent.channel[c];
 				if(ch.refreshClock > parent.refreshRate){
 					parent.refreshWave(c);
 					ch.refreshClock = 0;
+					isNoises = parent.isNoises(true);
 				}
-				data[i] += ch.nextWave();
+				// data[i] += ch.nextWave();
+				data[i] += isNoises[c] ? ch.nextNoise() : ch.nextWave();
 				ch.refreshClock++;
 			}
 		}
@@ -231,12 +234,23 @@ LitroSound.prototype = {
 	
 	isFinishEnvelope: function(ch, refEnable)
 	{
-		var clock = this.channel[ch], env = this.getEnvelopes(ch, refEnable)
+		var clock = this.channel[ch].envelopeClock, env = this.getEnvelopes(ch, refEnable)
 		;
 		if(clock >= env.attack + env.decay + env.length + env.release){
 			return true;
 		}
 		return false;
+	},
+	
+	isNoises: function(refEnable)
+	{
+		var noises = []
+			, i, len = this.channel.length, ch;
+		for(i = 0; i < len; i++){
+			ch = refEnable ? this.channel[i].refChannel : i;
+			noises.push(this.channel[ch].isNoiseType());
+		}
+		return noises;
 	},
 	
 	getChannel: function(ch, key, refEnable)
@@ -309,11 +323,14 @@ LitroSound.prototype = {
 		if(channel.envelopeStart && channel.envelopeClock == 0 && !this.envelopeEnd){
 			channel.setFreqency(this.freqByKey(channel.noteKey));
 			channel.clearWave(channel.waveLength, channel.prevLength);
+			if(channel.prevLength == 0){console.log(1);}
 			channel.waveClockPosition = Math.round(channel.waveClockPosition * (channel.waveLength / channel.prevLength));
+			// channel.absorbNegCount = channel.absorbCount;
+			channel.absorbNegCount = 0;
 		}
 		if(this.isFinishEnvelope(channelNum, true) && !channel.envelopeEnd){
-		 	channel.absorbVolume = data[channel.waveClockPosition];
-		 	channel.absorbCount = 0;
+			channel.absorbVolume = data[channel.waveClockPosition];
+			channel.absorbCount = 0;
 			//channel.clearWave();//なくてもおｋ？
 			channel.envelopeEnd = true;
 			channel.dataUpdateFlag = false;
@@ -445,6 +462,14 @@ LitroSound.prototype = {
 		this.channel[channel].resetEnvelope();
 		this.setFrequency(channel, 0);
 
+	},
+	
+	extendNote: function(channelNum, refChannel)
+	{
+		var channel = this.channel[channelNum]
+			, envelopes = channel.envelopes()
+		;
+		channel.envelopeClock = envelopes.attack + envelopes.decay;
 	},
 	
 	fadeOutNote: function(channelNum, refChannel)
@@ -938,6 +963,7 @@ LitroPlayer.prototype = {
 			switch(value){
 				case tuneProp['return'].id: this.seekMoveBack(-1), this.seekMoveForward(this.commonEventTime('restart')); this.timeOutEvent = {};return true;
 				case tuneProp.noteoff.id: litroSoundInstance.fadeOutNote(ch, ch); break;
+				case tuneProp.noteextend.id: litroSoundInstance.extendNote(ch, ch); break;
 			}
 		}else{
 			litroSoundInstance.setChannel(ch, type, value);
@@ -1005,13 +1031,15 @@ LitroPlayer.prototype = {
 			this.timeOutEvent[time_id].push({time: time, ch: ch, type: type, value: value});
 		}
 		
-	},		
+	},
 
-	getEventsFromTime: function(ch, time)
+	getEventsFromTime: function(ch, time, filter)
 	{
-		var type, res = {};
-		for(type in this.eventsetData[ch]){
-			if(this.eventsetData[ch][type][time] != null){
+		var type, types = {}, res = {}, set = false, tindex;
+		filter = filter == null ? AudioChannel.sortParam : this.typesArray(filter);
+		for(tindex = 0; tindex < filter.length; tindex++){
+			type = filter[tindex];
+			if(this.eventsetData[ch] != null && this.eventsetData[ch][type] != null && this.eventsetData[ch][type][time] != null){
 				res[type] = this.eventsetData[ch][type][time];
 			}
 		}
@@ -1036,7 +1064,7 @@ LitroPlayer.prototype = {
 	allStackEventset: function(ch, types)
 	{
 		var tindex, type, t, events = {}
-		, typeKeys = this.searchTypes()
+		, typeKeys = this.typesArray()
 		, len = types.length
 		, timedStack = []
 		;
@@ -1057,30 +1085,15 @@ LitroPlayer.prototype = {
 		}
 		return timedStack;
 	}, 
-	// allStackEventset: function(ch, types)
-	// {
-		// var tindex, type, t, events = [];
-		// for(tindex = 0; tindex < types.length; tindex++){
-			// type  = types[tindex];
-			// for(t in this.eventsetData[ch][type]){
-				// t |= 0;
-				// if(this.eventsetData[ch][type][t] != null){
-					// events.push(this.eventsetData[ch][type][t]);
-				// }
-			// }
-		// }
-		// return events;
-	// }, 
 	
-	
-	
-	searchTypes: function(type)
+	typesArray: function(type, exIgnores)
 	{
 		var types = [], t, params = []
-			, ignores = {'note': 1, }
 			, del = {}
+			, ignores = ['note']
 			;
-		
+		exIgnores = exIgnores == null ? [] : exIgnores;
+		type = type == null ? 'ALL' : type;
 		if(type == 'ALL'){
 			//すべてのタイプを検索
 			types = AudioChannel.sortParam;
@@ -1088,7 +1101,7 @@ LitroPlayer.prototype = {
 			//イベントセットの検索
 			params = AudioChannel.sortParam;
 			for(t = 0; t < params.length; t++){
-				if(params[t] in ignores){
+				if(ignores.indexOf(params[t]) >= 0 || exIgnores.indexOf(params[t]) >= 0){
 					continue;
 				}
 				types.push(params[t]);
@@ -1099,6 +1112,7 @@ LitroPlayer.prototype = {
 		}
 		return types;
 	},
+	
 	//Note検索 end:0前方・-1後方
 	//return eventset / null
 	searchNearForward: function(ch, start, end, type, ignore)
@@ -1108,7 +1122,7 @@ LitroPlayer.prototype = {
 		;
 		start = start == null ? this.noteSeekTime : start;
 		//前方一致
-		types = this.searchTypes(type == null ? 'ALL' : type);
+		types = this.typesArray(type == null ? 'ALL' : type);
 		events = this.allStackEventset(ch, types);
 
 		for(t = 0; t < events.length; t++){
@@ -1136,14 +1150,14 @@ LitroPlayer.prototype = {
 			, keyIndex = this.eventsetKeyIndex
 		;
 		start = start == null ? this.noteSeekTime : start;
-		types = this.searchTypes(type == null ? 'ALL' : type);
+		types = this.typesArray(type == null ? 'ALL' : type);
 		//後方一致
 		events = this.allStackEventset(ch, types);
 		// console.log(events, types[type], this.eventsetData[ch][types[type]]);
 		events.reverse();
 		for(t = 0; t < events.length; t++){
 			for(tindex = 0; tindex < types.length; tindex++){
-				type  = types[tindex];
+				type = types[tindex];
 				eventset = events[t];
 				if(ignore.time == eventset.time){
 					if(ignore.type == eventset.type || keyIndex[ignore.type] <= keyIndex[eventset.type]){
@@ -1251,6 +1265,7 @@ AudioChannel.prototype = {
 		this.buffer = null;
 		this.absorbVolume = 0;
 		this.absorbCount = 0;
+		this.absorbNegCount = 0;
 		this.waveLength = 0;
 		this.refreshClock = 0;
 		this.waveClockPosition = 0;
@@ -1382,8 +1397,8 @@ AudioChannel.prototype = {
 	
 	clearWave: function(start, end)
 	{
-		 var i, r = this.data[this.waveLength - 1];
-		for(i = (start == null ? 0 : start); i < (end == null ? this.waveLength : end); i++){
+		 var i, r = this.data[this.waveLength - 1], len = end == null ? this.waveLength : end;
+		for(i = (start == null ? 0 : start); i < len; i++){
 			this.data[i] = 0;
 		}
 		return r;
@@ -1401,30 +1416,28 @@ AudioChannel.prototype = {
 		var vol;
 		if(this.envelopeEnd == true){
 			//クリック音防止余韻
-			vol = this.absorbVolume * Math.exp(-0.01 * this.absorbCount++);
-			// if(this.absorbCount == 1){console.log('end' + vol);}
+			vol = this.absorbVolume * Math.exp(-0.0001 * this.absorbCount++);
  			return vol;
-		}else if(this.absorbCount > 0){
-			vol = -this.absorbVolume * (Math.exp(-0.01 * this.absorbCount--));
-			// if(this.absorbCount == 1){console.log('start'+ vol);}
+		}else if(this.absorbNegCount++ < this.absorbCount){
+			vol = this.absorbVolume * (Math.exp(-0.0001 * this.absorbNegCount));
+			// this.waveClockCount = this.absorbNegCount == this.absorbCount ? 0 : this.waveClockCount;
 		}else{
 			vol = 0;
 		}
-		// this.envelopeStart = true;
-		// this.getDetunePosition();
 		this.waveClockPosition = this.waveClockPosition < this.waveLength ? this.waveClockPosition + 1 : 0;
-		if(this.isNoiseType()){
-			vol = this.nextNoise() + vol;
-		}else{
+		// if(this.isNoiseType()){
+			// vol = this.nextNoise() + vol;
+		// }else{
 			vol = this.data[this.waveClockPosition] + vol;
-		}
+		// }
 		return vol;
 	},
 	
 	nextNoise: function(){
 		var p = this.noiseParam
-			, vol = litroSoundInstance.envelopedVolume(this.id)
+			, vol = 0
 		;
+		vol += litroSoundInstance.envelopedVolume(this.id);
 
 		if(p.clock++ >= p.halfLength){
 			p.reg >>= 1;
@@ -1433,8 +1446,19 @@ AudioChannel.prototype = {
 			p.clock = 0;
 		}
 		
+		this.waveClockPosition = this.waveClockPosition < this.waveLength ? this.waveClockPosition + 1 : 0;
 		this.data[this.waveClockPosition] = p.volume;
-		return p.volume;
+		
+		if(this.envelopeEnd == true){
+			//クリック音防止余韻
+			vol = this.absorbVolume * Math.exp(-0.01 * this.absorbCount++);
+ 			return vol;
+		}else if(this.absorbCount > 0){
+			vol = -this.absorbVolume * (Math.exp(-0.01 * this.absorbCount--));
+		}else{
+			vol = 0;
+		}		
+		return p.volume + vol;
 	},
 	
 };
@@ -1637,7 +1661,7 @@ function litroSoundMain()
 		// litroSoundInstance.refreshWave(ch);
 	// }
 	// if(litroSoundInstance.channel != null){
-		// printDebug(litroSoundInstance.channel[1].refChannel, 1);
+		// printDebug(litroSoundInstance.channel[0].waveClockPosition);
 	// }
 	litroPlayerInstance.playSound();
 };
