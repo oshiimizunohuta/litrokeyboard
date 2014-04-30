@@ -2,7 +2,7 @@
  * Litro Sound Library
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.04.01
+ * ver 0.05.00
  */
 // var SAMPLE_RATE = 24000;
 var SAMPLE_RATE = 48000;
@@ -60,6 +60,7 @@ LitroSound.prototype = {
 		this.minWavlen = 0;
 		this.mode = 0;
 		this.OCTAVE_MAX = 7;
+		this.KEYCODE_MAX = KEY_FREQUENCY.length * KEY_FREQUENCY[0].length;
 		litroSoundInstance = this;
 		this.masterVolume = VOLUME_TEST;
 		this.WAVE_VOLUME_RESOLUTION = 15; //波形データのボリューム分解能

@@ -2,7 +2,7 @@
  * Litro Keyboard Interface
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.04.00
+ * ver 0.04.01
  */
 var litroKeyboardInstance = null;
 var VIEWMULTI = 2;
@@ -922,6 +922,34 @@ LitroKeyboard.prototype = {
 		}
 	},
 	
+	incNotekeys: function(eventset)
+	{
+		var type = 'note', time;
+		if(eventset[type] == null){return;}
+		for(time in eventset[type]){
+			if(eventset[type][time].value + 1 >= this.litroSound.KEYCODE_MAX){
+				return;
+			}
+		}
+		for(time in eventset[type]){
+			eventset[type][time].value++;
+		}
+	},
+	
+	decNotekeys: function(eventset)
+	{
+		var type = 'note', time;
+		if(eventset[type] == null){return;}
+		for(time in eventset[type]){
+			if(eventset[type][time].value - 1 < 0){
+				return;
+			}
+		}
+		for(time in eventset[type]){
+			eventset[type][time].value--;
+		}
+	},
+	
 	insertSpace: function(ch, startTime, space)
 	{
 		var types = this.player.typesArray()
@@ -944,7 +972,6 @@ LitroKeyboard.prototype = {
 		for(type in result){
 			this.player.eventsetData[ch][type] = result[type];
 		}
-
 	},
 
 //TODO 複数キーの操作は選択中チャンネルで
@@ -1492,21 +1519,26 @@ LitroKeyboard.prototype = {
 		
 		if(this.getLastCommand() == "KEEP"){
 			 if(ext){
-				this.channelMove(dir);
+				switch(dir){
+					case 'up':
+						this.incNotekeys(this.catchEventset);
+						this.drawEventsetBatch();
+						break;
+					case 'down':
+						this.decNotekeys(this.catchEventset);
+						this.drawEventsetBatch();
+						break;
+					case 'left': this.channelMove(dir);
+									break;
+					case 'right': this.channelMove(dir);
+									break;
+				}
 			}else{
 				this.moveMenuCursorCommon(cur, dir, this.getActiveModeMenuList());
 			}
 			return;
 		}
-		if(ext){
-			// do{
-				// ltime = eventset == null ? 0 : eventset.time;
-				// ltype = eventset == null ? '' : eventset.type;
-// 				
-				// eventset = this.moveCatchCursor(dir, false);
-				// if(eventset == null){return;}
-			// }while(eventset.time != ltime || eventset.type != ltype);
-		}
+
 		//キャッチタイプのインデックス
 		for(catchVal = 0; catchVal < catchKey.length; catchVal++){
 			if(catchKey[catchVal] == this.catchType){break;}
@@ -2820,6 +2852,13 @@ LitroKeyboard.prototype = {
 			}
 		}
 		
+	},
+	
+	//一括eventset描画
+	drawEventsetBatch: function(){
+		this.drawNoteScroll(this.noteScrollPage);
+		this.drawNoteScroll(this.noteScrollPage + 1);
+		this.drawNoteScroll(null, true);
 	},
 	
 	//共通メニュー表示
