@@ -583,7 +583,7 @@ LitroPlayer.prototype = {
 		this.CHARCODE_LENGTH36 = 6;//3byte
 		this.CHARCODE_MODE = 36;
 		this.HEADER_LENGTH = 64;
-		if(window.location.href.indexOf('localhost')){
+		if(window.location.href.indexOf('localhost') >= 0){
 			this.SERVER_URL = 'http://localhost:58104/api';
 		}else{
 			this.SERVER_URL = 'http://bitchunk.fam.cx/litrosound/api';

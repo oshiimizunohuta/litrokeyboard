@@ -210,7 +210,7 @@ function LitroKeyboard() {
 	this.eventsetMenuList = ['NOTEOFF', 'NOTE-EX', 'RESTART', 'RETURN', ];
 	this.finalConf = ["NO", "OK"];
 	this.loginParams = {user_id: 0, sns_type: null};
-	if(window.location.href.indexOf('localhost')){
+	if(window.location.href.indexOf('localhost') >= 0){
 		this.loginURLs = {'TWITTER' : 'http://localhost:58104/oauth/twitter/'};
 	}else{
 		this.loginURLs = {'TWITTER' : 'http://bitchunk.fam.cx/litrosound/oauth/twitter/'};
