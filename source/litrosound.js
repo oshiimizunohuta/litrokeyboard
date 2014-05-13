@@ -583,7 +583,7 @@ LitroPlayer.prototype = {
 		this.CHARCODE_LENGTH36 = 6;//3byte
 		this.CHARCODE_MODE = 36;
 		this.HEADER_LENGTH = 64;
-		this.SERVER_URL = 'http://localhost:58104/api';
+		this.SERVER_URL = 'http://localhost:58104/litrosound/api';
 		// this.COMMON_TUNE_CH = this.litroSound.channel.length;
 		this.COMMON_TUNE_CH = 0;
 		
@@ -850,6 +850,10 @@ LitroPlayer.prototype = {
 			, params = {user_id: user_id, sound_id: sound_id};
 		;
 		// console.log('save ok', data, data.length);
+		if(sound_id == 0){
+			errorFunc({error_code: 0, message: 'no file'});
+			return false;
+		}
 		func = func == null ? function(){return;} : func;
 		errorFunc = errorFunc == null ? function(){return;} : errorFunc;
 		
@@ -865,7 +869,7 @@ LitroPlayer.prototype = {
 			self.sound_id = data.sound_id;
 			func(data);
 			}, errorFunc);
-		
+		return true;
 	},
 	
 	listFromServer: function(user_id, page, func, errorFunc)
@@ -916,7 +920,9 @@ LitroPlayer.prototype = {
 		}else{
 			x.open(method, this.SERVER_URL + '/' + api, true);
 		}
-		x.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+		x.withCredentials = true;
+		x.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded;charset=UTF-8');
+		// Set-Cookie:LITROSOUND=8lr6fpmr30focapfnejn807mo5;
 		x.send(str);
 	},
 

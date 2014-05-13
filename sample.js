@@ -19,7 +19,9 @@ window.addEventListener('load', function() {
 	
 	requestAnimationFrame(main);
 	removeEventListener('load', this, false);
+	
 }, false);
+
 
 function main() {
 	litroSoundMain();

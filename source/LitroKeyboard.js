@@ -83,6 +83,7 @@ function LitroKeyboard() {
 	this.imageLoaded = false;
 	this.loader = imageResource;
 	this.uiImageName = 'ui_16p';
+	this.snsImageName = 'sns';
 	
 	this.octaveSeparateCount = [12, 12, 5]; //オクターブが切り替わる鍵盤数
 	
@@ -195,16 +196,22 @@ function LitroKeyboard() {
 	this.noteMenuList = ['EVENTSET', 'CATCH', 'FILE', 'MANUAL'];
 	this.noteMenuCursor = {x:0, y:0};
 	
-	// this.fileMenuList = ['LOAD', 'SAVE', 'CLEAR'];
-	// this.fileTypeList = ['COOKIE', 'STRINGS', 'SERVER'];
-	this.fileMenuList = ['LOAD', 'SAVE', 'TITLE'];
+	this.fileMenuList = ['LOAD', 'SAVE', 'TITLE', 'LOGIN'];
+	this.fileMenuList_login = ['LOAD', 'SAVE', 'TITLE', 'LOGOUT'];
 	this.fileTypeList = ['COOKIE', 'SERVER'];
+	
+	// this.fileLoginList = ['TWITTER']; //GOOGLE+
+	this.fileLoginList = ['SELECT SNS']; //GOOGLE+
+	
 	this.clearMenuList = ['FILE', 'CURRENT'];
 	this.fileListList = ['FILESELECT'];
 	this.fileTitleList = ['', '', '', 'CANCEL', 'FINISH'];
 	// this.eventsetMenuList = ['SET'];
 	this.eventsetMenuList = ['NOTEOFF', 'NOTE-EX', 'RESTART', 'RETURN', ];
 	this.finalConf = ["NO", "OK"];
+	this.loginParams = {user_id: 0, sns_type: null};
+	this.loginURLs = {'TWITTER' : 'http://localhost:58104/litrosound/oauth/twitter/'};
+	this.snsIconId = {twitter : 0, 'google+': 1};
 	this.serverFileList = [];
 	this.fileMenuMap = {};
 	this.commandPath = [];
@@ -253,6 +260,7 @@ function LitroKeyboard() {
 	this.manualPage = 0;
 	this.manualScrollParams = {dir: null, count: 0, dulation: 24, bg1: {x: 0, y: 0}, bg2: {x: 0, y: 0}, changeMode: null, openTime:Date.now()};
 	
+	this.clickableItems = [];
 	return;
 }
 
@@ -366,6 +374,7 @@ LitroKeyboard.prototype = {
 			FILESELECT: this.finalConf,
 			SERVER: this.fileListList,
 			TITLE: this.fileTitleList,
+			LOGIN: this.fileLoginList,
 			FILE: this.fileMenuList,
 			FINISH: this.fileMenuList,
 			CURRENT: this.finalConf,
@@ -380,6 +389,7 @@ LitroKeyboard.prototype = {
 		this.initCatchEvent();
 		this.initEventFunc();
 		this.initManual();
+		
 	},
 	
 	initManual: function(){
@@ -530,7 +540,7 @@ LitroKeyboard.prototype = {
 	loadImages: function()
 	{
 		// this.loader.init();
-		var resorce = loadResource([this.uiImageName]);
+		var resorce = loadResource([this.uiImageName, this.snsImageName]);
 		resorce.onload = function(){
 			var ltkb = litroKeyboardInstance;
 			ltkb.imageLoaded = true;
@@ -657,17 +667,17 @@ LitroKeyboard.prototype = {
 	getFileMenuList: function()
 	{
 		if(this.commandPath.length == 0){
+			if(this.getLoginParams() != null){
+				return this.fileMenuList_login;
+			}
 			return this.fileMenuList;
 		}
+		var mapIndex = this.commandPath[this.commandPath.length - 1];
 		
-		// if(this.getLastCommand() == 'SERVER'){
-			// return 'FILELIST';
-		// }
-		
-		return  this.fileMenuMap[this.commandPath[this.commandPath.length - 1]] == null ? 
-		null :  this.fileMenuMap[this.commandPath[this.commandPath.length - 1]];
+		return  this.fileMenuMap[mapIndex] == null ? 
+		null :  this.fileMenuMap[mapIndex];
 	},
-	
+		
 	getCatchMenuList: function()
 	{
 		if(this.commandPath.length == 0){
@@ -675,10 +685,6 @@ LitroKeyboard.prototype = {
 		}else{
 			return this.catchKeepMenuList;
 		}
-		// return null;
-		// return  this.fileMenuMap[this.commandPath[this.commandPath.length - 1]] == null ? 
-		// null :  this.fileMenuMap[this.commandPath[this.commandPath.length - 1]];
-		
 	},
 	
 	getEventsetMenuList: function()
@@ -725,6 +731,60 @@ LitroKeyboard.prototype = {
 			case 'manual': return this.manualCursor;
 			default: return {};
 		}
+	},
+	
+	getLoginParams: function()
+	{
+		return this.loginParams.user_id == 0 ? null : this.loginParams;
+	},
+	
+	setError: function()
+	{
+		var self = this;
+		this.changeEditMode('error');
+		this.drawMenu();
+		window.setTimeout(function(){
+			self.changeEditMode('note');
+			self.drawMenu();
+		}, 2000);
+	},
+	
+	logoutSNS: function()
+	{
+		var self = this;
+		this.changeEditMode('loading');
+		self.drawMenu();
+		
+		this.player.sendToAPIServer('POST', 'logout', {}, function(data){
+			if(data.error != null){
+				self.setError(data.error_code);
+				return;
+			}
+			self.loginParams = {user_id: 0, sns_type: null};
+			self.changeEditMode('file');
+			self.drawMenu();
+		}, function(){
+			self.setError('server error');
+		});
+		
+	},
+	loginSNS: function()
+	{
+		var self = this;
+		//SNSログイン完了
+		window.addEventListener('message', function(event){
+			if(event.data.match(/\{\S*\}/) == null){return;} //twitterのトラップ
+			if(event.data == null || event.data == 'null'){self.setError('server error'); window.removeEventListener('message'); return;}
+			var data = JSON.parse(event.data);
+			if(data.error_code != null){
+				self.setError(data.message);
+				return;
+			}
+			
+			self.loginParams = {user_id: data.user_id, sns_type: data.sns_type};
+			self.baseKeyOnFile('<');
+			window.removeEventListener('message');
+		}, false);
 	},
 	
 	editChannel: function()
@@ -781,6 +841,29 @@ LitroKeyboard.prototype = {
 			return;
 		}
 		this.updateForwardSeek();
+	},
+	
+	appendClickableItem: function(rect, func, name)
+	{
+		this.clickableItems.push({rect: rect, func: func, name: (name == null ? this.clickableItems.lengh : name)});
+		return this.clickableItems.length;
+	},
+	
+	clearClickableItem: function(name){
+		var rep = [], i;
+		if(name == null){
+			this.clickableItems = [];
+			return;
+		}
+		for(i = 0; i < this.clickableItems.length; i++){
+			if(this.clickableItems[i].name){
+				continue;
+			}
+			rep.push(this.clickableItems[i]);
+		}
+		this.clickableItems = [];
+		this.clickableItems = rep;
+		return this.clickableItems.length;
 	},
 	
 	makeAllTuneParamSet: function(ch, time)
@@ -1186,6 +1269,11 @@ LitroKeyboard.prototype = {
 		if(comClear){
 			this.commandPath = [];
 		}
+		
+		if(this.getActiveModeCursor().y >= this.getActiveModeMenuList().length){
+			this.getActiveModeCursor().y = 0;
+		}
+		
 		return;
 	},
 	
@@ -1193,7 +1281,7 @@ LitroKeyboard.prototype = {
 	{
 		var self = this;
 		try{
-			this.player.listFromServer(USER_ID, this.fileListPage, 
+			this.player.listFromServer(this.loginParams.user_id, this.fileListPage, 
 				function(append){
 					if(append == null || append.error_code != null){
 						self.changeEditMode('error');
@@ -1202,9 +1290,13 @@ LitroKeyboard.prototype = {
 					}
 					self.serverFileList = append.length == null ? [append] : append;
 					if(self.getLastCommand(1) == 'SAVE'){
-						append.push({sound_id: 0, user_id: USER_ID, title: 'NEW FILE'});
+						append.push({sound_id: 0, user_id: self.loginParams.user_id, title: 'NEW FILE'});
+					}else if(self.getLastCommand(1) == 'LOAD' && append.length == 0){
+						append.push({sound_id: 0, user_id: 0, title: 'FILE NOT FOUND'});
 					}
 					self.changeEditMode('file', false);
+					self.fileListCursor.y = self.fileListCursor.y >= self.fileMenuList.length ? 0 : self.fileListCursor.y;
+
 					self.drawFileMenu();
 					// self.drawMenu();
 					self.drawFileList();
@@ -1250,9 +1342,9 @@ LitroKeyboard.prototype = {
 		var self = this, tid;
 		switch(type){
 			case 'COOKIE': this.player.saveToCookie(); this.changeEditMode('note'); break;
-			case 'SERVER': this.player.saveToSever(USER_ID, this.serverFileList[this.fileListCursor.y].sound_id,
+			case 'SERVER': this.changeEditMode('loading'); this.player.saveToSever(this.loginParams.user_id, this.serverFileList[this.fileListCursor.y].sound_id,
 				function(data){
-					if(data == null || data === false){
+					if(data == null || data === false || data.error_code != null){
 						self.changeEditMode('error');
 						self.drawMenu();
 						return;
@@ -1267,8 +1359,7 @@ LitroKeyboard.prototype = {
 				function(){
 					self.changeEditMode('error');
 					self.drawMenu();
-				});
-				this.changeEditMode('loading'); break;
+				}); break;
 		}
 	},
 	
@@ -1277,7 +1368,13 @@ LitroKeyboard.prototype = {
 		var self = this, tid;
 		switch(type){
 			case 'COOKIE': this.player.loadFromCookie(); this.changeEditMode('note');break;
-			case 'SERVER': this.player.loadFromServer(USER_ID, this.serverFileList[this.fileListCursor.y].sound_id, 
+			case 'SERVER': 
+				if(this.serverFileList[this.fileListCursor.y] == null){
+					this.fileListCursor.y = 0;
+					return;
+				}
+				this.changeEditMode('loading');
+				this.player.loadFromServer(this.loginParams.user_id, this.serverFileList[this.fileListCursor.y].sound_id, 
 				function(data){
 					if(data == null || data === false){
 						self.changeEditMode('error');
@@ -1292,11 +1389,9 @@ LitroKeyboard.prototype = {
 					self.drawParamCursor();
 					return;
 				},
-				function(){
-					self.changeEditMode('error');
-					self.drawMenu();
-				});
-				this.changeEditMode('loading'); break;
+				function(data){
+					self.setError(data != null ? data : {error_code: 0, message: 'error'});
+				}); break;
 		}
 	},
 		
@@ -2023,6 +2118,12 @@ LitroKeyboard.prototype = {
 					break;
 				}
 				break;
+			case 'LOGIN':
+				this.getActiveModeCursor().y = 0;
+				if(key == '<'){
+					break;
+				}
+				break;
 			case 'FINISH':
 				this.getActiveModeCursor().y = 0;
 				if(key == '<'){
@@ -2187,16 +2288,31 @@ LitroKeyboard.prototype = {
 				return;
 			}
 		}
+
+		if(this.getLastCommand() == 'LOGIN'){
+			fcur.y = 0;
+			if(key == '>'){
+				return;
+			}else if(key == '<'){
+				this.backMenu();
+			}else if(key == 'select'){
+				this.changeEditMode('note');
+			}
+			this.closeSNSTab();
+			this.drawMenu();
+			return;
+		}
+		
 		if(key == 'select'){
 			this.commonTabKey(true);
 			return;
-		}
+		}		
 		com = this.baseKeyMenuCommon(fcur, key);
 		if(key == '<' && this.fileMenuList.indexOf(com) >= 0){
 			this.changeEditMode('note');
 			this.drawMenu();
 		}else if(com == 'FILELIST'){
-			this.commandExecute();
+			this.commandExecute(); //未使用？
 		}else if(com == 'TITLE'){
 			this.fileMenuCursor.x = -1;
 			this.fileMenuCursor.y = 3;
@@ -2204,7 +2320,19 @@ LitroKeyboard.prototype = {
 			this.clearLeftScreen();
 			this.drawCharBoard();
 			return;
+		}else if(com == 'LOGIN'){
+			fcur.y = 0;
+			this.loginSNS();
+			this.openSNSTab();
+		}else if(com == 'LOGOUT'){
+			fcur.y = 0;
+			this.logoutSNS();
 		}else if(key == '>'){
+			// if(this.fileLoginList.indexOf(com) >= 0){
+				// this.openLoginIFrame(com);
+				// this.changeEditMode('file', true);
+				// this.drawMenu();
+			// }
 			fcur.y = 0;
 		}
 	},	
@@ -2430,6 +2558,17 @@ LitroKeyboard.prototype = {
 		state = cont.getState(this.zoomKeys);
 		if(state['['] && state[']']){
 			this.zoomKeyOn('[]', ext);
+		}
+	},
+	
+	clickEvent: function(x, y)
+	{
+		var i, item;
+		for(i = 0; i < this.clickableItems.length; i++){
+			item = this.clickableItems[i];
+			if(item.rect.isContain(x, y)){
+				item.func(item);
+			}
 		}
 	},
 	
@@ -2970,16 +3109,24 @@ LitroKeyboard.prototype = {
 	drawFileMenu: function()
 	{
 		var menu = this.getFileMenuList()
+			 cm = this.menuDispCmargin
+			 indent = this.menuCindent
+			 bg = scrollByName('bg1')
+			 spr = this.loginParams.sns_type != null ? makeSprite(this.snsImageName, this.snsIconId[this.loginParams.sns_type]) : null
 		;
 		if(menu == null){
 			menu = ['？？？'];
 		}
 		this.drawMenuList(menu);
 		
+		if(spr != null && this.getLastCommand() != 'TITLE'){
+			bg.drawSprite(spr, cellhto(cm.x + indent), cellhto(cm.y + menu.length));
+		}
+		
 		if(this.commandPath.indexOf('LOAD') > -1){
-			this.word.print('LOAD', cellhto(this.menuDispCmargin.x + this.menuCindent), cellhto(this.menuDispCmargin.y + 4), COLOR_ARRAY[3], COLOR_BLACK);
+			this.word.print('LOAD', cellhto(cm.x + indent), cellhto(cm.y + 4), COLOR_ARRAY[3], COLOR_BLACK);
 		}else if(this.commandPath.indexOf('SAVE') > -1){
-			this.word.print('SAVE', cellhto(this.menuDispCmargin.x + this.menuCindent), cellhto(this.menuDispCmargin.y + 4), COLOR_ARRAY[0], COLOR_BLACK);
+			this.word.print('SAVE', cellhto(cm.x + indent), cellhto(cm.y + 4), COLOR_ARRAY[0], COLOR_BLACK);
 		}
 	},
 	
@@ -2994,7 +3141,6 @@ LitroKeyboard.prototype = {
 		var keyCm = this.menuDispCmargin
 			, indent = this.menuCindent
 			, word = this.word
-			, key = list[y]
 			;
 		if(list == null){
 			list = ['？？？'];
@@ -3036,6 +3182,7 @@ LitroKeyboard.prototype = {
 			, title
 			;
 			word.setScroll(scrollByName('bg1'));
+			if(this.serverFileList[cur.y] == null){return;}
 			title = this.serverFileList[cur.y].title.substr(0, 16);
 			word.print(title == '' ? '　' : title, cellhto(cm.x), cellhto(cm.y + cur.y - offset), COLOR_BLACK, COLOR_NOTEFACE);
 	},
@@ -3451,7 +3598,11 @@ LitroKeyboard.prototype = {
 			case 'play': this.drawOscillo(); break;
 			case 'catch': this.drawCatchMenu(); this.drawMenuListCursor(this.getActiveModeMenuList(), this.getActiveModeCursor().y); break;
 			case 'eventset': this.drawEventsetMenu(); this.drawMenuListCursor(this.eventsetMenuList, this.eventsetMenuCursor.y); break;
-			case 'file': this.drawFileMenu(); if(this.getLastCommand() != 'TITLE'){this.drawMenuListCursor(this.getActiveModeMenuList(), this.getActiveModeCursor().y);} break;
+			case 'file': 
+				this.drawFileMenu();
+				if(this.getLastCommand() != 'TITLE'){
+					this.drawMenuListCursor(this.getActiveModeMenuList(), this.getActiveModeCursor().y);
+				} break;
 			case 'manual': return;
 			case 'error': break;
 			
@@ -3599,6 +3750,60 @@ LitroKeyboard.prototype = {
 			}
 		}
 	},
+	
+	openSNSTab: function()
+	{
+		var crect = {x:cellhto(0), y:cellhto(23), w: cellhto(40), h: cellhto(15)}
+			, r = makeRect(crect.x, crect.y, crect.w, crect.h)
+			, bg = scrollByName('bg1')
+			, view = scrollByName('view')
+			, spr = makeSprite(this.snsImageName, 0)
+			, self = this
+			, iconCrect = {x: 18, y: 26, w:2, h: 2} //this.snsIconCmargin
+		;
+		view.y = cellhto(6);
+		bg.clear(COLOR_BLACK, r);
+		bg.drawSprite(spr, cellhto(iconCrect.x), cellhto(iconCrect.y));
+		this.word.setScroll(bg);
+		this.word.print('Click SNS Icon for Login', crect.x + cellhto(1), crect.y + cellhto(1), COLOR_WHITE, COLOR_BLACK);
+		this.appendClickableItem(makeRect(cellhto(iconCrect.x), cellhto(iconCrect.y), cellhto(iconCrect.w), cellhto(iconCrect.h)), function(item){
+			self.openLoginWindow(item.name);
+		}, 'TWITTER');
+		
+		window.document.getElementById('screen').onclick = function(e){
+			var bounds = this.getBoundingClientRect(), w = view.canvas.width, h = view.canvas.height
+				, x = ((((e.clientX - bounds.left) / VIEWMULTI) | 0) - view.x + w) % w
+				, y = ((((e.clientY - bounds.top) / VIEWMULTI) | 0) - view.y + h) % h
+			;
+			self.clickEvent(x, y);
+		};
+	},
+	
+	closeSNSTab: function()
+	{
+		var view = scrollByName('view')
+		;
+		view.y = 0;
+		this.openFrame();
+		this.clearClickableItem();
+		window.document.getElementById('screen').onclick = null;
+	},
+	
+	openLoginWindow: function(type)
+	{
+		// var e = document.getElementById('login') == null ? document.createElement('iframe') : document.getElementById('login');
+		var e = document.getElementById('login') == null ? document.createElement('button') : document.getElementById('login');
+		function attr(e, key, value){
+			e.setAttribute(key, value);
+		};
+		e.onclick = function(){
+			alert(type);
+		};
+		// console.log(type);
+		window.open(this.loginURLs[type], null,"width=640,height=480,scrollbars=yes");
+
+	},
+	
 
 	closeManual: function()
 	{
@@ -3722,12 +3927,11 @@ function drawLitroScreen()
 	}
 	spr.drawto(view);
 	spr.clear();
-	view.drawto(view);
+	// view.drawto(view);
 	screenView(scr, view, VIEWMULTI);
 	return;
 
 }
-
 
 //call at 60fps
 function litroKeyboardMain()
