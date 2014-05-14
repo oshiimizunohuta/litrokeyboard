@@ -712,7 +712,7 @@ LitroKeyboard.prototype = {
 	{
 		switch(this.getMode())
 		{
-			case 'tune': return [];
+			case 'tune': return this.ltSoundChParamKeys;
 			case 'note': return this.getNoteMenuList();
 			case 'play': return this.getFileMenuList();
 			case 'catch': return this.getCatchMenuList();
@@ -1276,6 +1276,7 @@ LitroKeyboard.prototype = {
 		}
 		
 		if(this.getActiveModeCursor().y >= this.getActiveModeMenuList().length){
+			// console.log(this.editMode, this.getActiveModeMenuList());
 			this.getActiveModeCursor().y = 0;
 		}
 		
@@ -1606,14 +1607,14 @@ LitroKeyboard.prototype = {
 	moveCatchCursor: function(dir, ext)
 	{
 		var cur = this.getActiveModeCursor()
-			, curr = this.paramCursorCurrent
-			, limit = this.paramLimit
-			, offset = this.paramOffset
+			// , curr = this.paramCursorCurrent
+			// , limit = this.paramLimit
+			// , offset = this.paramOffset
 			, searchTime = -1
 			, catchKey = ['note', 'TUNE', 'ALL']
 			, catchVal, eventset = null
 			, ignore = this.selectNote
-			, prevNote, ltime, ltype
+			, prevNote
 			, ch = this.editChannel()
 		;
 		
@@ -1908,7 +1909,8 @@ LitroKeyboard.prototype = {
 	
 	baseKeyOnChannel: function(key, ext)
 	{
-		var cur = this.paramCursor, curr = this.paramCursorCurrent
+		var cur = this.paramCursor
+			// , curr = this.paramCursorCurrent
 			, param = this.ltSoundChParamKeys[this.paramKeys[cur.y]]
 			, eventset, types = {}, player = this.player, time = player.noteSeekTime, ch = this.editChannel()
 		;
