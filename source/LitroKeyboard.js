@@ -14,6 +14,7 @@ var COLOR_NOTEPRINT = [0, 168, 0, 255];
 var COLOR_NOTEFACE = [184, 248, 184, 255];
 var COLOR_NOTEPRINT = [0, 168, 0, 255];
 var COLOR_PARAMKEY = [188, 188, 188, 255];
+var COLOR_LINE = [88, 216, 84, 255];
 var COLOR_ARRAY = [[248, 120, 88, 255], [252, 168, 68, 255], [248, 184, 0, 255], [88, 216, 84, 255], [60, 188, 252, 255], [152, 120, 248, 255], [248, 120, 248, 255], [248, 88, 152, 255], ];
 
 var USER_ID = 1;
@@ -1176,7 +1177,7 @@ LitroKeyboard.prototype = {
 		var i, key
 		;
 		for(i = 0; i < this.fingers; i++){
-			key = (i + this.paramCursor.x) % this.litroSound.channel.length;
+			key = (i + this.editChannel()) % this.litroSound.channel.length;
 			// key = i;
 			if(this.status_on[key] == null){
 				return key;
@@ -3676,14 +3677,15 @@ LitroKeyboard.prototype = {
 	
 	drawChannelWave: function(ch)
 	{
-		var channel = ch == null ? this.litroSound.channel : [ch]
-			, data, c, i, dindex
+		var channel = ch == null ? this.litroSound.channel[this.editChannel()] : [ch]
+			, data, c, i, dindex, istep
 			, layerScale
-			, px, py
+			, px, py, vol = 0, stPos = 0, swp = null
 			, pre_y
 			, from, to
 			, spr = scrollByName('sprite')
-			, sprite = this.waveSprite
+			, sprite = makePoint(this.uiImageName, 1)
+			, sprite2 = makePoint(this.uiImageName, 1)
 			, chOscWidth = 64
 			, chOscHeight = cellhto(6) - 2
 			, chOscHeight_h = (chOscHeight / 2) | 0
@@ -3694,32 +3696,45 @@ LitroKeyboard.prototype = {
 		if(this.editMode == "file"){
 			return;
 		}
-
-		for(c = 0; c < channel.length; c++){
-		// for(c  in channel){
-			data = channel[c].data;
-			if(this.status_on[c] == null){
-				continue;
+			
+		//デバッグ
+		if(this.keyControll.getState('ext')){
+			if(channel.envelopeEnd == true){
+			//クリック音防止余韻
+				vol = channel.absorbVolume * Math.exp(-0.000001 * channel.absorbCount);
+				// console.log(vol);
+			}else if(channel.absorbNegCount < channel.absorbCount){
+				// vol = channel.absorbVolume - (channel.absorbVolume * Math.exp(-0.0001 * channel.absorbNegCount));
+				vol = -channel.absorbVolume * Math.exp(-0.000001 * channel.absorbNegCount);
 			}
-			for(i = 0; i < chOscWidth; i++){
-				dindex = (i * (data.length / chOscWidth)) | 0;
-				px = i + cellhto(cm.x);
-				py = (-data[dindex] * chOscHeight) | 0;
-				if(py > chOscHeight_h){continue;}
-				if(py < -chOscHeight_h){continue;}
-				py += chOscHeight_h + cellhto(cm.y);
-
-				from = {x: px, y: py};
-				to = {x: px, y: pre_y == null ? py : pre_y};
-				spr.spriteLine(from, to, sprite);
-				
-				pre_y = py;
-				// console.log(py);
-				// break;
-			}
-			break;
+			stPos = channel.absorbVolume;
+			sprite2.swapColor(COLOR_ARRAY[0], COLOR_LINE);
+		// console.log(stPos);
 		}
+		
 
+		data = channel.data;
+		istep = data.length / chOscWidth;
+		 sprite.swapColor(COLOR_LINE, COLOR_ARRAY[0]);
+		
+		for(i = 0; i < chOscWidth; i++){
+			dindex = (i * istep) | 0;
+			px = i + cellhto(cm.x);
+			py = (-(data[dindex] + vol) * chOscHeight) | 0;
+			if(py > chOscHeight_h){continue;}
+			if(py < -chOscHeight_h){continue;}
+			py += chOscHeight_h + cellhto(cm.y);
+
+			from = {x: px, y: py};
+			to = {x: px, y: pre_y == null ? py : pre_y};
+			if(stPos == data[dindex]){
+				spr.spriteLine(from, to, sprite2);
+			}else{
+				spr.spriteLine(from, to, sprite);
+			}
+			
+			pre_y = py;
+		}
 		// console.log(data.length);
 	},
 	
