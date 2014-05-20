@@ -2,7 +2,7 @@
  * Litro Keyboard Interface
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.05.01
+ * ver 0.05.03
  */
 var litroKeyboardInstance = null;
 var VIEWMULTI = 2;
@@ -3645,19 +3645,9 @@ LitroKeyboard.prototype = {
 			, sprite = this.waveSprite
 			;
 			
-			// if(this.litroSound.channel[0].envelopeClock > 0){
-				// return;
-			// }
-
 		pre_y = null;
-		// data = ltkb.litroSound.getAnalyseData(chOscWidth / this.analyseRate);
-		// this.analysedData_b.set(data, this.analyseCount * (chOscWidth / this.analyseRate));
-		// this.analysedData_b.set(data, this.analyseCount * PROCESS_BUFFER_SIZE);
 		this.analyseCount = (this.analyseCount + 1) % this.analyseRate;
-			// // console.dir(data);
 		if(this.analyseCount == 0){
-			// this.analysedData = this.analysedData_b;
-			// this.analysedData_b = new Uint8Array(PROCESS_BUFFER_SIZE * this.analyseRate);
 			data = this.litroSound.getAnalyseData(size);
 			this.analysedData = data;
 		}
@@ -3783,7 +3773,7 @@ LitroKeyboard.prototype = {
 			, self = this
 			, iconCrect = {x: 18, y: 26, w:2, h: 2} //this.snsIconCmargin
 		;
-		view.y = cellhto(6);
+		view.y = cellhto(7);
 		bg.clear(COLOR_BLACK, r);
 		bg.drawSprite(spr, cellhto(iconCrect.x), cellhto(iconCrect.y));
 		this.word.setScroll(bg);
