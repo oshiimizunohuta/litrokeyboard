@@ -992,6 +992,7 @@ LitroKeyboard.prototype = {
 	// setEventChange: function(ch, type, value, time)
 	setEventChange: function(ch, eventset)
 	{
+		if(this.viewMode != null){return;}
 		var idKeys = AudioChannel.tuneParamsIDKey()
 			, time, set, events
 		;
@@ -1941,11 +1942,14 @@ LitroKeyboard.prototype = {
 	{
 		var mode;
 		back = back == null ? false : back;
+		if(this.viewMode != null){return;}
 		if(this.player.isPlay()){
 			if(this.editMode == 'tune'){
 				this.changeEditMode('play');
+				this.drawPlayTitle();
 			}else{
 				this.changeEditMode('tune');
+				this.drawPlayOnSpacekey();
 			}
 		}else if(back){
 				this.changeEditMode('note');
@@ -2472,6 +2476,9 @@ LitroKeyboard.prototype = {
 			this.drawParamCursor();
 			this.drawChannelParams();
 			this.drawMenu();
+			if(this.viewMode != null){
+				this.drawPlayOnSpacekey();
+			}
 			// this.drawChannelCursor();
 		}
 		this.initFingerState(this.fingers);
@@ -2507,7 +2514,7 @@ LitroKeyboard.prototype = {
 		switch(this.editMode){
 			case 'tune': this.moveChannelParamCursor(dir, ext);break;
 			case 'note': this.moveNoteMenuCursor(dir, ext);break;
-			case 'play': this.moveChannelParamCursor(dir, ext);break;
+			case 'play': break; //this.moveChannelParamCursor(dir, ext);break;
 			case 'catch': this.moveCatchCursor(dir, ext);break;
 			case 'eventset': this.moveEventsetCursor(dir, ext);break;
 			case 'file': this.moveFileMenuCursor(dir, ext);break;
@@ -2908,6 +2915,7 @@ LitroKeyboard.prototype = {
 			, cm = this.charBoardCmargin
 			, tcm = this.paramskeysCmargin
 		;
+		this.clearLeftScreen();
 		word.setScroll(scr);
 		// word.setLineCols(this.player.titleMaxLength);
 		word.setMarkAlign('horizon');
