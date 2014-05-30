@@ -2,7 +2,7 @@
  * Litro Sound Library
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.05.04
+ * ver 0.05.05a
  */
 // var SAMPLE_RATE = 24000;
 var SAMPLE_RATE = 48000;
@@ -69,6 +69,7 @@ LitroSound.prototype = {
 		this.WAVE_VOLUME_RESOLUTION = 15; //波形データのボリューム分解能
 		this.outputBuffer = [];
 		this.isFirefox = (navigator.userAgent.toLowerCase().indexOf('firefox') > -1) ? true : false;
+		// console.log(this.isFirefox);
 		this.gain = null; //ゲイン
 		this.analyser = null; //波形分析
 		this.delay = null; //遅延
@@ -1544,7 +1545,6 @@ AudioChannel.prototype = {
 			p.volume =  ((p.reg & 1) * vol * 2.0) - vol;
 			p.clock = 0;
 		}
-		return 0;
 		
 		this.waveClockPosition = this.waveClockPosition < this.waveLength ? this.waveClockPosition + 1 : 0;
 		this.data[this.waveClockPosition] = p.volume;
