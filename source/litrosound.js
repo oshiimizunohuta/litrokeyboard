@@ -90,6 +90,7 @@ LitroSound.prototype = {
 		this.setSampleRate(sampleRate, PROCESS_BUFFER_SIZE);
 		this.maxWavlen = (this.context.sampleRate / minFreq()) | 0;
 		this.minWavlen = (this.context.sampleRate / maxFreq()) | 0;
+		
 		// 出力開始
 		// src.noteOn(0);
 	},
@@ -607,6 +608,7 @@ LitroPlayer.prototype = {
 		this.CHARCODE_LENGTH16 = 8;//4byte
 		this.CHARCODE_LENGTH36 = 6;//3byte
 		this.CHARCODE_MODE = 36;
+
 		// this.HEADER_LENGTH = 64;
 		if(window.location.href.indexOf('localhost') >= 0){
 			this.SERVER_URL = 'http://localhost:58104/api';
@@ -628,6 +630,8 @@ LitroPlayer.prototype = {
 		for(i = 0; i < AudioChannel.sortParam.length; i++){
 			this.eventsetKeyIndex[AudioChannel.sortParam[i]] = i;
 		}
+
+		
 	},
 	
 	pad0: function(str, num)

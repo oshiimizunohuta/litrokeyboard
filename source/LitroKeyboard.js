@@ -2,7 +2,7 @@
  * Litro Keyboard Interface
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.05.05
+ * ver 0.05.06
  */
 var litroKeyboardInstance = null;
 var VIEWMULTI = 2;
@@ -268,6 +268,9 @@ function LitroKeyboard() {
 	this.manualScrollParams = {dir: null, count: 0, dulation: 24, bg1: {x: 0, y: 0}, bg2: {x: 0, y: 0}, changeMode: null, openTime:Date.now()};
 	
 	this.clickableItems = [];
+	
+	this.viewMode =null;
+			
 	return;
 }
 
@@ -401,7 +404,36 @@ LitroKeyboard.prototype = {
 		this.initCatchEvent();
 		this.initEventFunc();
 		this.initManual();
+		this.initViewMode();
 		
+	},
+	
+	initViewMode: function(){
+		var match = window.location.href.match(/[?|&]+sound_id\=([0-9]+)/)
+			, self = this;
+		
+		
+		if(match != null){
+			this.viewMode = 'full';
+			this.editMode = 'play';
+			this.player.loadFromServer(this.loginParams.user_id, match[1], 
+			function(data){
+					if(data == null || data === false){
+						self.setError(data != null ? data : {error_code: 0, message: 'error'});
+						return;
+					}
+					self.selectMenuItem();//drawNoteのため
+					self.drawParamKeys();
+					self.drawChannelParams();
+					self.drawParamCursor();
+					self.drawPlayOnSpacekey();
+					return;
+				},
+				function(data){
+					self.setError(data != null ? data : {error_code: 0, message: 'error'});
+				});
+		}
+		return;
 	},
 	
 	initManual: function(){
@@ -1262,6 +1294,10 @@ LitroKeyboard.prototype = {
 	changeEditMode: function(mode, comClear)
 	{
 		comClear = comClear == null ? true : comClear;
+		if(this.viewMode != null){
+			this.editMode = 'play';
+			return;
+		}
 		if(typeof mode == 'string'){
 			this.editMode = mode;
 		}else if(mode == parseInt(mode, 10)){
@@ -2422,6 +2458,7 @@ LitroKeyboard.prototype = {
 			this.editMode = 'play';
 			this.drawMenu('play');
 			this.drawOscillo();
+			this.drawPlayTitle();
 		}else{
 			if(this.editMode != 'tune'){
 				this.getActiveModeCursor().y = 0;
@@ -2844,6 +2881,39 @@ LitroKeyboard.prototype = {
 		
 	},	
 	
+	drawPlayTitle: function()
+	{
+		var scr = scrollByName('bg1')
+			, word = this.word, x, y, i = 0
+			, cm = this.charBoardCmargin
+			, tcm = this.paramskeysCmargin
+			, str_t = this.player.title.substr(0, 20)
+			, str_b = this.player.title.substr(20)
+		;
+		this.clearLeftScreen();
+		word.setScroll(scr);
+		// word.setLineCols(this.player.titleMaxLength);
+		word.setMarkAlign('horizon');
+		word.print('Title:', cellhto(cm.x), cellhto(tcm.y), COLOR_PARAMKEY, COLOR_BLACK);
+		word.setMarkAlign('vertical');
+		word.print(str_t, cellhto(cm.x + 1), cellhto(tcm.y + 2), COLOR_NOTEFACE, COLOR_BLACK);
+		word.print(str_b.length == 0 ? '' : '- ' + str_b , cellhto(cm.x + 2), cellhto(tcm.y + 2), COLOR_NOTEFACE, COLOR_BLACK);
+		word.setMarkAlign('horizon');
+	},
+	
+	drawPlayOnSpacekey: function()
+	{
+		var scr = scrollByName('bg1')
+			, word = this.word, x, y, i = 0
+			, cm = this.charBoardCmargin
+			, tcm = this.paramskeysCmargin
+		;
+		word.setScroll(scr);
+		// word.setLineCols(this.player.titleMaxLength);
+		word.setMarkAlign('horizon');
+		word.print('play: ', cellhto(cm.x), cellhto(tcm.y + 2), COLOR_PARAMKEY, COLOR_BLACK);
+		word.print('*SPACE KEY*', cellhto(cm.x + 6), cellhto(tcm.y + 2), COLOR_ARRAY[3], COLOR_BLACK);
+	},	
 	drawNoteTest: function()
 	{
 		var i;
@@ -3237,6 +3307,7 @@ LitroKeyboard.prototype = {
 			, color
 			, bgcolor
 			;
+		if(this.editMode == 'play'){return;}
 			
 		cur = cur == null ? this.paramCursor : cur;
 		key = this.paramKeys[cur.y];
@@ -3283,6 +3354,7 @@ LitroKeyboard.prototype = {
 	{
 		offset = offset == null ? this.paramOffset : offset;
 		limit = limit == null ? this.paramLimit : limit;
+		if(this.editMode == 'play'){return;}
 		var i, index
 			, keys = []
 			, word = this.word
@@ -3320,6 +3392,7 @@ LitroKeyboard.prototype = {
 	{
 		offset = offset == null ? this.paramOffset : offset;
 		limit = limit == null ? this.paramLimit : limit;
+		if(this.editMode == 'play'){return;}
 		var i, index, key, color, num, sprite, noref
 			, keys = []
 			, word = this.word
