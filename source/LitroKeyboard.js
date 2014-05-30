@@ -410,9 +410,12 @@ LitroKeyboard.prototype = {
 	
 	initViewMode: function(){
 		var match = window.location.href.match(/[?|&]+sound_id\=([0-9]+)/)
+			, step = window.location.href.match(/[?|&]+step\=([0-9]+)/)
 			, self = this;
 		
-		
+		if(step != null){
+			this.noteRangeScale = (step[1] | 0) * this.noteRangeCells;
+		}
 		if(match != null){
 			this.viewMode = 'full';
 			this.editMode = 'play';
