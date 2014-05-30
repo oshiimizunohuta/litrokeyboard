@@ -398,23 +398,27 @@ LitroKeyboard.prototype = {
 		//
 		this.loadImages();
 		this.initFingerState(this.fingers);
+		this.initViewMode();
 		this.initCanvas();
 		this.initWords();
 		this.setBg2Position(this.noteScrollPos.x);
 		this.initCatchEvent();
 		this.initEventFunc();
 		this.initManual();
-		this.initViewMode();
 		
 	},
 	
 	initViewMode: function(){
 		var match = window.location.href.match(/[?|&]+sound_id\=([0-9]+)/)
 			, step = window.location.href.match(/[?|&]+step\=([0-9]+)/)
+			, multi = window.location.href.match(/[?|&]+screen\=([0-9]+)/)
 			, self = this;
 		
 		if(step != null){
 			this.noteRangeScale = (step[1] | 0) * this.noteRangeCells;
+		}
+		if(multi != null){
+			VIEWMULTI = multi[1] | 0;
 		}
 		if(match != null){
 			this.viewMode = 'full';

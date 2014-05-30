@@ -170,7 +170,6 @@ LitroSound.prototype = {
 			, i, ch, isNoises = parent.isNoises(true)
 			, data = ev.outputBuffer.getChannelData(0);
 			
-		
 		for(i = 0; i < data.length; i++){
 			ch = parent.channel[0];
 			if(ch.refreshClock == 0){
@@ -1533,6 +1532,10 @@ AudioChannel.prototype = {
 		var p = this.noiseParam
 			, vol = 0, avol = 0
 		;
+		//TODO firefox軽くする
+		if(litroSoundInstance.isFirefox){
+			return 0;
+		}
 		vol += litroSoundInstance.envelopedVolume(this.id);
 
 		if(p.clock++ >= p.halfLength){
@@ -1541,6 +1544,7 @@ AudioChannel.prototype = {
 			p.volume =  ((p.reg & 1) * vol * 2.0) - vol;
 			p.clock = 0;
 		}
+		return 0;
 		
 		this.waveClockPosition = this.waveClockPosition < this.waveLength ? this.waveClockPosition + 1 : 0;
 		this.data[this.waveClockPosition] = p.volume;
