@@ -2,7 +2,7 @@
  * Litro Sound Library
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.05.05a
+ * ver 0.05.06
  */
 // var SAMPLE_RATE = 24000;
 var SAMPLE_RATE = 48000;
@@ -177,19 +177,20 @@ LitroSound.prototype = {
 				litroPlayerInstance.playSound();
 				parent.refreshWave(0);
 				ch.refreshClock = 0;
-				isNoises = parent.isNoises(true);
+				// isNoises = parent.isNoises(true);
 			}
-			data[i] = isNoises[0] ? ch.nextNoise() : ch.nextWave();
+			// data[i] = isNoises[0] ? ch.nextNoise() : ch.nextWave();
+			data[i] = ch.nextWave();
 			ch.refreshClock = ch.refreshClock + 1 < parent.refreshRate ?  ch.refreshClock + 1 : 0;
 			for(c = 1; c < parent.channel.length; c++){
 				ch = parent.channel[c];
 				if(ch.refreshClock == 0){
 					parent.refreshWave(c);
 					ch.refreshClock = 0;
-					isNoises = parent.isNoises(true);
+					// isNoises = parent.isNoises(true);
 				}
-				data[i] += isNoises[c] ? ch.nextNoise() : ch.nextWave();
-				// ch.refreshClock++;
+				// data[i] += isNoises[c] ? ch.nextNoise() : ch.nextWave();
+				data[i] += ch.nextWave();
 				ch.refreshClock = ch.refreshClock + 1 < parent.refreshRate ?  ch.refreshClock + 1 : 0;
 			}
 		}
@@ -393,10 +394,10 @@ LitroSound.prototype = {
 			case 10: sawstairWave(channel, 1, 4); break;
 			case 11: sawstairWave(channel, 1, 6); break;
 			
-			case 12: noiseWave(channel, 1); break;
-			case 13: noiseWave(channel, 6); break;
-			case 14: noiseWave(channel, 31); break;
-			case 15: noiseWave(channel, 69); break;
+			case 12: noiseWave(channel, 1, true); break;
+			case 13: noiseWave(channel, 6, true); break;
+			case 14: noiseWave(channel, 31, true); break;
+			case 15: noiseWave(channel, 69, true); break;
 		}
 		// channel.shiftWave((this.getChannel(channelNum, 'detune', true)) % channel.waveLength);
 
@@ -581,7 +582,8 @@ LitroPlayer.prototype = {
 	init: function()
 	{
 		//v0.03:-値対応
-		this.fversion = '00.00.04';
+		//v0.01.00:タグ付き
+		this.fversion = '00.01.00';
 		litroPlayerInstance = this;
 		this.sound_id = null;
 		this.user_id = null;
@@ -1512,6 +1514,16 @@ AudioChannel.prototype = {
 	
 	nextWave: function(){
 		var vol, avol;
+		
+		if(this.isNoiseType() && this.waveClockPosition == 0){
+			switch(this.tune('waveType')){
+				case 12: noiseWave(this, 1); break;
+				case 13: noiseWave(this, 6); break;
+				case 14: noiseWave(this, 31); break;
+				case 15: noiseWave(this, 69); break;
+			}
+		}
+		
 		vol = this.data[this.waveClockPosition];
 		if(this.envelopeEnd == true){
 			//クリック音防止余韻
@@ -1529,44 +1541,11 @@ AudioChannel.prototype = {
 		return vol + avol;
 	},
 	
-	nextNoise: function(){
-		var p = this.noiseParam
-			, vol = 0, avol = 0
-		;
-		//TODO firefox軽くする
-		if(litroSoundInstance.isFirefox){
-			return 0;
-		}
-		vol += litroSoundInstance.envelopedVolume(this.id);
-
-		if(p.clock++ >= p.halfLength){
-			p.reg >>= 1;
-			p.reg |= ((p.reg ^ (p.reg >> p.shortType)) & 1) << 15;
-			p.volume =  ((p.reg & 1) * vol * 2.0) - vol;
-			p.clock = 0;
-		}
-		
-		this.waveClockPosition = this.waveClockPosition < this.waveLength ? this.waveClockPosition + 1 : 0;
-		this.data[this.waveClockPosition] = p.volume;
-		if(this.envelopeEnd == true){
-			//クリック音防止余韻
-			avol = this.absorbVolume * Math.exp(-0.0001 * this.absorbCount++);
-			return avol;
-		}else if(this.envelopeStart == true){
-			avol = -this.absorbVolume * Math.exp(-0.0001 * this.absorbNegCount++);
-		}else{
-			avol = 0;
-			return avol;
-		}
-		
-		return p.volume + vol + avol;
-	},
-	
 };
 
-function noiseWave(channel, type)
+function noiseWave(channel, type, shift)
 {
-	var i
+	var i = 0
 		, vol = litroSoundInstance.envelopedVolume(channel.id)
 		, freq = channel.frequency
 		, p = channel.noiseParam
@@ -1575,14 +1554,19 @@ function noiseWave(channel, type)
 		
 	p.shortType = type; //短周期タイプ
 	p.halfLength = ((channel.waveLength - TOP_FREQ_LENGTH) / 2) | 0;
-		// console.log(p.halfLength);
-	// if(p.halfLength == 2){
-	// }
-	
-	p.reg >>= 1;
-	p.reg |= ((p.reg ^ (p.reg >> p.shortType)) & 1) << 15;
-	p.volume =  ((p.reg & 1) * vol * 2.0) - vol;
-	
+
+	for(i = channel.waveClockPosition; i < channel.waveLength; i++){
+		if(p.clock++ >= p.halfLength){
+			p.reg >>= 1;
+			p.reg |= ((p.reg ^ (p.reg >> p.shortType)) & 1) << 15;
+			p.volume =  ((p.reg & 1) * vol * 2.0) - vol;
+			p.clock = 0;
+		}
+		channel.data[i] = p.volume;
+	}
+	// for(i; i < channel.prevLength; i++){
+		// channel.data[i] = 0;
+	// }	
 }
 
 function sawstairWave(channel, widthRate_l, widthRate_r)
