@@ -2,7 +2,7 @@
  * Litro Sound Library
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.05.06
+ * ver 0.06.00
  */
 // var SAMPLE_RATE = 24000;
 var SAMPLE_RATE = 48000;

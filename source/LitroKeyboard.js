@@ -2,7 +2,7 @@
  * Litro Keyboard Interface
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.05.06
+ * ver 0.06.00
  */
 var litroKeyboardInstance = null;
 var VIEWMULTI = 2;
@@ -217,7 +217,7 @@ function LitroKeyboard() {
 	}else{
 		this.loginURLs = {'TWITTER' : 'http://bitchunk.fam.cx/litrosound/oauth/twitter/'};
 	}
-	
+	this.arrowHosts = ['bitchunk.fam.cx', 'litrosound.bitchunk.com', 'localhost'];
 	this.snsIconId = {twitter : 0, 'google+': 1};
 	this.serverFileList = [];
 	this.fileMenuMap = {};
@@ -826,7 +826,9 @@ LitroKeyboard.prototype = {
 		window.addEventListener('message', function(event){
 			if(event.data.match(/\{\S*\}/) == null){return;} //twitterのトラップ
 			if(event.data == null || event.data == 'null'){self.setError('server error'); window.removeEventListener('message'); return;}
-			var data = JSON.parse(event.data);
+			var data, hostMatch = event.origin.match(/https?\:\/\/([^\s:\/]*):?/);
+			if(hostMatch == null || self.arrowHosts.indexOf(hostMatch[1]) < 0){self.setError('server error'); window.removeEventListener('message'); return;}
+			data = JSON.parse(event.data);
 			if(data.error_code != null){
 				self.setError(data.message);
 				return;
@@ -4051,6 +4053,7 @@ function drawLitroScreen()
 	spr.clear();
 	// view.drawto(view);
 	screenView(scr, view, VIEWMULTI);
+	// console.log(scr.canvas.width);
 	return;
 
 }
