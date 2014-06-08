@@ -2,7 +2,7 @@
  * Litro Sound Library
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.06.00
+ * ver 0.07.00
  */
 // var SAMPLE_RATE = 24000;
 var SAMPLE_RATE = 48000;
@@ -52,7 +52,7 @@ LitroSound.prototype = {
 		this.milliSecond = 1000;
 		this.masterBufferSize = 48000;
 		this.channelBufferSize = 48000;
-		this.minClock = this.milliSecond / this.frameRate
+		this.minClock = this.milliSecond / this.frameRate; //ノート単位クロック
 		this.sampleRate = sampleRate;
 		// this.refreshRate = sampleRate / 60;
 		this.refreshRate = sampleRate / this.milliSecond;
@@ -181,7 +181,8 @@ LitroSound.prototype = {
 			}
 			// data[i] = isNoises[0] ? ch.nextNoise() : ch.nextWave();
 			data[i] = ch.nextWave();
-			ch.refreshClock = ch.refreshClock + 1 < parent.refreshRate ?  ch.refreshClock + 1 : 0;
+//			ch.refreshClock = ch.refreshClock > parent.refreshRate ?  ch.refreshClock + 1 : 0;
+			ch.refreshClock = ch.refreshClock > parent.refreshRate ? 0 : ch.refreshClock + 1;
 			for(c = 1; c < parent.channel.length; c++){
 				ch = parent.channel[c];
 				if(ch.refreshClock == 0){
@@ -191,7 +192,7 @@ LitroSound.prototype = {
 				}
 				// data[i] += isNoises[c] ? ch.nextNoise() : ch.nextWave();
 				data[i] += ch.nextWave();
-				ch.refreshClock = ch.refreshClock + 1 < parent.refreshRate ?  ch.refreshClock + 1 : 0;
+				ch.refreshClock = ch.refreshClock > parent.refreshRate ? 0 : ch.refreshClock + 1;
 			}
 		}
 		parent.outputBuffer = data;
@@ -493,7 +494,9 @@ LitroSound.prototype = {
 		var channel = this.channel[channelNum]
 			, envelopes = channel.envelopes(this.minClock)
 		;
+		// channel.envelopeClock = (envelopes.attack + envelopes.decay) | 0;
 		channel.envelopeClock = (envelopes.attack + envelopes.decay) | 0;
+		channel.envelopeClock += 0.1; //立ち上がり調整防止
 	},
 	
 	fadeOutNote: function(channelNum, refChannel)
@@ -517,6 +520,7 @@ LitroSound.prototype = {
 		;
 		// console.log(channel.envelopeClock);
 		channel.envelopeClock = channel.envelopeClock < clock ? clock : channel.envelopeClock;
+		channel.envelopeClock += 0.1; //立ち上がり調整防止
 		// console.log(ch, channel.envelopeClock);
 	},
 		
@@ -617,6 +621,7 @@ LitroPlayer.prototype = {
 		}else{
 			this.SERVER_URL = 'http://bitchunk.fam.cx/litrosound/api';
 		}
+		initAPIServer(this.SERVER_URL);
 		// this.COMMON_TUNE_CH = this.litroSound.channel.length;
 		this.COMMON_TUNE_CH = 0;
 		
@@ -800,11 +805,11 @@ LitroPlayer.prototype = {
 		errorFunc = errorFunc == null ? function(){return;} : errorFunc;
 		if(sound_id == 0){
 			//insert needs sound_id:0
-			this.sendToAPIServer('POST', 'fileinsert', params, func, errorFunc);
+			sendToAPIServer('POST', 'fileinsert', params, func, errorFunc);
 		}else{
 			//update needs sound_id > 0
 			params.sound_id = sound_id;
-			this.sendToAPIServer('POST', 'fileupdate', params, func, errorFunc);
+			sendToAPIServer('POST', 'fileupdate', params, func, errorFunc);
 		}
 	},
 	
@@ -904,7 +909,7 @@ LitroPlayer.prototype = {
 		func = func == null ? function(){return;} : func;
 		errorFunc = errorFunc == null ? function(){return;} : errorFunc;
 		
-		this.sendToAPIServer('GET', 'fileload', params, function(data){
+		sendToAPIServer('GET', 'fileload', params, function(data){
 			if(data == null || data == false){
 				errorFunc(data);
 			}
@@ -919,58 +924,12 @@ LitroPlayer.prototype = {
 		return true;
 	},
 	
-	listFromServer: function(user_id, page, func, errorFunc)
+	listFromServer: function(user_id, page, limit, func, errorFunc)
 	{
-		var params = {page: page, user_id: user_id};
+		var params = {page: page, limit: limit, user_id: user_id};
 		func = func == null ? function(){return;} : func;
 		errorFunc = errorFunc == null ? function(){return;} : errorFunc;
-		this.sendToAPIServer('GET', 'filelist', params, func, errorFunc);
-	},
-
-	sendToAPIServer: function(method, api, params, func, errorFunc)
-	{
-		var query = [], key, x = new XMLHttpRequest();
-		if(func != null){
-			x.onreadystatechange = function(){
-				var j;
-				switch(x.readyState){
-					case 0:break;//オブジェクト生成
-					case 1:break;//オープン
-					case 2:break;//ヘッダ受信
-					case 3:break;//ボディ受信
-					case 4:
-								if((200 <= x.status && x.status < 300) || (x.status == 304)){
-									j = x.responseText;
-									try{
-										j = typeof j == 'string' ? JSON.parse(j) : '';
-									}catch(e){
-										j = null;
-									}
-									func(j);
-									x.abort();
-								}else{
-									errorFunc();
-									x.abort();
-								}
-								 break;//send()完了
-				}
-			//	func;
-			};
-		}
-		for(key in params){
-			query.push(key + '=' + params[key]);
-		}
-		str = query.join('&');
-		if(method.toUpperCase() == 'GET'){
-			x.open(method, this.SERVER_URL + '/' + api + '?' + str , true);
-			str = "";
-		}else{
-			x.open(method, this.SERVER_URL + '/' + api, true);
-		}
-		x.withCredentials = true;
-		x.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded;charset=UTF-8');
-		// Set-Cookie:LITROSOUND=8lr6fpmr30focapfnejn807mo5;
-		x.send(str);
+		sendToAPIServer('GET', 'filelist', params, func, errorFunc);
 	},
 
 	isPlay: function()
@@ -1240,6 +1199,60 @@ LitroPlayer.prototype = {
 	},
 	
 };
+
+var APIServer = {url: null};
+function initAPIServer(apiUrl)
+{
+	APIServer.url = apiUrl;
+};
+
+function sendToAPIServer(method, api, params, func, errorFunc)
+{
+	var query = [], key, x = new XMLHttpRequest();
+	if(APIServer.url == null){console.error('not initialize api server'); return;}
+	if(func != null){
+		x.onreadystatechange = function(){
+			var j;
+			switch(x.readyState){
+				case 0:break;//オブジェクト生成
+				case 1:break;//オープン
+				case 2:break;//ヘッダ受信
+				case 3:break;//ボディ受信
+				case 4:
+							if((200 <= x.status && x.status < 300) || (x.status == 304)){
+								j = x.responseText;
+								try{
+									j = typeof j == 'string' ? JSON.parse(j) : '';
+								}catch(e){
+									j = null;
+								}
+								func(j);
+								x.abort();
+							}else{
+								errorFunc();
+								x.abort();
+							}
+							 break;//send()完了
+			}
+		//	func;
+		};
+	}
+	for(key in params){
+		query.push(key + '=' + params[key]);
+	}
+	str = query.join('&');
+	if(method.toUpperCase() == 'GET'){
+		x.open(method, APIServer.url + '/' + api + '?' + str , true);
+		str = "";
+	}else{
+		x.open(method, APIServer.url + '/' + api, true);
+	}
+	x.withCredentials = true;
+	x.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded;charset=UTF-8');
+	// Set-Cookie:LITROSOUND=8lr6fpmr30focapfnejn807mo5;
+	x.send(str);
+};
+
 /**
  * 波形生成
  */

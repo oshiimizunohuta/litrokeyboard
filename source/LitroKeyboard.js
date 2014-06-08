@@ -2,7 +2,7 @@
  * Litro Keyboard Interface
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.06.00
+ * ver 0.07.00
  */
 var litroKeyboardInstance = null;
 var VIEWMULTI = 2;
@@ -219,12 +219,15 @@ function LitroKeyboard() {
 	}
 	this.arrowHosts = ['bitchunk.fam.cx', 'litrosound.bitchunk.com', 'localhost'];
 	this.snsIconId = {twitter : 0, 'google+': 1};
-	this.serverFileList = [];
+	// this.serverFileList = [];
+	this.serverFileList = {};
 	this.fileMenuMap = {};
 	this.commandPath = [];
 	this.fileMenuCursor = {x:0, y:0};
 	this.fileListCursor = {x:0, y:0};
-	this.fileListPage = 0;
+	this.fileListPage = 1; //Not 0value
+	// this.fileListLoaded = [];
+	this.fileListLoadLimit = 60;
 	this.fileListOffset = 0;
 
 	this.eventsetMenuCursor = {x:0, y:0};
@@ -405,7 +408,7 @@ LitroKeyboard.prototype = {
 		this.initCatchEvent();
 		this.initEventFunc();
 		this.initManual();
-		
+		this.autoLogin();
 	},
 	
 	initViewMode: function(){
@@ -806,7 +809,7 @@ LitroKeyboard.prototype = {
 		this.changeEditMode('loading');
 		self.drawMenu();
 		
-		this.player.sendToAPIServer('POST', 'logout', {}, function(data){
+		sendToAPIServer('POST', 'logout', {}, function(data){
 			if(data.error != null){
 				self.setError(data.error_code);
 				return;
@@ -819,6 +822,32 @@ LitroKeyboard.prototype = {
 		});
 		
 	},
+	
+	autoLogin: function()
+	{
+		var self = this;
+		sendToAPIServer('POST', 'login', {session: 1}, function(data){
+			if(data == null){return;}
+			if(data.error_code != null){
+				console.error(data.error_code + ": " + data.message);
+				self.changeEditMode('error');
+				return;
+			}
+			// self.drawMenu();
+			self.loginParams = {user_id: data.user_id, sns_type: data.sns_type, account: data.account};
+			self.player.fileUserName = data.account;
+			
+		}, function(data){
+			if(data == null){return;}
+			if(data.error_code != null){
+				console.error(data.error_code + ": " + data.message);
+			}
+			self.changeEditMode('error');
+			self.drawMenu();
+		});
+		
+	},
+	
 	loginSNS: function()
 	{
 		var self = this;
@@ -1282,6 +1311,14 @@ LitroKeyboard.prototype = {
 		return this.iBLACK_KEYS[chr] != null ? this.iBLACK_KEYS[chr] : -1;
 	},
 	
+	fileInListAtIndex: function(index){
+		var id, c = 0;
+		for(id in this.serverFileList){
+			if(c++ == index){return this.serverFileList[id];}
+		}
+		return null;
+	},
+	
 	manualChapterName: function(next)
 	{
 		var index, i, chapter = this.manualImage[this.manualPage].chapter
@@ -1333,25 +1370,36 @@ LitroKeyboard.prototype = {
 		return;
 	},
 	
-	loadList: function(page)
+	loadList: function(page, limit)
 	{
 		var self = this;
 		try{
-			this.player.listFromServer(this.loginParams.user_id, this.fileListPage, 
+			this.player.listFromServer(this.loginParams.user_id, page, limit, 
 				function(append){
+					var i;
 					if(append == null || append.error_code != null){
 						self.changeEditMode('error');
 						self.drawMenu();
 						return;
 					}
-					self.serverFileList = append.length == null ? [append] : append;
+					append = append.length == null ? [append] : append;
+
 					if(self.getLastCommand(1) == 'SAVE'){
 						append.push({sound_id: 0, user_id: self.loginParams.user_id, title: 'NEW FILE'});
-					}else if(self.getLastCommand(1) == 'LOAD' && append.length == 0){
-						append.push({sound_id: 0, user_id: 0, title: 'FILE NOT FOUND'});
+					}else if(self.getLastCommand(1) == 'LOAD'){
+						append.push({sound_id: 0, user_id: self.loginParams.user_id, title: '！！CLEAR　NOTES！！'});
+					// }else if(self.getLastCommand(1) == 'LOAD' && append.length == 0){
+						// append.push({sound_id: 0, user_id: 0, title: 'FILE NOT FOUND'});
+					}
+					for(i = 0; i < append.length; i++){
+						if(append[i].sound_id in self.serverFileList){continue;}
+						self.serverFileList[append[i].sound_id] = append[i];
 					}
 					self.changeEditMode('file', false);
-					self.fileListCursor.y = self.fileListCursor.y >= self.fileMenuList.length ? 0 : self.fileListCursor.y;
+					if(self.fileListCursor.y >= Object.keys(self.serverFileList).length){
+						self.fileListCursor.y = 0;
+						self.fileListOffset = 0;
+					}
 
 					self.drawFileMenu();
 					// self.drawMenu();
@@ -1399,7 +1447,9 @@ LitroKeyboard.prototype = {
 		switch(type){
 			case 'COOKIE': this.player.saveToCookie(); this.changeEditMode('note'); break;
 			case 'SERVER': this.changeEditMode('loading'); this.player.fileUserName = this.getLoginParams().account;
-			 this.player.saveToSever(this.loginParams.user_id, this.serverFileList[this.fileListCursor.y].sound_id,
+			 // this.player.saveToSever(this.loginParams.user_id, this.serverFileList[this.fileListCursor.y].sound_id,
+			 this.player.saveToSever(this.loginParams.user_id, this.fileInListAtIndex(this.fileListCursor.y).sound_id,
+			 	
 				function(data){
 					if(data == null || data === false || data.error_code != null){
 						self.changeEditMode('error');
@@ -1422,16 +1472,25 @@ LitroKeyboard.prototype = {
 	
 	loadCommand: function(type)
 	{
-		var self = this, tid;
+		var self = this, tid, file;
 		switch(type){
 			case 'COOKIE': this.player.loadFromCookie(); this.changeEditMode('note');break;
 			case 'SERVER': 
-				if(this.serverFileList[this.fileListCursor.y] == null){
+				file = this.fileInListAtIndex(this.fileListCursor.y);
+				if(file == null){
 					this.fileListCursor.y = 0;
 					return;
 				}
+				//削除
+				if(file.sound_id == 0){
+					this.player.init();
+					this.changeEditMode('note');
+					this.drawParamKeys();
+					this.drawChannelParams();
+					return;
+				}
 				this.changeEditMode('loading');
-				this.player.loadFromServer(this.loginParams.user_id, this.serverFileList[this.fileListCursor.y].sound_id, 
+				this.player.loadFromServer(this.loginParams.user_id, file.sound_id, 
 				function(data){
 					if(data == null || data === false){
 						self.changeEditMode('error');
@@ -1832,7 +1891,6 @@ LitroKeyboard.prototype = {
 			return;
 		}
 		var cur = this.fileMenuCursor
-			, curr = this.paramCursorCurrent
 			, limit
 			, offset = this.fileListOffset, page = this.fileListPage
 			, chLength = this.litroSound.channel.length
@@ -1846,7 +1904,7 @@ LitroKeyboard.prototype = {
 		
 		if(this.getLastCommand() == 'SERVER'){
 			cur = this.fileListCursor;
-			limit = this.serverFileList.length;
+			limit = Object.keys(this.serverFileList).length;
 		}else{
 			limit = list.length;
 		}
@@ -1861,8 +1919,14 @@ LitroKeyboard.prototype = {
 		this.drawFileMenu();
 		
 		if(this.getLastCommand() == 'SERVER'){
-			offset = offset < cur.y ? offset - 1 : offset;
-			offset = offset + dispHeight > cur.y ? offset + 1 : offset;
+			if(dispHeight <= limit){
+				// console.log(this.serverFileList, cur.y);
+				offset = 0 > cur.y - offset ? (offset + limit - 1) % limit : offset;
+				offset = cur.y - offset < dispHeight ? offset : offset + 1;
+				offset = offset % limit;
+			}
+
+			this.fileListOffset = offset;
 			this.drawFileList();
 			this.drawFileListCursor();
 		}else{
@@ -2176,14 +2240,6 @@ LitroKeyboard.prototype = {
 				}
 			break;
 			case 'SERVER':
-				cur = this.fileMenuCursor;
-				if(key == '<'){
-					cur.y = 0;
-					break;
-				}
-				this.changeEditMode('loading', false);
-				this.loadList(this.fileListPage);
-				this.getActiveModeCursor().y = 0;
 				break;
 			case 'TITLE':
 				this.titleBackup = this.player.title;
@@ -2394,6 +2450,17 @@ LitroKeyboard.prototype = {
 			this.clearLeftScreen();
 			this.drawCharBoard();
 			return;
+		}else if(com == 'SERVER'){
+			cur = this.fileMenuCursor;
+			if(key == '<'){
+				cur.y = 0;
+			}else{
+				this.changeEditMode('loading', false);
+				this.loadList(this.fileListPage, this.fileListLoadLimit);
+				this.getActiveModeCursor().y = 0;
+				this.drawMenu();
+			}
+			this.drawEventsetBatch();
 		}else if(com == 'LOGIN'){
 			fcur.y = 0;
 			this.loginSNS();
@@ -2402,11 +2469,6 @@ LitroKeyboard.prototype = {
 			fcur.y = 0;
 			this.logoutSNS();
 		}else if(key == '>'){
-			// if(this.fileLoginList.indexOf(com) >= 0){
-				// this.openLoginIFrame(com);
-				// this.changeEditMode('file', true);
-				// this.drawMenu();
-			// }
 			fcur.y = 0;
 		}
 	},	
@@ -3295,10 +3357,11 @@ LitroKeyboard.prototype = {
 		var cur = this.fileListCursor, offset = this.fileListOffset
 			, word = this.word, cm = this.channelParamsCmargin
 			, title
+			, file = this.serverFileList[Object.keys(this.serverFileList)[cur.y]]
 			;
 			word.setScroll(scrollByName('bg1'));
-			if(this.serverFileList[cur.y] == null){return;}
-			title = this.serverFileList[cur.y].title.substr(0, 16);
+			if(file == null){return;}
+			title = file.title.substr(0, 16);
 			word.print(title == '' ? '　' : title, cellhto(cm.x), cellhto(cm.y + cur.y - offset), COLOR_BLACK, COLOR_NOTEFACE);
 	},
 	
@@ -3346,15 +3409,16 @@ LitroKeyboard.prototype = {
 	drawFileList: function()
 	{
 		var list = this.serverFileList
-			, len = list.length, offset = this.fileListOffset
+			, len = Object.keys(list).length, offset = this.fileListOffset
 			, i, indexes = [], titles = []
-			, key = '', title = ''
+			, key = '', title = '', file
 			, keylen = 4, titlelen = 16, mc = this.channelParamsCmargin
 		;
 		for(i = 0; i < this.paramLimit; i++){
-			if(i < len){
-				key = (i + offset + 1) + '';
-				title = list[i].title;
+			if(i + offset < len){
+				file = list[Object.keys(list)[i + offset]];
+				key = (i + offset) + '';
+				title = file.title;
 			}else{
 				key = '　　　　　';
 				title = '';
@@ -3363,10 +3427,10 @@ LitroKeyboard.prototype = {
 			titles.push(title + '                    '.substr(0, titlelen - title.length));
 		}
 		
-		this.drawParamKeys(offset, null, null, null, indexes);
-		this.drawParamKeys(offset, null, mc.x, mc.y, titles, titlelen);
+		this.drawParamKeys(0, null, null, null, indexes);
+		this.drawParamKeys(0, null, mc.x, mc.y, titles, titlelen);
 	},
-			
+	
 	drawParamKeys: function(offset, limit, xc, yc, params, sublen)
 	{
 		offset = offset == null ? this.paramOffset : offset;
