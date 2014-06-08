@@ -2975,7 +2975,7 @@ LitroKeyboard.prototype = {
 		word.print('Title:', cellhto(cm.x), cellhto(tcm.y), COLOR_PARAMKEY, COLOR_BLACK);
 		word.setMarkAlign('vertical');
 		word.print(str_t, cellhto(cm.x + 1), cellhto(tcm.y + 2), COLOR_NOTEFACE, COLOR_BLACK);
-		word.print(str_b.length == 0 ? '' : '- ' + str_b , cellhto(cm.x + 2), cellhto(tcm.y + 2), COLOR_NOTEFACE, COLOR_BLACK);
+		word.print(str_b.length == 0 ? '' : '- ' + str_b , cellhto(cm.x + 0), cellhto(tcm.y + 4), COLOR_NOTEFACE, COLOR_BLACK);
 		word.setMarkAlign('horizon');
 	},
 	
