@@ -2,10 +2,11 @@
  * Litro Sound Library
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.07.00
+ * ver 0.07.01
  */
 // var SAMPLE_RATE = 24000;
 var SAMPLE_RATE = 48000;
+// var SAMPLE_RATE = 44100;
 // var SAMPLE_RATE = 144000;
 // var PROCESS_BUFFER_SIZE = 8192;
 // var PROCESS_BUFFER_SIZE = 4096;
@@ -56,6 +57,9 @@ LitroSound.prototype = {
 		this.sampleRate = sampleRate;
 		// this.refreshRate = sampleRate / 60;
 		this.refreshRate = sampleRate / this.milliSecond;
+		this.processHeavyLoad = false;
+		this.performanceCycle = 16; //?
+		this.performanceValue = 0;
 		// console.log(this.refreshRate);
 
 		this.maxFreq = (sampleRate / 2) | 0;
@@ -168,9 +172,11 @@ LitroSound.prototype = {
 	bufferProcess: function(ev)
 	{
 		var parent = litroSoundInstance
-			, i, ch, isNoises = parent.isNoises(true)
+			, i, ch
+			// , isNoises = parent.isNoises(true)
 			, data = ev.outputBuffer.getChannelData(0);
-			
+		if(!parent.checkPeformance()){return;}
+		
 		for(i = 0; i < data.length; i++){
 			ch = parent.channel[0];
 			if(ch.refreshClock == 0){
@@ -196,6 +202,24 @@ LitroSound.prototype = {
 			}
 		}
 		parent.outputBuffer = data;
+	},
+	
+	checkPeformance: function()
+	{
+		var pf = window.performance.now();
+		if(pf - this.performanceValue > 120){
+			if(!this.processHeavyLoad){
+				// console.log(pf - this.performanceValue,  this.minClock);
+				console.log('process has become overloaded!!');
+				this.processHeavyLoad = true;
+			}
+		}else{
+			this.processHeavyLoad = false;
+		}
+		this.performanceValue = pf;
+		if(this.processHeavyLoad){return;}
+		
+		return true;
 	},
 	
 	setWaveType: function(channelNum, type)

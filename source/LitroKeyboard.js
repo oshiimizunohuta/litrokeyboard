@@ -144,6 +144,7 @@ function LitroKeyboard() {
 
 	this.editMode = 'note';
 	this.prevEditMode = 'tune';
+	this.hiddenScreen = false;
 	// this.modeNames = ['tune', 'note', 'file', 'play'];
 	// this.modeNames = {0:'tune', 1:'note', 2:'play', 3:'catch'};
 	this.modeNames = ['tune', 'note', 'play', 'catch', 'file', 'error'];
@@ -421,6 +422,10 @@ LitroKeyboard.prototype = {
 			this.noteRangeScale = (step[1] | 0) * this.noteRangeCells;
 		}
 		if(multi != null){
+			if(multi == 0){
+				this.hiddenScreen = true;
+				multi = 1;
+			}
 			VIEWMULTI = multi[1] | 0;
 		}
 		if(match != null){
@@ -4099,6 +4104,9 @@ function drawLitroScreen()
 	, scr = scrollByName('screen')
 	;
 	// printDebug(ltkb.litroSound.channel[0].isRefreshClock(), 1);
+	if(ltkb.hiddenScreen){
+		return;
+	}
 	if(ltkb.imageLoaded === false){
 		return;
 	}
