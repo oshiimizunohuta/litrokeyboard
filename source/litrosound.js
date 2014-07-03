@@ -2,7 +2,7 @@
  * Litro Sound Library
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.07.01
+ * ver 0.07.02
  */
 // var SAMPLE_RATE = 24000;
 var SAMPLE_RATE = 48000;
@@ -10,7 +10,8 @@ var SAMPLE_RATE = 48000;
 // var SAMPLE_RATE = 144000;
 // var PROCESS_BUFFER_SIZE = 8192;
 // var PROCESS_BUFFER_SIZE = 4096;
-var PROCESS_BUFFER_SIZE = 2048;
+// var PROCESS_BUFFER_SIZE = 2048; //chrome
+var PROCESS_BUFFER_SIZE = 1024; //firefox
 // var CHANNEL_BUFFER_SIZE = 48000;
 var BUFFER_FRAMES = 60;
 // var BUFFERS = 2;
@@ -46,11 +47,12 @@ function LitroSound() {
 
 LitroSound.prototype = {
 	init : function(sampleRate, channelNum, bufferFrame) {
+		this.isFirefox = (navigator.userAgent.toLowerCase().indexOf('firefox') > -1) ? true : false;
 		this.channel = [];
 		this.channel.length = channelNum;
 		this.bufferFrame = bufferFrame;
 		this.frameRate = 60;
-		this.milliSecond = 1000;
+		this.milliSecond = this.isFirefox ? 1100 : 1000;//firefox : chrome
 		this.masterBufferSize = 48000;
 		this.channelBufferSize = 48000;
 		this.minClock = this.milliSecond / this.frameRate; //ノート単位クロック
@@ -72,7 +74,6 @@ LitroSound.prototype = {
 		this.masterVolume = VOLUME_TEST;
 		this.WAVE_VOLUME_RESOLUTION = 15; //波形データのボリューム分解能
 		this.outputBuffer = [];
-		this.isFirefox = (navigator.userAgent.toLowerCase().indexOf('firefox') > -1) ? true : false;
 		// console.log(this.isFirefox);
 		this.gain = null; //ゲイン
 		this.analyser = null; //波形分析
@@ -188,7 +189,7 @@ LitroSound.prototype = {
 			// data[i] = isNoises[0] ? ch.nextNoise() : ch.nextWave();
 			data[i] = ch.nextWave();
 //			ch.refreshClock = ch.refreshClock > parent.refreshRate ?  ch.refreshClock + 1 : 0;
-			ch.refreshClock = ch.refreshClock > parent.refreshRate ? 0 : ch.refreshClock + 1;
+			ch.refreshClock = ch.refreshClock >= parent.refreshRate ? 0 : ch.refreshClock + 1;
 			for(c = 1; c < parent.channel.length; c++){
 				ch = parent.channel[c];
 				if(ch.refreshClock == 0){
@@ -198,7 +199,7 @@ LitroSound.prototype = {
 				}
 				// data[i] += isNoises[c] ? ch.nextNoise() : ch.nextWave();
 				data[i] += ch.nextWave();
-				ch.refreshClock = ch.refreshClock > parent.refreshRate ? 0 : ch.refreshClock + 1;
+				ch.refreshClock = ch.refreshClock >= parent.refreshRate ? 0 : ch.refreshClock + 1;
 			}
 		}
 		parent.outputBuffer = data;
@@ -618,14 +619,14 @@ LitroPlayer.prototype = {
 		this.title = '';
 		this.titleCodes = [];
 		this.titleMaxLength = 32;
-		this.noteData = []; //note data
+		// this.noteData = []; //note data
 		this.eventsetData = []; //ControllChangeともいう
 		this.noteSeekTime= 0; //note をセットする位置
 		this.playSoundFlag = false;
 		this.litroSound = litroSoundInstance;
 		this.systemTime = 0;
-		this.timeOutEvent = {};
-		// this.timeOutEvent = [];
+		this.delayEventset = [];
+		// this.timeOutEvent = {};
 		this.timeOutCC = [];
 		this.eventsetKeyIndex = {};
 		this.FORMAT_LAVEL = 'litrosoundformat';
@@ -651,11 +652,14 @@ LitroPlayer.prototype = {
 		
 		var type, ch, addEtc = 0;
 		for(ch = 0; ch < this.litroSound.channel.length + addEtc; ch++){
-			this.noteData.push({});
+			// this.noteData.push({});
 			this.eventsetData.push({});
+			this.delayEventset.push({});
 			this.eventsetData[ch].note = {};
+			this.delayEventset[ch].note = {};
 			for(i = 0; i < AudioChannel.sortParam.length; i++){
 				this.eventsetData[ch][AudioChannel.sortParam[i]] = {};
+				this.delayEventset[ch][AudioChannel.sortParam[i]] = {};
 			}
 		}
 		for(i = 0; i < AudioChannel.sortParam.length; i++){
@@ -964,8 +968,8 @@ LitroPlayer.prototype = {
 	{
 		this.systemTime = performance.now();
 		this.playSoundFlag = true;
-		this.timeOutEvent = {};
-		
+		// this.timeOutEvent = {};
+		this.delayEventset = [];
 		
 		for(var i = 0; i < litroSoundInstance.channel.length; i++){
 			litroSoundInstance.channel[i].refChannel = litroSoundInstance.channel[i].id;
@@ -976,7 +980,8 @@ LitroPlayer.prototype = {
 	{
 		this.systemTime = performance.now();
 		this.playSoundFlag = false;
-		this.timeOutEvent = {};
+		this.delayEventset = [];
+//		this.timeOutEvent = {};
 	},
 	
 	commonEventTime: function(eventName){
@@ -1007,7 +1012,7 @@ LitroPlayer.prototype = {
 			litroSoundInstance.onNoteKey(ch, value);
 		}else if(type == 'event'){
 			switch(value){
-				case tuneProp['return'].id: this.seekMoveBack(-1), this.seekMoveForward(this.commonEventTime('restart')); this.timeOutEvent = {}; this.restartEvent(); return true;
+				case tuneProp['return'].id: this.seekMoveBack(-1), this.seekMoveForward(this.commonEventTime('restart')); this.delayEventset = {}; this.restartEvent(); return true;
 				case tuneProp.noteoff.id: litroSoundInstance.fadeOutNote(ch, ch); break;
 				case tuneProp.noteextend.id: litroSoundInstance.extendNote(ch, ch); break;
 			}
@@ -1036,20 +1041,32 @@ LitroPlayer.prototype = {
 					if(this.eventsetData[ch][type][this.noteSeekTime] != null){
 						data = this.eventsetData[ch][type][this.noteSeekTime];
 						if(delay > 0){
-							this.setTimeOutEvent(ch, t + delay, delay + t + data.time, type, data.value);
-						}else if(t > 0){
-							this.setTimeOutEvent(ch, t, t + data.time, type, data.value);
-						}else{
-							if(this.soundEventPush(ch, type, data.value)){
-								return;
-							}
+							this.soundEventDelayPush(ch, t + delay, delay + t + data.time, type, data.value);
+						}else if(this.soundEventPush(ch, type, data.value)){
+							return;
 						}
+					}
+				}
+				for(ch in this.delayEventset){
+					for(s = 0; s < sort.length; s++){
+						type = sort[s];
+						if(this.delayEventset[ch][type] == null){continue;}
+						if(this.delayEventset[ch][type][this.noteSeekTime] == null){continue;}
+						data = this.delayEventset[ch][type][this.noteSeekTime];
+						this.soundEventPush(ch, type, data.value);
 					}
 				}
 			}
 			this.seekMoveForward(1);
 		}
 		this.systemTime = now;
+	},
+	
+	soundEventDelayPush: function(ch, time, time_id, type, value)
+	{
+		this.delayEventset[ch] = this.delayEventset[ch] == null ? {} : this.delayEventset[ch];
+		this.delayEventset[ch][type] = this.delayEventset[ch][type] == null ? {} : this.delayEventset[ch][type];
+		this.delayEventset[ch][type][time_id | 0] = {time: time | 0, ch: ch, type: type, value: value};
 	},
 	
 	//requestAnimation任せ
@@ -1792,7 +1809,7 @@ function litroSoundMain()
 		// printDebug(litroSoundInstance.channel[0].absorbPosition, 0);
 		// , this.waveClockPosition, this.absorbPosition
 	// }
-	litroPlayerInstance.playSound();
+	// litroPlayerInstance.playSound();
 };
 
 
