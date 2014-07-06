@@ -27,8 +27,6 @@ function main() {
 	litroSoundMain();
 	litroKeyboardMain();
 	keyStateCheck();
-	
-	
 	requestAnimationFrame(main);
 };
 

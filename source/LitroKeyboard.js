@@ -2,7 +2,7 @@
  * Litro Keyboard Interface
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.07.02
+ * ver 0.07.03
  */
 var litroKeyboardInstance = null;
 var VIEWMULTI = 2;
@@ -243,6 +243,7 @@ function LitroKeyboard() {
 	this.chOscCWidth = 8;
 	this.chOscCHeight = 6;
 	this.analyseRate = 4; // perFrame
+	this.analyseReresh = 16; // perFrame
 	this.analyseCount = 0;
 	// this.analysedData = new Uint8Array(this.chOscWidth);
 	// this.analysedData_b = new Uint8Array(this.chOscWidth);
@@ -428,11 +429,12 @@ LitroKeyboard.prototype = {
 			this.noteRangeScale = (step[1] | 0) * this.noteRangeCells;
 		}
 		if(multi != null){
-			if(multi == 0){
+			if(multi[1] == 0){
 				this.hiddenScreen = true;
-				multi = 1;
+				multi[1] = 1;
 			}
 			VIEWMULTI = multi[1] | 0;
+			// console.log(VIEWMULTI);
 		}
 		if(match != null){
 			this.viewMode = 'full';
@@ -3844,8 +3846,8 @@ LitroKeyboard.prototype = {
 	{
 		// this.analyseRate = 8;
 		var chOscWidth = cellhto(this.chOscCWidth)
-			, chOscHeight = cellhto(this.chOscCHeight) - 2
-			, chOscHeight_h = (chOscHeight / 2) | 0
+			, chOscHeight = cellhto(this.chOscCHeight)
+			, chOscHeight_h = ((chOscHeight / 2) | 0) - 1
 			, sepWidth = chOscWidth / this.analyseRate
 			, data
 			, size = (PROCESS_BUFFER_SIZE / this.analyseRate) | 0
@@ -3864,15 +3866,17 @@ LitroKeyboard.prototype = {
 			this.analysedData = data;
 		}
 		data = this.analysedData;
-		// for(i = 0; i < );
-		// this.drawOscillo(this.analyseCount);
+
 		this.drawOscillo((this.analyseCount + 1) % this.analyseRate);
 		for(i = this.analyseCount * sepWidth; i < chOscWidth; i++){
-			if(cnt++ > sepWidth){break;}
+			if(cnt++ >= sepWidth){break;}
 			dindex = (i * (size / (chOscWidth ) ) | 0);
 			px = i + cellhto(cm.x) + ofsx;
 			py = data[dindex] != null ? data[dindex] : ofsy;
-			py = ((py * (chOscHeight_h / ofsy))  + cellhto(cm.y)) | 0;
+			py = (py * (chOscHeight_h / ofsy)) | 0;
+			if(py >= chOscHeight){continue;}
+			if(py < 0){continue;}
+			py += cellhto(cm.y);
 			from = {x: px, y: py};
 			to = {x: px, y: pre_y == null ? py : pre_y};
 			spr.spriteLine(from, to, sprite);
@@ -3884,18 +3888,19 @@ LitroKeyboard.prototype = {
 	drawChannelWave: function(ch)
 	{
 		var channel = ch == null ? this.litroSound.channel[this.editChannel()] : [ch]
-			, data, c, i, dindex, istep
-			, layerScale
+			, data, c, i, dindex, istep, layerScale, datH = 0
 			, px, py, vol = 0, stPos = 0, swp = null
-			, pre_y
-			, from, to
-			, spr = scrollByName('sprite')
+			, detune = channel.getDetunePosition()
+			, pre_y, from, to
+			, spr = scrollByName('bg1')
 			, sprite = makePoint(this.uiImageName, 1)
 			, sprite2 = makePoint(this.uiImageName, 1)
-			, chOscWidth = 64
-			, chOscHeight = cellhto(6) - 2
-			, chOscHeight_h = (chOscHeight / 2) | 0
+			, chOscWidth = cellhto(this.chOscCWidth)
+			, chOscHeight = cellhto(this.chOscCHeight)
+			, chOscHeight_h = ((chOscHeight / 2) | 0) - 1
 			, cm = this.ocsWaveCmargin
+			, sepWidth = (chOscWidth / this.analyseRate) | 0
+			, cnt = 0
 			;
 		;
 		
@@ -3918,22 +3923,34 @@ LitroKeyboard.prototype = {
 		// console.log(stPos);
 		}
 		
-		data = channel.data;
+		// console.log(this.analyseCount);
+		
+		this.analyseCount = (this.analyseCount + 1) % this.analyseRate;
+		if(this.analyseCount == 0){
+			data = channel.data;
+			this.analysedData = data;
+		}
+		data = this.analysedData;
+		// data = channel.data;
+		
 		istep = data.length / chOscWidth;
 		istep /= (this.octaveLevel + 1);
-		 sprite.swapColor(COLOR_LINE, COLOR_ARRAY[0]);
-		
-		for(i = 0; i < chOscWidth; i++){
+		sprite.swapColor(COLOR_LINE, COLOR_ARRAY[0]);
+		this.drawOscillo((this.analyseCount + 1) % this.analyseRate);
+		// for(i = 0; i < chOscWidth; i++){
+		for(i = this.analyseCount * sepWidth; i < chOscWidth; i++){
+			if(cnt++ >= sepWidth){break;}
 			dindex = (i * istep) | 0;
+			datH = channel.waveLength > dindex ? data[(dindex + detune) % channel.waveLength] : 0;
 			px = i + cellhto(cm.x);
-			py = (-(data[dindex] + vol) * chOscHeight) | 0;
+			py = (-(datH + vol) * chOscHeight) | 0;
 			if(py > chOscHeight_h){continue;}
 			if(py < -chOscHeight_h){continue;}
 			py += chOscHeight_h + cellhto(cm.y);
 
 			from = {x: px, y: py};
 			to = {x: px, y: pre_y == null ? py : pre_y};
-			if(stPos == data[dindex]){
+			if(stPos == datH){
 				spr.spriteLine(from, to, sprite2);
 			}else{
 				spr.spriteLine(from, to, sprite);
@@ -4159,6 +4176,10 @@ function drawLitroScreen()
 	spr.drawto(view);
 	spr.clear();
 	// view.drawto(view);
+	
+	// printDebug(((window.performance.now() - litroSoundInstance.performanceValue) + '').substr(0, 8), 1);
+	// printDebug((window.performance.now() - litroSoundInstance.performanceValue) | 0, 1);
+
 	screenView(scr, view, VIEWMULTI);
 	// console.log(scr.canvas.width);
 	return;
