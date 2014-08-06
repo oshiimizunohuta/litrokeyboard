@@ -2,7 +2,7 @@
  * Litro Sound Library
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.07.02
+ * ver 0.07.03
  */
 // var SAMPLE_RATE = 24000;
 var SAMPLE_RATE = 48000;
@@ -17,7 +17,7 @@ var BUFFER_FRAMES = 60;
 // var BUFFERS = 2;
 var CHANNELS = 8;
 var litroAudio = null;
-var VOLUME_TEST = 0.2;
+var VOLUME_TEST = 0.4;
 var litroSoundInstance = null;
 
 
@@ -632,6 +632,7 @@ LitroSound.prototype = {
 	
 };
 
+var TITLE_MAXLENGTH = 32;
 var litroPlayerInstance = null;
 /**
  * 再生
@@ -640,35 +641,49 @@ function LitroPlayer(){return;};
 LitroPlayer.prototype = {
 	init: function()
 	{
-		//v0.03:-値対応
-		//v0.01.00:タグ付き
-		this.fversion = '00.01.00';
 		litroPlayerInstance = this;
-		this.sound_id = null;
-		this.user_id = null;
-		this.title = '';
-		this.titleCodes = [];
-		this.titleMaxLength = 32;
 		// this.noteData = []; //note data
-		this.eventsetData = []; //ControllChangeともいう
+		this.playPack = new LitroPlayPack(); //複数のファイルを入れておく連続再生用？
+		this.playPack.init(this);
 		this.noteSeekTime= 0; //note をセットする位置
 		this.playSoundFlag = false;
 		this.litroSound = litroSoundInstance;
 		this.systemTime = 0;
+		this.VOLUME_INC = 0.1;
+		
+		this.eventsetData = []; //ControllChangeともいう
 		this.delayEventset = [];
-		// this.timeOutEvent = {};
-		this.timeOutCC = [];
-		this.eventsetKeyIndex = {};
-		this.FORMAT_LAVEL = 'litrosoundformat';
 		this.fileUserName = 'guest_user_';
+		this.playerAccount = 'guest_user_';
+		this.sound_id = null;
+		this.user_id = null;
+		this.title = '';
+		
+		this.serverFileList = {};
+		
+		//parserParams
+		//v0.03:-値対応
+		//v0.01.00:タグ付き
+		this.fversion = '00.01.00';
+		this.titleCodes = [];
+		this.titleMaxLength = TITLE_MAXLENGTH;
+		this.fileUserName = 'guest_user_';
+		this.playerAccount = 'guest_user_';
+		this.FORMAT_LAVEL = 'litrosoundformat';
 		this.fileOtherInfo = 'xxxxxxxxxxxxxxxx';
 		this.dataHeaderDelimiter = '[datachunk]';
+		this.headerParamDelimiters = {title: '[title]', playerAccount: '[auth]', fversion: '[version]'};
 		this.HEADER_TITLELENGTH = this.titleMaxLength;
 		this.DATA_LENGTH16 = {ch:2, type:2, timeval:4, time:6, value:2};
 		this.DATA_LENGTH36 = {ch:1, type:2, timeval:3, time:4, value:2};
 		this.CHARCODE_LENGTH16 = 8;//4byte
 		this.CHARCODE_LENGTH36 = 6;//3byte
-		this.CHARCODE_MODE = 36;
+		this.CHARCODE_MODE = 36;		
+		this.headerParams = {};
+		
+		// this.timeOutEvent = {};
+		this.timeOutCC = [];
+		this.eventsetKeyIndex = {};
 
 		// this.HEADER_LENGTH = 64;
 		if(window.location.href.indexOf('localhost') >= 0){
@@ -680,25 +695,15 @@ LitroPlayer.prototype = {
 		// this.COMMON_TUNE_CH = this.litroSound.channel.length;
 		this.COMMON_TUNE_CH = 0;
 		
-		var type, ch, addEtc = 0;
-		for(ch = 0; ch < this.litroSound.channel.length + addEtc; ch++){
-			// this.noteData.push({});
-			this.eventsetData.push({});
-			this.delayEventset.push({});
-			this.eventsetData[ch].note = {};
-			this.delayEventset[ch].note = {};
-			for(i = 0; i < AudioChannel.sortParam.length; i++){
-				this.eventsetData[ch][AudioChannel.sortParam[i]] = {};
-				this.delayEventset[ch][AudioChannel.sortParam[i]] = {};
-			}
-		}
+		this.eventsetData = makeEventsetData();
+		this.delayEventset = makeEventsetData(); 
+		var i;
 		for(i = 0; i < AudioChannel.sortParam.length; i++){
 			this.eventsetKeyIndex[AudioChannel.sortParam[i]] = i;
 		}
-
-		
 	},
 	
+		
 	pad0: function(str, num)
 	{
 		while(num - str.length > 0){
@@ -733,6 +738,8 @@ LitroPlayer.prototype = {
 	 * DATA:<time><value>
 	 * 4.6h
 	 */	
+	 
+// 	 TODO headerObjectをつくる
 	headerInfo: function()
 	{
 		// this.fileUserName = this.fileUserName.substr(0, 11);
@@ -742,7 +749,7 @@ LitroPlayer.prototype = {
 		// }
 		// this.fileOtherInfo = info.substr(0, this.HEADER_TITLELENGTH);
 		// return this.FORMAT_LAVEL + 'version-' + this.fversion + 'auth_' + this.fileUserName + this.fileOtherInfo;
-		return this.FORMAT_LAVEL + '[version]' + this.fversion + '[auth]' + this.fileUserName + '[title]' + title + this.dataHeaderDelimiter;
+		return this.FORMAT_LAVEL + '[version]' + this.fversion + '[auth]' + this.playerAccount + '[title]' + title + this.dataHeaderDelimiter;
 	},
 	
 	//byteArray or String
@@ -777,13 +784,12 @@ LitroPlayer.prototype = {
 		// return encodeURIComponent(this.title).substr(0, 16);
 	},
 	
-	dataToString: function()
+	dataToString: function(edat)
 	{
 		// AudioChannel.tuneParamsID
 		var str = ''
 			, ch, time, type, chstr, timeDats, typeDatsNum
 			, typestr
-			, edat = this.eventsetData
 			, prop = AudioChannel.tuneParamsProp
 			, mode = this.CHARCODE_MODE
 			, datLen = this.DATA_LENGTH36
@@ -840,36 +846,6 @@ LitroPlayer.prototype = {
 		return charCode;
 	},
 	//%04%E6%90%80%E2%B0%80%EF%90%80%EB%B0%80
-
-	saveToCookie: function()
-	{
-		var data
-		;
-		// data = this.dataStrToCharCode(data); //mode16
-		data = this.dataToString();
-		data =this.headerInfo() + data;
-		// console.log('save ok', data, data.length);
-		document.cookie = 'd=' + encodeURIComponent(data) + ";expires=Tue, 31-Dec-2030 23:59:59;";
-	},
-	
-	saveToSever: function(user_id, sound_id, func, errorFunc)
-	{
-		var data = encodeURIComponent(this.headerInfo() + this.dataToString());
-		title = this.title;
-		params = {user_id: user_id, title: this.title, data: data};
-		;
-		// console.log('save ok', data, data.length);
-		func = func == null ? function(){return;} : func;
-		errorFunc = errorFunc == null ? function(){return;} : errorFunc;
-		if(sound_id == 0){
-			//insert needs sound_id:0
-			sendToAPIServer('POST', 'fileinsert', params, func, errorFunc);
-		}else{
-			//update needs sound_id > 0
-			params.sound_id = sound_id;
-			sendToAPIServer('POST', 'fileupdate', params, func, errorFunc);
-		}
-	},
 	
 	charCodeToDataStr: function(code)
 	{
@@ -906,6 +882,20 @@ LitroPlayer.prototype = {
 		// console.log(type, res);
 		return res;
 	},
+	
+	parseHeaderStr: function(str)
+	{
+		// '[version]' '[auth]' '[title]' 
+		var start, len, deli;
+		for(key in this.headerParamDelimiters){
+			deli = this.headerParamDelimiters[key];
+			start = str.lastIndexOf(deli) + deli.length;
+			len = str.indexOf('[', start) - start;
+			this.headerParams[key] = len < 0 ? '' : str.substr(start, len);
+		// console.log(start, len, this);
+		}
+	},
+	
 	parseDataStr: function(data)
 	{
 		var dlen
@@ -914,9 +904,11 @@ LitroPlayer.prototype = {
 			, rlen = 0, res = '', tvalLen = 0
 			, idKey = AudioChannel.tuneParamsIDKey()
 			, minLen = datLen.ch + datLen.type + datLen.timeval
-			, delim = this.dataHeaderDelimiter
+			, delim = this.dataHeaderDelimiter, headerParams = {}
+			, eventsetData = makeEventsetData();
 		;
 		// data = data.substr(this.HEADER_LENGTH);
+		headerParams = this.parseHeaderStr(data.substr(0, data.lastIndexOf(delim)));
 		data = data.substr(data.lastIndexOf(delim) + delim.length);
 		dlen = data.length;
 		// console.log(data);
@@ -929,17 +921,44 @@ LitroPlayer.prototype = {
 			rlen += this.DATA_LENGTH36.timeval;
 			tval = this.timevalData(type, data.substr(rlen, (this.DATA_LENGTH36.time + this.DATA_LENGTH36.value) * tvalLen));
 			rlen += (this.DATA_LENGTH36.time + this.DATA_LENGTH36.value) * tvalLen;
-			// if(dlen <= rlen + minLen){break;}
 			// console.log('ch: ' + ch, 'type: ' + type, 'tvalLen: ' + tvalLen, 'tval: ' + tval);
-			this.eventsetData[ch][type] = tval;
+			if(eventsetData[ch] == null){
+				eventsetData[ch] = {};
+			}
+			eventsetData[ch][type] = tval;
+			// this.eventsetData[ch][type] = tval;
 			// console.log(this.eventsetData[ch]);
+		}
+		
+		return eventsetData;
+	},
+	
+	saveToCookie: function(data)
+	{
+		document.cookie = 'd=' + encodeURIComponent(data) + ";expires=Tue, 31-Dec-2030 23:59:59;";
+	},
+	
+	// saveToServer: function(params, func, errorFunc)
+	saveToServer: function(user_id, sound_id, dataObj, func, errorFunc)
+	{
+		var data = encodeURIComponent(this.headerInfo() + this.dataToString(dataObj))
+		params = {user_id: user_id, sound_id: sound_id, data: data, title: this.title};
+		
+		func = func == null ? function(){return;} : func;
+		errorFunc = errorFunc == null ? function(){return;} : errorFunc;
+		if(params.sound_id == 0){
+			//insert needs sound_id:0
+			sendToAPIServer('POST', 'fileinsert', params, func, errorFunc);
+		}else{
+			//update needs sound_id > 0
+			sendToAPIServer('POST', 'fileupdate', params, func, errorFunc);
 		}
 	},
 	
 	loadFromCookie: function()
 	{
 		var cookies = document.cookie.split('; ')
-			, i, dic, str
+			, i, dic, str, data
 		;
 		this.init();//初期化
 		for(i = 0; i < cookies.length; i++){
@@ -948,16 +967,15 @@ LitroPlayer.prototype = {
 				break;
 			}
 		}
-		// str = this.charCodeToDataStr(decodeURIComponent(dic[1]).substr(headerLength));//mode16
-		this.parseDataStr(decodeURIComponent(dic[1]));
-		// console.log('load ok', dic[1], dic[1].length);
-		// console.log(this.eventsetData);
+		data = this.parseDataStr(decodeURIComponent(dic[1]));
+		return data;
 	},
 	
 	loadFromServer: function(user_id, sound_id, func, errorFunc)
 	{
 		var self = this
-			, params = {user_id: user_id, sound_id: sound_id};
+			, params = {user_id: user_id, sound_id: sound_id}
+			// , user_name = this.fileUserName
 		;
 		// console.log('save ok', data, data.length);
 		if(sound_id == 0){
@@ -968,39 +986,107 @@ LitroPlayer.prototype = {
 		errorFunc = errorFunc == null ? function(){return;} : errorFunc;
 		
 		sendToAPIServer('GET', 'fileload', params, function(data){
+			var sound = {};
 			if(data == null || data == false){
 				errorFunc(data);
 			}
 			
-			self.init();
-			self.parseDataStr(decodeURIComponent(data.data));
-			self.title = data.title;
-			self.user_id = data.user_id;
-			self.sound_id = data.sound_id;
-			func(data);
-			}, errorFunc);
-		return true;
+			sound.data = data.data == null ? [] : data.data;
+			sound.title = data.title == null ? '' : data.title;
+			sound.user_name = data.user_name == null ? '' : data.user_name;
+			sound.user_id = data.user_id == null ? 0 : data.user_id;
+			sound.sound_id = data.sound_id == null ? 0 : data.sound_id;
+			
+			// self.dataPacks[self.NONPACK_NAME] = {};
+			// self.dataPacks[self.NONPACK_NAME][sound.title] = sound;
+			
+			func(sound);
+		}, errorFunc);
 	},
 	
 	listFromServer: function(user_id, page, limit, func, errorFunc)
 	{
-		var params = {page: page, limit: limit, user_id: user_id};
+		var params = {page: page, limit: limit, user_id: user_id}
+		self = this;
 		func = func == null ? function(){return;} : func;
 		errorFunc = errorFunc == null ? function(){return;} : errorFunc;
-		sendToAPIServer('GET', 'filelist', params, func, errorFunc);
+		sendToAPIServer('GET', 'filelist', params, function(data){
+			var i;
+			if(data == null || data.error_code != null){
+				errorFunc(data);
+				return;
+			}
+			// append = append.length == null ? [append] : append;
+			//取得ファイルでリストを更新
+			for(i = 0; i < data.length; i++){
+				self.serverFileList[data[i].sound_id] = data[i];
+			}
+			func(self.serverFileList);
+		}, errorFunc);
+	},
+	
+	setPlayData: function(data)
+	{
+		this.init();
+		this.eventsetData = this.parseDataStr(decodeURIComponent(data.data));
+		this.title = data.title == null ? '' : data.title;
+		this.fileUserName = data.user_name == null ? '' : data.user_name;
+		this.user_id = data.user_id == null ? 0 : data.user_id;
+		this.sound_id = data.sound_id == null ? 0 : data.sound_id;
+		return true;
+	},
+	
+	//パースしたデータが入る
+	insertPack: function(pack)
+	{
+		var title, playdata
+		for(title in pack){
+			playdata = pack[title];
+			// playdata = 
+		}
+		this.playPack = pack;
+	},
+	
+	setPlayDataFromPackForKey: function(packName, indexKey)
+	{
+		var key = typeof indexKey == 'String' ? indexKey : Object.keys(this.playPack.packData[packName])[indexkey];
+		if(key == null){
+			return false;
+		}
+		return this.setPlayData(this.playPack.packData[packName][key]);
+	},
+	
+	// loadFromServer: function(user_id, sound_id, func, errorFunc)
+	// {
+		// var self = this;
+		// this.playPack.loadFromServer(user_id, sound_id, function(data){
+			// self.setPlayData(data);
+			// func(data);
+		// }, errorFunc);
+	// },
+	
+	fileList: function()
+	{
+		return this.serverFileList;
 	},
 
 	isPlay: function()
 	{
 		return this.playSoundFlag;
 	},
-	play: function(toggle)
+	
+	playForKey: function(index_title)
+	{
+		var key = typeof index_title == 'String' ? index_title : Object.keys(this.pack)[index_title];
+		this.eventsetData = this.dataPack[key];
+		this.play();//
+	},
+	
+	play: function()
 	{
 		this.systemTime = performance.now();
 		this.playSoundFlag = true;
-		// this.timeOutEvent = {};
 		this.delayEventset = [];
-		
 		for(var i = 0; i < litroSoundInstance.channel.length; i++){
 			litroSoundInstance.channel[i].refChannel = litroSoundInstance.channel[i].id;
 		}
@@ -1011,7 +1097,22 @@ LitroPlayer.prototype = {
 		this.systemTime = performance.now();
 		this.playSoundFlag = false;
 		this.delayEventset = [];
-//		this.timeOutEvent = {};
+	},
+	
+	volume: function(vol)
+	{
+		var sTime, gain = this.litroSound.gain.gain;
+		if(vol != null){
+			vol = vol < 0 ? 0 : vol;
+			sTime = this.litroSound.context.currentTime;
+			gain.cancelScheduledValues(sTime);
+			gain.setValueAtTime(gain.value, sTime);
+			gain.setTargetAtTime(vol, sTime, 0);
+		}else{
+			vol = gain.value;
+		}
+		
+		return vol;
 	},
 	
 	commonEventTime: function(eventName){
@@ -1105,37 +1206,6 @@ LitroPlayer.prototype = {
 		this.delayEventset[ch][type][time_id | 0] = {time: time | 0, ch: ch, type: type, value: value};
 	},
 	
-	//requestAnimation任せ
-	setTimeOutEvent: function(ch, time, time_id, type, value)
-	{
-		if(this.timeOutEvent[time_id] == null){
-			this.timeOutEvent[time_id] = [];
-			this.timeOutEvent[time_id].push({time: time, ch: ch, type: type, value: value});
-			setTimeout(function(){
-				// console.log(1);
-				var t, i, self = litroPlayerInstance, data;
-				// for(i = 0; i < self.timeOutEvent.length; i++){
-				for(t in self.timeOutEvent){
-					for(i = 0; i < self.timeOutEvent[t].length; i++){
-						data = self.timeOutEvent[t][i];
-						// if(data.time <= self.noteSeekTime){
-						// }
-						//ループしたら
-						if(self.soundEventPush(data.ch, data.type, data.value)){
-							return;
-						}
-					}
-					self.timeOutEvent[t] = null;
-					delete self.timeOutEvent[t];
-					return;
-				}
-			}, time);
-		}else{
-			this.timeOutEvent[time_id].push({time: time, ch: ch, type: type, value: value});
-		}
-		
-	},
-
 	getEventsFromTime: function(ch, time, filter)
 	{
 		var type, types = {}, res = {}, set = false, tindex;
@@ -1276,6 +1346,71 @@ LitroPlayer.prototype = {
 	},
 	
 };
+
+function makeEventsetData(channels){
+	var eventset = [], type, ch, addEtc = 0;
+	channels = channels == null ? litroSoundInstance.channel.length : channels
+	for(ch = 0; ch < channels + addEtc; ch++){
+		// this.noteData.push({});
+		eventset.push({});
+		eventset[ch].note = {};
+		for(i = 0; i < AudioChannel.sortParam.length; i++){
+			eventset[ch][AudioChannel.sortParam[i]] = {};
+		}
+	}
+	return eventset;
+};
+
+
+function LitroPlayPack(){return;};
+LitroPlayPack.prototype = {
+	init: function()
+	{
+		this.dataPacks = {};
+		this.parseFiles = {};
+		// this.litroSound = litroSoundInstance;
+		
+		this.NONPACK_NAME = ' NO-PACK ';
+
+	},
+	
+	loadSoundPackage: function(user_id, packName, func, errorFunc)
+	{
+		var self = this
+			, params = {user_id: user_id, packName: packName}
+		;
+		if(user_id == 0){
+			errorFunc({error_code: 0, message: 'no user_id'});
+			return;
+		}
+		if(packName == null){
+			errorFunc({error_code: 0, message: 'no Package Name'});
+			return;
+		}
+		func = func == null ? function(){return;} : func;
+		errorFunc = errorFunc == null ? function(){return;} : errorFunc;
+		
+		//data : {sound_id, ?}
+		sendToAPIServer('GET', 'packload', params, function(data){
+			var i;
+			if(data == null || data == false){
+				errorFunc(data);
+			}
+			
+			self.dataPacks[packName] = {};
+			for(i = 0; i < data.length; i++){
+				self.dataPacks[packName][data[i].title] = data[i];
+			}
+			
+			func(self.dataPacks[packName]);
+			}, errorFunc);
+	},
+	
+};
+
+//TODO parserを作る？
+function litroSoundParser(){return;};
+
 
 var APIServer = {url: null};
 function initAPIServer(apiUrl)
