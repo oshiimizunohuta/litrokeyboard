@@ -3,19 +3,19 @@ var ltkb;
 window.addEventListener('load', function() {
 	var cont
 		, i
-		, litroAudio = new LitroSound()
-		, litroPlayer = new LitroPlayer()
+		// , litroAudio = new LitroSound()
+		// , litroPlayer = new LitroPlayer()
 		, ltkb = new LitroKeyboard()
 
 		,requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame || window.webkitRequestAnimationFrame || window.msRequestAnimationFrame
 	;
 	window.requestAnimationFrame = requestAnimationFrame;
 	
-	litroAudio.init(SAMPLE_RATE, CHANNELS, BUFFER_FRAMES);
+	// litroAudio.init(CHANNELS);
 	
-	litroPlayer.init(litroAudio);
+	// litroPlayer.init(litroAudio);
 	
-	ltkb.init(litroAudio);
+	ltkb.init();
 	
 	requestAnimationFrame(main);
 	removeEventListener('load', this, false);

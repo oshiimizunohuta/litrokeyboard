@@ -2,11 +2,11 @@
  * Litro Sound Library
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.07.03
+ * ver 0.07.04
  */
 // var SAMPLE_RATE = 24000;
-var SAMPLE_RATE = 48000;
-// var SAMPLE_RATE = 44100;
+// var SAMPLE_RATE = 48000;
+var SAMPLE_RATE = 44100;//readonly意味ないy
 // var SAMPLE_RATE = 144000;
 // var PROCESS_BUFFER_SIZE = 8192;
 // var PROCESS_BUFFER_SIZE = 4096;
@@ -45,27 +45,29 @@ function LitroSound() {
 	return;
 }
 
+var testval = 0;
+
 LitroSound.prototype = {
-	init : function(sampleRate, channelNum, bufferFrame) {
+	init : function(channelNum) {
 		this.isFirefox = (navigator.userAgent.toLowerCase().indexOf('firefox') > -1) ? true : false;
 		this.channel = [];
 		this.channel.length = channelNum;
-		this.bufferFrame = bufferFrame;
 		this.frameRate = 60;
-		this.milliSecond = this.isFirefox ? 1100 : 1000;//firefox : chrome
-		this.masterBufferSize = 48000;
-		this.channelBufferSize = 48000;
+		// this.milliSecond = this.isFirefox ? 1100 : 1000;//firefox : chrome
+		this.milliSecond = 1000;//firefox : chrome
 		this.minClock = this.milliSecond / this.frameRate; //ノート単位クロック
-		this.sampleRate = sampleRate;
-		// this.refreshRate = sampleRate / 60;
-		this.refreshRate = sampleRate / this.milliSecond;
+		this.sampleRate = 0;
+		this.refreshRate = 0; //init
+		this.refreshClock = 0;
 		this.recoverCount = 0; //異常時立ち直りまでのカウント
 		this.processHeavyLoad = false;
-		this.performanceCycle = 16; //?
+		this.performanceCycle = 600; //?
 		this.performanceValue = 0;
 		// console.log(this.refreshRate);
+		this.radiateTime = 16; //[ms] 安定化待ち時間
+		this.radiationTimer = 0;
 
-		this.maxFreq = (sampleRate / 2) | 0;
+		this.maxFreq = 0; //init
 		this.maxWavlen = 0;
 		this.minWavlen = 0;
 		this.mode = 0;
@@ -85,27 +87,29 @@ LitroSound.prototype = {
 		this.onNoteKeyEventFunc = function(){return;};
 		this.fadeoutEventFunc = function(){return;};
 		
-		TOP_FREQ_LENGTH = (sampleRate / this.freqByKey((KEY_FREQUENCY.length * KEY_FREQUENCY[0].length) - 1)) | 0;
+		TOP_FREQ_LENGTH = 0; //init
 		
-		var agent, src, i, data, buf, context;
+		var agent, src, i, data, buf;
 		window.performance = window.performance == null ? window.Date : window.performance;
 		window.AudioContext = window.AudioContext || window.webkitAudioContext;
 		if(window.AudioContext == null){
 			console.log("this browser can't AudioContext!! ");
 			return;
 		}
-		this.context = new AudioContext();
-		this.setSampleRate(sampleRate, PROCESS_BUFFER_SIZE);
-		this.maxWavlen = (this.context.sampleRate / minFreq()) | 0;
-		this.minWavlen = (this.context.sampleRate / maxFreq()) | 0;
+		// this.context = new AudioContext();
+		// this.setSampleRate(sampleRate, PROCESS_BUFFER_SIZE);
+		this.createContext(PROCESS_BUFFER_SIZE);
 		
-		this.audioChennelInit(channelNum, sampleRate);
+		this.initWaveProperties();
+		
+		this.audioChennelInit(channelNum);
 		// 出力開始
 		// src.noteOn(0);
 	},
 	
 	//チャンネル設定
-	audioChennelInit: function(chnum, rate){
+	audioChennelInit: function(chnum){
+		var rate = this.context.sampleRate;
 		for(i = 0; i < this.channel.length; i++){
 			channel = new AudioChannel();
 			channel.init(((rate / KEY_FREQUENCY[0][0]) | 0) + 1, this.WAVE_VOLUME_RESOLUTION);
@@ -140,21 +144,26 @@ LitroSound.prototype = {
 		return data;
 	},
 	
-	setSampleRate: function(rate, size){
-		var i, channel, context, scriptProcess, src;
-		context = this.context;
-		context.sampleRate = rate;
+	createContext: function(size){
+		var i, channel, context, scriptProcess, src, self = this;
 		
-		this.sampleRate = rate;
+		if(this.context == null){this.context = new AudioContext();}
+		context = this.context;
+		// context.sampleRate = rate; //read only
+		
+		this.sampleRate = context.sampleRate; //
 		
 		//ゲイン
+		this.gain = null;
 		this.gain = context.createGain();
 		this.gain.gain.value = this.masterVolume;
 		this.gain.connect(context.destination);
 		
 		//プロセス
+		this.scriptProcess = null;
 		scriptProcess = context.createScriptProcessor(size, 0, 1);
-		scriptProcess.onaudioprocess = this.bufferProcess;
+		// scriptProcess = context.createScriptProcessor(size);
+		scriptProcess.onaudioprocess = function(ev){self.bufferProcess(ev);};
 		scriptProcess.parent_audio = this;
 		
 		scriptProcess.connect(this.gain);
@@ -166,9 +175,10 @@ LitroSound.prototype = {
 		// this.source.playbackRate = 8;
 		
 		//解析
+		this.analyser = null;
 		this.analyser = this.context.createAnalyser();
 		this.analyser.fft = 512;
-		scriptProcess.connect(this.analyser);
+		// scriptProcess.connect(this.analyser);
 		
 		// console.log(scriptProcess);
 		// this.delay = this.context.createDelay();
@@ -176,65 +186,90 @@ LitroSound.prototype = {
 		// this.delay.connect(context.destination);
 		// scriptProcess.connect(this.delay);
 		
-
 		return;
+	},
+	initWaveProperties: function()
+	{
+		if(this.context == null){return;}
+		TOP_FREQ_LENGTH = (this.context.sampleRate / this.freqByKey((KEY_FREQUENCY.length * KEY_FREQUENCY[0].length) - 1)) | 0;
+		this.refreshRate = this.context.sampleRate / this.milliSecond;
+		this.maxFreq = (this.context.sampleRate / 2) | 0;
+		this.maxWavlen = (this.context.sampleRate / minFreq()) | 0;
+		this.minWavlen = (this.context.sampleRate / maxFreq()) | 0;
+	},
+	
+	connectOn: function()
+	{
+		this.createContext(PROCESS_BUFFER_SIZE);
+		this.scriptProcess.connect(this.gain);
+		this.scriptProcess.connect(this.analyser);
+		this.gain.connect(this.context.destination);
+	},
+	connectOff: function()
+	{
+		this.scriptProcess.disconnect();
+		this.scriptProcess.onaudioprocess = null;
+		this.gain.disconnect();
 	},
 
 	bufferProcess: function(ev)
 	{
-		var parent = litroSoundInstance
-			, i, ch, channels = parent.channel
+		var i, ch, channels = this.channel
 			, data = ev.outputBuffer.getChannelData(0)
-			, dlen = ev.outputBuffer.length, clen = parent.channel.length
-			, rClock, rate = parent.refreshRate
+			, dlen = ev.outputBuffer.length, clen = this.channel.length
+			, rate = this.refreshRate, rCrock = this.refreshClock
 			, fPlaysound = litroPlayerInstance.playSound
+			, now = performance.now();
 			;
-		if(!parent.checkPerformance()){
-			// parent.clearBuffer(ev);
+			testval = dlen;
+		if(!this.checkPerformance(ev)){
+			this.clearBuffer(ev);
 			return;
 		}
 		
-		for(i = 0; i < dlen; i++){
-			ch = channels[0];
-			rClock = ch.refreshClock;
-			if(rClock == 0){
+		Array.prototype.forEach.call(data, function(lev, i, data){
+		// for(i in data){
+		// for(i = 0; i < dlen; i++){
+			if(this.refreshClock == 0){
 				litroPlayerInstance.playSound();
-				parent.refreshWave(0);
 			}
-			data[i] = ch.nextWave();
-			ch.refreshClock = rClock >= rate ? 0 : rClock + 1;
-			for(c = 1; c < clen; c++){
-				// continue;
-				ch = channels[c];
-				rClock = ch.refreshClock;
-				if(rClock == 0){
-					parent.refreshWave(c);
+			data[i] = 0;
+			channels.forEach(function(ch, c){
+				if(this.refreshClock == 0){
+					this.refreshWave(c);
 				}
 				data[i] += ch.nextWave();
-				ch.refreshClock = rClock >= rate ? 0 : rClock + 1;
-			}
-		}
-		// parent.outputBuffer = data;
+			}, this);
+			this.refreshClock = this.refreshClock >= rate ? 0 : this.refreshClock + 1;
+			// }
+		}, this);
+		// this.outputBuffer = data;
 	},
 	
-	checkPerformance: function()
+	checkPerformance: function(ev)
 	{
-		var pf = window.performance.now();
+		var pf = window.performance.now()
+			, self = this;
 		// if(this.source == null){return;}
 		if(this.scriptProcess == null){return;}
 		// console.log(1);
-		if(pf - this.performanceValue > this.refreshRate * 3){
+		if(pf - this.performanceValue > this.performanceCycle){
 			if(!this.processHeavyLoad){
-				this.scriptProcess.onaudioprocess = this.bufferProcess;
+				// this.scriptProcess.onaudioprocess = this.checkPerformance;
+				// this.scriptProcess.onaudioprocess = function(ev){self.checkPerformance(ev)};
 				console.log('process has become overloaded!!');
 				this.processHeavyLoad = true;
+				this.connectOff();
+				this.radiationTimer = setInterval(function(e, ev){self.checkPerformance(ev)}, this.radiateTime, ev);
 				// console.log(pf - this.performanceValue, this.refreshRate * 4);
 			}
 		}else{
 			if(this.processHeavyLoad && this.recoverCount++ > this.frameRate){
-				this.scriptProcess.onaudioprocess = this.bufferProcess;
+				// this.scriptProcess.onaudioprocess = function(ev){self.bufferProcess(ev)};
 				this.recoverCount = 0;
 				console.log('process has recovered...');
+				this.connectOn();
+				clearInterval(this.radiationTimer);
 				this.processHeavyLoad = false;
 			}
 		}
@@ -312,10 +347,15 @@ LitroSound.prototype = {
 	
 	getChannel: function(ch, key, refEnable)
 	{
+		try{
 		if(this.channel[ch].refChannel >= 0){
 			ch = refEnable ? this.channel[ch].refChannel : ch;
 		}
 		return this.channel[ch].tuneParams[key];
+		}catch(e){
+			console.log(ch);
+		}
+
 	},
 	getVibratos: function(ch, refEnable)
 	{
@@ -463,7 +503,7 @@ LitroSound.prototype = {
 			channel.detuneClock++;
 			channel.sweepClock++;
 			channel.vibratoClock++;
-			channel.refreshClock = 0;
+			// channel.refreshClock = 0;//?
 		}
 	},
 	
@@ -642,6 +682,7 @@ LitroPlayer.prototype = {
 	init: function()
 	{
 		litroPlayerInstance = this;
+		
 		// this.noteData = []; //note data
 		this.playPack = new LitroPlayPack(); //複数のファイルを入れておく連続再生用？
 		this.playPack.init(this);
@@ -1090,6 +1131,8 @@ LitroPlayer.prototype = {
 		for(var i = 0; i < litroSoundInstance.channel.length; i++){
 			litroSoundInstance.channel[i].refChannel = litroSoundInstance.channel[i].id;
 		}
+		litroSoundInstance.connectOff();
+		litroSoundInstance.connectOn();
 	},
 	
 	stop: function(toggle)
@@ -1143,7 +1186,7 @@ LitroPlayer.prototype = {
 			litroSoundInstance.onNoteKey(ch, value);
 		}else if(type == 'event'){
 			switch(value){
-				case tuneProp['return'].id: this.seekMoveBack(-1), this.seekMoveForward(this.commonEventTime('restart')); this.delayEventset = {}; this.restartEvent(); return true;
+				case tuneProp['return'].id: this.seekMoveBack(-1), this.seekMoveForward(this.commonEventTime('restart')); this.delayEventset = []; this.restartEvent(); return true;
 				case tuneProp.noteoff.id: litroSoundInstance.fadeOutNote(ch, ch); break;
 				case tuneProp.noteextend.id: litroSoundInstance.extendNote(ch, ch); break;
 			}
@@ -1164,39 +1207,46 @@ LitroPlayer.prototype = {
 			, perFrameTime = 1
 			, seekTime = this.noteSeekTime
 			, sort = AudioChannel.sortParam
-			, slen = sort.length
+			// , slen = sort.length
 			, eData = this.eventsetData, typeBlock
 			, dData = this.delayEventset
+			, looped = false
 		;
+		
 		for(t = 0; t < perFrameTime; t++){
-			for(ch in eData){
+			eData.forEach(function(channel, ch){
 				delay = litroSoundInstance.getChannel(ch, 'delay', true) * 10;
-				for(s = 0; s < slen; s++){
-					type = sort[s];
+				looped |= sort.some(function(type){
 					typeBlock = eData[ch][type];
 					if(typeBlock[seekTime] != null){
 						data = typeBlock[seekTime];
 						if(delay > 0){
 							this.soundEventDelayPush(ch, t + delay, delay + t + data.time, type, data.value);
-						}else if(this.soundEventPush(ch, type, data.value)){
-							return;
+						}else{
+							return this.soundEventPush(ch, type, data.value);
 						}
 					}
-				}
-				for(ch in dData){
-					for(s = 0; s < slen; s++){
-						type = sort[s];
-						if(dData[ch][type] == null){continue;}
-						typeBlock = dData[ch][type];
-						if(typeBlock[seekTime] == null){continue;}
-						data = typeBlock[seekTime];
-						this.soundEventPush(ch, type, data.value);
-					}
-				}
+					return false;
+				// }
+				}, this);
+			}, this);
+			dData.forEach(function(channel, ch){
+				looped |= sort.some(function(type){
+					if(dData[ch][type] == null){return false;}
+					typeBlock = dData[ch][type];
+					if(typeBlock[seekTime] == null){return false;}
+					data = typeBlock[seekTime];
+					return this.soundEventPush(ch, type, data.value);
+				}, this);
+			}, this);
+			if(!looped){
+				this.seekMoveForward(1);
+			}else{
+				console.log('looped');
 			}
-			this.seekMoveForward(1);
 		}
 		this.systemTime = now;
+		
 	},
 	
 	soundEventDelayPush: function(ch, time, time_id, type, value)
@@ -1210,12 +1260,13 @@ LitroPlayer.prototype = {
 	{
 		var type, types = {}, res = {}, set = false, tindex;
 		filter = filter == null ? AudioChannel.sortParam : this.typesArray(filter);
-		for(tindex = 0; tindex < filter.length; tindex++){
+		// for(tindex = 0; tindex < filter.length; tindex++){
+		filter.forEach(function(type, tindex){
 			type = filter[tindex];
 			if(this.eventsetData[ch] != null && this.eventsetData[ch][type] != null && this.eventsetData[ch][type][time] != null){
 				res[type] = this.eventsetData[ch][type][time];
 			}
-		}
+		}, this);
 		return res;
 	},
 	
@@ -1237,25 +1288,28 @@ LitroPlayer.prototype = {
 	allStackEventset: function(ch, types)
 	{
 		var tindex, type, t, events = {}
-		, typeKeys = this.typesArray()
-		, len = types.length
-		, timedStack = []
+		, timedStack = [], timedEvents, typedEvents, ev
 		;
-		for(tindex = 0; tindex < len; tindex++){
-			type = types[tindex];
-			for(t in this.eventsetData[ch][type]){
-				t |= 0;
-				if(this.eventsetData[ch][type][t] != null){
+		types.forEach(function(type, tindex){
+			typedEvents = Object.keys(this.eventsetData[ch][type]);
+			typedEvents.forEach(function(t, i, ev){
+				// if(ev[t] != null){
 					events[t] = events[t] == null ? {} : events[t];
 					events[t][type] = this.eventsetData[ch][type][t];
-				}
-			}
-		}
-		for(t in events){
-			for(type in events[t]){
+					// events[t] = this.eventsetData[ch][type][t];
+				// }
+			}, this);
+			return events;
+		}, this);
+		
+		timedEvents = Object.keys(events);
+		timedEvents.forEach(function(t){
+			types = Object.keys(events[t]);
+			types.forEach(function(type, i, ev){
 				timedStack.push(events[t][type]);
-			}
-		}
+			}, this);
+		}, this);
+
 		return timedStack;
 	}, 
 	
@@ -1297,6 +1351,7 @@ LitroPlayer.prototype = {
 		//前方一致
 		types = this.typesArray(type == null ? 'ALL' : type);
 		events = this.allStackEventset(ch, types);
+// console.log(events, start);
 
 		for(t = 0; t < events.length; t++){
 			for(tindex = 0; tindex < types.length; tindex++){
@@ -1667,11 +1722,15 @@ AudioChannel.prototype = {
 	},
 	
 	allocBuffer: function(datasize){
-		var i, data;
-		data = [];
+		var i, data, a;
+		data = new Float32Array(datasize);
 		for(i = 0; i < datasize; i++){
-			data.push(0);
+			data[i] = 0;
 		}
+		// data = [];
+		// for(i = 0; i < datasize; i++){
+			// data.push(0);
+		// }
 		return data;
 	},
 	// isRefreshClock: function()
