@@ -300,12 +300,7 @@ function LitroKeyboard() {
 
 LitroKeyboard.prototype = {
 	init : function() {
-		var code, row, chars, i
-		, whiteCount = 0
-		, blackCount = 0
-		, codeNameCount = 0
-		, self = this
-		, repkeys_ff = this.KEY_REPLACE_FIREFOX;
+		var self = this;
 		this.litroSound = new LitroSound();
 		litroKeyboardInstance = this;
 		
@@ -314,11 +309,72 @@ LitroKeyboard.prototype = {
 		
 		this.keyControll = new KeyControll();
 		this.player = new LitroPlayer();
+		//
+
+		this.litroSound.init(CHANNELS);
+		this.player.init("edit");
+		this.sePlayer.init("se");
+
+		
+		this.player.setRestartEvent(function(){
+			var seekPage = self.getNoteSeekPage();
+			// self.drawEventsetBatch(seekPage);
+			if(seekPage > 0){
+				self.drawEventsetBatch(seekPage - 1);
+			}else{
+				self.drawEventsetBatch(0);
+			}
+		});
 		// this.player = litroPlayerInstance;
 		
 		//基本キー
-		this.keyControll.initDefaultKey('right');
+		this.initKeys();
+
 		
+		//チャンネルデータ初期
+		// for(i = 0; i < this.litroSound.channel.length; i++){
+			// this.eventsetData.push({});
+		// }
+		
+		//ファイルメニュー設定
+		this.fileMenuMap = {
+			LOAD: this.fileTypeList,
+			SAVE: this.fileTypeList,
+			CLEAR: this.clearMenuList,
+			COOKIE: this.finalConf,
+			STRINGS: this.finalConf,
+			FILESELECT: this.finalConf,
+			SERVER: this.fileListList,
+			TITLE: this.fileTitleList,
+			LOGIN: this.fileLoginList,
+			FILE: this.fileMenuList,
+			FINISH: this.fileMenuList,
+			CURRENT: this.finalConf,
+		};
+
+
+		this.loadImages();
+		this.initFingerState(this.fingers);
+		this.initViewMode();
+		this.initWords();
+		this.initCanvas();
+		this.setBg2Position(this.noteScrollPos.x);
+		this.initCatchEvent();
+		this.initEventFunc();
+		this.initManual();
+		this.autoLogin();
+		
+		
+	},
+	
+	initKeys: function(){
+		var code, row, chars, i
+		, whiteCount = 0
+		, blackCount = 0
+		, codeNameCount = 0
+		, repkeys_ff = this.KEY_REPLACE_FIREFOX;
+		
+		this.keyControll.initDefaultKey('right');
 		
 		if(this.keyBottomType == 'straight'){
 			this.ROW_KEYCODE.bottom = this.ROW_KEYCODE_BOTTOM_ST;
@@ -397,56 +453,7 @@ LitroKeyboard.prototype = {
 		
 		for(i = 0; i < this.CODE_NAME.length; i++){
 			this.CODE_NAME_INDEX[this.CODE_NAME[i]] = i;
-		}
-		
-		//チャンネルデータ初期
-		// for(i = 0; i < this.litroSound.channel.length; i++){
-			// this.eventsetData.push({});
-		// }
-		
-		//ファイルメニュー設定
-		this.fileMenuMap = {
-			LOAD: this.fileTypeList,
-			SAVE: this.fileTypeList,
-			CLEAR: this.clearMenuList,
-			COOKIE: this.finalConf,
-			STRINGS: this.finalConf,
-			FILESELECT: this.finalConf,
-			SERVER: this.fileListList,
-			TITLE: this.fileTitleList,
-			LOGIN: this.fileLoginList,
-			FILE: this.fileMenuList,
-			FINISH: this.fileMenuList,
-			CURRENT: this.finalConf,
-		};
-		
-		this.player.setRestartEvent(function(){
-			var seekPage = self.getNoteSeekPage();
-			// self.drawEventsetBatch(seekPage);
-			if(seekPage > 0){
-				self.drawEventsetBatch(seekPage - 1);
-			}else{
-				self.drawEventsetBatch(0);
-			}
-		});
-		//
-
-		this.litroSound.init(CHANNELS);
-		this.player.init(this.litroSound);
-		this.sePlayer.init(this.litroSound);
-
-		this.loadImages();
-		this.initFingerState(this.fingers);
-		this.initViewMode();
-		this.initWords();
-		this.initCanvas();
-		this.setBg2Position(this.noteScrollPos.x);
-		this.initCatchEvent();
-		this.initEventFunc();
-		this.initManual();
-		this.autoLogin();
-		
-		
+		}		
 	},
 	
 	initViewMode: function(){
@@ -464,6 +471,7 @@ LitroKeyboard.prototype = {
 				this.litroSound.connectOff();
 				this.litroSound.init(CHANNELS);
 			}
+			console.log(PROCESS_BUFFER_SIZE);
 			this.analysedData = new Uint8Array(PROCESS_BUFFER_SIZE * this.analyseRate);
 			this.analysedData_b = new Uint8Array(PROCESS_BUFFER_SIZE * this.analyseRate);
 		}
@@ -669,6 +677,7 @@ LitroKeyboard.prototype = {
 			ltkb.imageLoaded = true;
 			ltkb.initSprite();
 			ltkb.openFrame();
+			requestAnimationFrame(main);
 		};
 	},
 	
@@ -4334,5 +4343,29 @@ function litroKeyboardMain()
 	ltkb.playLitro();
 	drawLitroScreen();
 };
+
+function main() {
+	litroSoundMain();
+	litroKeyboardMain();
+	keyStateCheck();
+	requestAnimationFrame(main);
+};
+
+window.onbeforeunload = function(event){
+	// event = event || window.event;
+	return event.returnValue = 'LitroKeyboardを中断します';
+};
+
+window.addEventListener('load', function() {
+	var ltkb = new LitroKeyboard()
+	;
+	window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame || window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
+	
+	ltkb.init();
+	
+	// requestAnimationFrame(main);
+	removeEventListener('load', this, false);
+	
+}, false);
 
 

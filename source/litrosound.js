@@ -52,6 +52,7 @@ LitroSound.prototype = {
 		this.isFirefox = (navigator.userAgent.toLowerCase().indexOf('firefox') > -1) ? true : false;
 		this.channel = [];
 		this.channel.length = channelNum;
+		this.players = {};
 		this.frameRate = 60;
 		// this.milliSecond = this.isFirefox ? 1100 : 1000;//firefox : chrome
 		this.milliSecond = 1000;//firefox : chrome
@@ -61,7 +62,7 @@ LitroSound.prototype = {
 		this.refreshClock = 0;
 		this.recoverCount = 0; //異常時立ち直りまでのカウント
 		this.processHeavyLoad = false;
-		this.performanceCycle = 600; //?
+		this.performanceCycle = 280; //?
 		this.performanceValue = 0;
 		// console.log(this.refreshRate);
 		this.radiateTime = 16; //[ms] 安定化待ち時間
@@ -120,6 +121,24 @@ LitroSound.prototype = {
 			this.setFrequency(i, 0);
 		}
 	},
+	
+	appendPlayer: function(name, player)
+	{
+		var primary = name in this.players ? Object.keys(this.players).atIndex(name) : Object.keys(this.players).length
+			, append = {name: name, player: player, primary: primary};
+		this.players[name] = append;
+		return primary;
+	},
+	
+	removePlayer: function(name)
+	{
+		if(name in this.players){
+			delete this.players[name];
+			return true;
+		}
+		return false;
+	},
+	
 	//TODO グローバル化
 	freqByOctaveCodeNum: function(octave, codenum){
 		return KEY_FREQUENCY[octave][codenum];
@@ -162,7 +181,6 @@ LitroSound.prototype = {
 		//プロセス
 		this.scriptProcess = null;
 		scriptProcess = context.createScriptProcessor(size, 0, 1);
-		// scriptProcess = context.createScriptProcessor(size);
 		scriptProcess.onaudioprocess = function(ev){self.bufferProcess(ev);};
 		scriptProcess.parent_audio = this;
 		
@@ -178,7 +196,7 @@ LitroSound.prototype = {
 		this.analyser = null;
 		this.analyser = this.context.createAnalyser();
 		this.analyser.fft = 512;
-		// scriptProcess.connect(this.analyser);
+		scriptProcess.connect(this.analyser);
 		
 		// console.log(scriptProcess);
 		// this.delay = this.context.createDelay();
@@ -200,16 +218,24 @@ LitroSound.prototype = {
 	
 	connectOn: function()
 	{
+		this.connectOff();
 		this.createContext(PROCESS_BUFFER_SIZE);
-		this.scriptProcess.connect(this.gain);
-		this.scriptProcess.connect(this.analyser);
-		this.gain.connect(this.context.destination);
+		// this.scriptProcess.connect(this.gain);
+		// this.scriptProcess.connect(this.analyser);
+		// this.gain.connect(this.context.destination);
 	},
 	connectOff: function()
 	{
 		this.scriptProcess.disconnect();
 		this.scriptProcess.onaudioprocess = null;
 		this.gain.disconnect();
+	},
+	
+	continuePlayer: function()
+	{
+		Object.keys(this.players).forEach(function(name){
+			this.players[name].player.playSound();
+		}, this);
 	},
 
 	bufferProcess: function(ev)
@@ -218,7 +244,7 @@ LitroSound.prototype = {
 			, data = ev.outputBuffer.getChannelData(0)
 			, dlen = ev.outputBuffer.length, clen = this.channel.length
 			, rate = this.refreshRate, rCrock = this.refreshClock
-			, fPlaysound = litroPlayerInstance.playSound
+			// , fPlaysound = litroPlayerInstance.playSound
 			, now = performance.now();
 			;
 			testval = dlen;
@@ -231,7 +257,8 @@ LitroSound.prototype = {
 		// for(i in data){
 		// for(i = 0; i < dlen; i++){
 			if(this.refreshClock == 0){
-				litroPlayerInstance.playSound();
+				this.continuePlayer();
+				// litroPlayerInstance.playSound();
 			}
 			data[i] = 0;
 			channels.forEach(function(ch, c){
@@ -263,6 +290,7 @@ LitroSound.prototype = {
 				this.radiationTimer = setInterval(function(e, ev){self.checkPerformance(ev)}, this.radiateTime, ev);
 				// console.log(pf - this.performanceValue, this.refreshRate * 4);
 			}
+			this.recoverCount = 0;
 		}else{
 			if(this.processHeavyLoad && this.recoverCount++ > this.frameRate){
 				// this.scriptProcess.onaudioprocess = function(ev){self.bufferProcess(ev)};
@@ -679,9 +707,9 @@ var litroPlayerInstance = null;
  */
 function LitroPlayer(){return;};
 LitroPlayer.prototype = {
-	init: function()
+	init: function(name)
 	{
-		litroPlayerInstance = this;
+		// litroPlayerInstance = this;
 		
 		// this.noteData = []; //note data
 		this.playPack = new LitroPlayPack(); //複数のファイルを入れておく連続再生用？
@@ -689,6 +717,7 @@ LitroPlayer.prototype = {
 		this.noteSeekTime= 0; //note をセットする位置
 		this.playSoundFlag = false;
 		this.litroSound = litroSoundInstance;
+		this.litroSound.appendPlayer(name, this);
 		this.systemTime = 0;
 		this.VOLUME_INC = 0.1;
 		
@@ -1199,6 +1228,7 @@ LitroPlayer.prototype = {
 	//bufferProcess任せ
 	playSound: function()
 	{
+		// console.log(this.playSoundFlag);
 		if(!this.playSoundFlag){return;}
 		var t, ch, s
 			, data, delay
@@ -1212,7 +1242,6 @@ LitroPlayer.prototype = {
 			, dData = this.delayEventset
 			, looped = false
 		;
-		
 		for(t = 0; t < perFrameTime; t++){
 			eData.forEach(function(channel, ch){
 				delay = litroSoundInstance.getChannel(ch, 'delay', true) * 10;
