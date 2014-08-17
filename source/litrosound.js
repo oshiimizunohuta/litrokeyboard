@@ -164,8 +164,7 @@ LitroSound.prototype = {
 	},
 	
 	createContext: function(size){
-		var i, channel, context, scriptProcess, src, self = this;
-		
+		var i, channel, context, scriptProcess, src, self = this, vol;
 		if(this.context == null){this.context = new AudioContext();}
 		context = this.context;
 		// context.sampleRate = rate; //read only
@@ -173,9 +172,12 @@ LitroSound.prototype = {
 		this.sampleRate = context.sampleRate; //
 		
 		//ゲイン
+		if(this.gain != null){
+			vol = this.gain.gain.value;
+		}
 		this.gain = null;
 		this.gain = context.createGain();
-		this.gain.gain.value = this.masterVolume;
+		this.gain.gain.value = vol == null ? this.masterVolume : vol;
 		this.gain.connect(context.destination);
 		
 		//プロセス
@@ -765,8 +767,8 @@ LitroPlayer.prototype = {
 		// this.COMMON_TUNE_CH = this.litroSound.channel.length;
 		this.COMMON_TUNE_CH = 0;
 		
-		this.eventsetData = makeEventsetData();
-		this.delayEventset = makeEventsetData(); 
+		this.clearEventsData();
+		
 		var i;
 		for(i = 0; i < AudioChannel.sortParam.length; i++){
 			this.eventsetKeyIndex[AudioChannel.sortParam[i]] = i;
@@ -1002,6 +1004,13 @@ LitroPlayer.prototype = {
 		
 		return eventsetData;
 	},
+	clearEventsData: function()
+	{
+		this.eventsetData = makeEventsetData();
+		this.delayEventset = makeEventsetData(); 
+		this.noteSeekTime= 0; //note をセットする位置
+		
+	},
 	
 	saveToCookie: function(data)
 	{
@@ -1030,7 +1039,7 @@ LitroPlayer.prototype = {
 		var cookies = document.cookie.split('; ')
 			, i, dic, str, data
 		;
-		this.init();//初期化
+		this.clearEventsData();//初期化
 		for(i = 0; i < cookies.length; i++){
 			dic = cookies[i].split('=');
 			if(dic[1] != null && dic[1].indexOf(this.FORMAT_LAVEL) >= 0){
@@ -1097,7 +1106,7 @@ LitroPlayer.prototype = {
 	
 	setPlayData: function(data)
 	{
-		this.init();
+		this.clearEventsData();
 		this.eventsetData = this.parseDataStr(decodeURIComponent(data.data));
 		this.title = data.title == null ? '' : data.title;
 		this.fileUserName = data.user_name == null ? '' : data.user_name;
