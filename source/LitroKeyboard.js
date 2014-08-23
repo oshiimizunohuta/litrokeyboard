@@ -2,7 +2,7 @@
  * Litro Keyboard Interface
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.07.05
+ * ver 0.07.06
  */
 
 var PaformTime = 0; //時間計測
@@ -46,7 +46,6 @@ function LitroKeyboard() {
 	this.ZOOM_KEYCODE = {
 		'[' : 219, ']' : 221,
 	},
-	this.zoomKeys = ['[', ']'];
 	this.EXTEND_KEYCODE = {
 		'ext' : 16,
 	},
@@ -141,7 +140,8 @@ function LitroKeyboard() {
 	
 	this.corsolKeys = ['up', 'down', 'left', 'right'];
 	this.baseKeys = ['<', '>', 'select', 'space'];
-	
+	this.zoomKeys = ['[', ']'];
+
 	this.baseKeysDrawName ={
 		'<' : ',',
 		'>' : '.',
@@ -244,6 +244,8 @@ function LitroKeyboard() {
 	this.clearMenuList = ['FILE', 'CURRENT'];
 	this.fileListList = ['FILESELECT'];
 	this.fileTitleList = ['', '', '', 'CANCEL', 'FINISH'];
+	
+	this.packListMenuList = ['PACKSELECT'];
 	// this.eventsetMenuList = ['SET'];
 	this.eventsetMenuList = ['NOTEOFF', 'NOTE-EX', 'RESTART', 'RETURN', ];
 	this.finalConf = ["NO", "OK"];
@@ -949,17 +951,19 @@ LitroKeyboard.prototype = {
 	
 	getFileMenuList: function()
 	{
-		
+		var mapIndex, com = this.getLastCommand();
 		if(this.commandPath.length == 0){
 			if(this.getLoginParams() != null){
 				return this.fileMenuList_login;
 			}
 			return this.fileMenuList;
 		}
-		if(this.getLastCommand() == 'PACK'){
+		if(com == 'PACK'){
 			return this.packMenuList;
+		}else if(com == 'APPEND' || com ==  'REMOVE' || com == 'RENAME'){
+			return this.packListMenuList;
 		}
-		var mapIndex = this.commandPath[this.commandPath.length - 1];
+		mapIndex = this.commandPath[this.commandPath.length - 1];
 		
 		return  this.fileMenuMap[mapIndex] == null ? 
 		null :  this.fileMenuMap[mapIndex];
@@ -2661,6 +2665,42 @@ LitroKeyboard.prototype = {
 		this.player.title = title.substr(0, limit);
 	},
 	
+	baseKeyOnFile_title: function(key, ext)
+	{
+		var fcur = this.fileMenuCursor, ccur = this.charBoardCursor
+		if(key == 'select'){
+			if(fcur.x == 0){
+				ccur.x = 0; fcur.x = 2;
+				this.drawFileMenu();
+			}else{
+				fcur.x = 0;	ccur.x = -1;
+				this.drawFileCursor();
+			}
+			this.drawCharBoard();
+			return true;
+		}
+		if(fcur.x != 0){
+			this.baseKeyOnTitle(key, ext);
+			this.drawCharBoard();
+			return true;
+		}
+		return false;
+	},
+	
+	baseKeyOnFile_login: function(key, ext)
+	{
+		this.fileMenuCursor.y = 0;
+		if(key == '>'){
+			return;
+		}else if(key == '<'){
+			this.backMenu();
+		}else if(key == 'select'){
+			this.changeEditMode('note');
+		}
+		this.closeSNSTab();
+		this.drawMenu();
+	},
+	
 	baseKeyOnFile: function(key, ext)
 	{
 		var fcur = this.fileMenuCursor, ccur = this.charBoardCursor
@@ -2668,35 +2708,13 @@ LitroKeyboard.prototype = {
 			, com
 		;
 		if(this.getLastCommand() == 'TITLE'){
-			if(key == 'select'){
-				if(fcur.x == 0){
-					ccur.x = 0; fcur.x = 2;
-					this.drawFileMenu();
-				}else{
-					fcur.x = 0;	ccur.x = -1;
-					this.drawFileCursor();
-				}
-				this.drawCharBoard();
+			if(this.baseKeyOnFile_title(key, ext)){
 				return;
-			}
-			if(this.fileMenuCursor.x != 0){
-				this.baseKeyOnTitle(key, ext);
-				this.drawCharBoard();
-				return;
-			}
+			};
 		}
 
 		if(this.getLastCommand() == 'LOGIN'){
-			fcur.y = 0;
-			if(key == '>'){
-				return;
-			}else if(key == '<'){
-				this.backMenu();
-			}else if(key == 'select'){
-				this.changeEditMode('note');
-			}
-			this.closeSNSTab();
-			this.drawMenu();
+			this.baseKeyOnFile_login(key, ext);
 			return;
 		}
 		
@@ -2895,95 +2913,106 @@ LitroKeyboard.prototype = {
 	},
 	
 	keycheck: function(){
-		var state, hold, trigs, untrigs, row, chars, name, cont = this.keyControll
-			, ext = cont.getState('ext')
+		var state, hold, trigs, untrigs, chars, cont = this.keyControll
+			, ext_s = cont.getState('ext'), i, key
 			, getTrig = function(t){return cont.getTrig(t);}
 			, getUntrig = function(t){return cont.getUntrig(t);}
+			, getHold = function(t){return cont.getHold(t);}
+			, getState = function(t){return cont.getState(t);}
+			, ckeys = [], klen
 		;
 		chars = this.ROW_CHARS;
-		// console.log(chars);
+		// console.time('chars');
+		
+		// console.log(cont.getHold(this.corsolKeys));
 		Object.keys(chars).forEach(function(row){
-			trigs = getTrig(chars[row]);
-			untrigs = getUntrig(chars[row]);
-			Object.keys(trigs).forEach(function(name){
-				if(trigs[name]){
-					this.onCode(name);
+			ckeys = chars[row]; klen = ckeys.length;
+			for(i = 0; i < klen; i++){
+				key = ckeys[i];
+				if(getTrig(key)){
+					this.onCode(key);
 				}
-			}, this);
-			Object.keys(untrigs).forEach(function(name){
-				if(untrigs[name]){
-					this.offCode(name);
+				if(getUntrig(key)){
+					this.offCode(key);
 				}
-			}, this);
+			}
 		}, this);
 		
 		chars = this.OCTAVE_KEYCODE;
-		// console.log(trigs);
-		Object.keys(chars).forEach(function(name){
-			trigs = getTrig(name);
-			// untrigs = cont.getUntrig(name);
+		ckeys = Object.keys(chars); klen = ckeys.length;
+		for(i = 0; i < klen; i++){
+			key = ckeys[i];
+			trigs = getTrig(key);
+			untrigs = getUntrig(key);
 			if(trigs){
-				if(name == '^' || name == '+' ){
+				if(key == '^' || key == '+' ){
 					this.incOctave();
 				}
-				if(name == '-'){
+				if(key == '-'){
 					this.decOctave();
 				}
 				if(this.octaveEvent != null){
 					this.octaveEvent();
 				}
+				this.drawOnBaseKey(key, true);
 			}
-		}, this);
-		
+			if(untrigs){
+				this.drawOnBaseKey(key, false);
+			}
+		}
+
 		//カーソル移動
-		trigs = getTrig(this.corsolKeys);
-		hold = cont.getHold(this.corsolKeys);
-		Object.keys(trigs).forEach(function(key){
-			if(trigs[key] || hold[key]){
-				this.moveCursor(key, ext);
+		ckeys = this.corsolKeys; klen = ckeys.length;
+		for(i = 0; i < klen; i++){
+			key = ckeys[i];
+			if(getTrig(key) || getHold(key)){
+				this.moveCursor(key, ext_s);
 			}
-		}, this);
+		}
+		// this.corsolKeys.forEach(function(key){
+		// }, this);
 		
-		trigs = getTrig('select');
-		if(trigs && ext){
+		if(getTrig('select') && ext_s){
 			captureScreen('view');
 			return;
 		}
-		
+
 		//操作キー
-		trigs = getTrig(this.baseKeys);
-		hold = cont.getHold(this.baseKeys);
-		untrigs = getUntrig(this.baseKeys);
-		for(key in trigs){
-			if(trigs[key] || hold[key]){
-				this.holdKeyCommon(key, ext);
+		ckeys = this.baseKeys; klen = ckeys.length;
+		for(i = 0; i < klen; i++){
+			key = ckeys[i];
+			if(getTrig(key) || getHold(key)){
+				this.holdKeyCommon(key, ext_s);
 				this.drawOnBaseKey(key, true);
 			}
-			if(untrigs[key]){
+			if(getUntrig(key)){
 				this.drawOnBaseKey(key, false);
 			}
 		}
+		// this.baseKeys.forEach(function(key){
+		// }, this);
 		//ズームキー
-		trigs = getTrig(this.zoomKeys);
-		hold = cont.getHold(this.zoomKeys);
-		untrigs = getUntrig(this.zoomKeys);
-		for(key in trigs){
-			if(trigs[key] || hold[key]){
-				this.zoomKeyOn(key, ext);
+		ckeys = this.zoomKeys; klen = ckeys.length;
+		for(i = 0; i < klen; i++){
+			key = ckeys[i];
+			if(getTrig(key) || getHold(key)){
+				this.zoomKeyOn(key, ext_s);
 				this.drawOnBaseKey(key, true);
 			}
-			if(untrigs[key]){
+			if(getUntrig(key)){
 				this.drawOnBaseKey(key, false);
 			}
 		}
-		state = cont.getState(this.zoomKeys);
-		if(state['['] && state[']']){
-			this.zoomKeyOn('[]', ext);
+		// Object.keys(this.ZOOM_KEYCODE).forEach(function(key){
+		// },this);
+		if(getState('[') && getState(']')){
+			this.zoomKeyOn('[]', ext_s);
 		}
 		
 		if(getTrig('ext') ||getUntrig('ext')){
-			this.drawOnBaseKey('ext', ext);
+			this.drawOnBaseKey('ext', ext_s);
 		}
+		// console.timeEnd('chars');
 	},
 	
 	clickEvent: function(x, y)
@@ -3080,7 +3109,7 @@ LitroKeyboard.prototype = {
 		var scr = scrollByName('bg2')
 			, i, xc, s
 			, xCells = (DISPLAY_WIDTH / cellhto(1)) | 0
-
+			, len
 			, line5 = [2, 4, 7, 9, 10]
 			, spaces = [5, 12]
 			, btmOffset
@@ -3097,14 +3126,14 @@ LitroKeyboard.prototype = {
 		bottom == bottom == null ? false : bottom;
 		btmOffset = bottom ? (DISPLAY_HEIGHT / 2) | 0 : 0;
 		
-		line5.forEach(function(l){
-			dfunc(l, sprites.noteStart, sprites.notePeriod, sprites.noteLine);
-
-		}, this);
-		spaces.forEach(function(l){
-			dfunc(l, sprites.noteSpaceStart, sprites.noteSpacePeriod, sprites.noteSpace);
-
-		}, this);
+		len = line5.length;
+		for(i = 0; i < len; i++){
+			dfunc(line5[i], sprites.noteStart, sprites.notePeriod, sprites.noteLine);
+		}
+		len = spaces.length;
+		for(i = 0; i < len; i++){
+			dfunc(spaces[i], sprites.noteSpaceStart, sprites.noteSpacePeriod, sprites.noteSpace);
+		}
 		dfunc(0, sprites.eventSpaceStart, sprites.eventSpacePeriod, sprites.eventSpace);
 		
 	},
@@ -3315,7 +3344,8 @@ LitroKeyboard.prototype = {
 	
 	drawDataScroll: function(page, catchMode)
 	{
-		var eventset, settype, type, data, ch, i, t, x, y, note, noref, drawCnt = 0, noteCnt = 0
+		var eventset, settype, data, ch, i, chlen, x, y, note, noref, drawCnt = 0, noteCnt = 0
+			, type, typelen, ty
 			, tuneWrited = {}, chSort = []
 			, bottom = (page % 2 == 0) ? false : true
 			, scrollTop = !bottom ? 0 : (DISPLAY_HEIGHT / 2)
@@ -3324,9 +3354,10 @@ LitroKeyboard.prototype = {
 			, divofsTime = 0
 			, catchData = this.catchEventset
 			, channelsData = this.player.eventsetData
+			, channels = this.litroSound.channel
 			, drawnNotes = {}
 			
-			, times
+			, times, ti, timelen
 		;
 		cellTime = cellTime < 1 ? 1 : cellTime;
 
@@ -3346,38 +3377,45 @@ LitroKeyboard.prototype = {
 			divofsTime = divofsTime * (DISPLAY_WIDTH / this.noteRangeScale) | 0;//スクロール考慮ピクセル変換
 			timeEnd = timeStart + this.noteRangeScale;
 		}
-		// for(ch = 0; ch < channelsData.length; ch++){
-		channelsData.forEach(function(d, ch){
+		chlen = channelsData.length;
+		for(ch = 0; ch < chlen; ch++){
 			if(this.editChannel() != ch){chSort.push(ch);}
-		}, this);
+		}
 		chSort.push(this.editChannel());
 		
-		// for(i = 0; i < channelsData.length; i++){
-		chSort.forEach(function(ch, i){
-			// ch = chSort[i];
-			if(this.litroSound.getChannel(ch, 'enable', false) == 0){return;}
+		for(i = 0; i < chlen; i++){
+			ch = chSort[i];
+			if(!channels[ch].isEnable()){continue;}
 			tuneWrited = {};
-			// for(type in channelsData[ch]){
-			Object.keys(channelsData[ch]).forEach(function(type){
+			// types = channelsData[ch];
+			types = Object.keys(channelsData[ch]);
+			typelen = types.length;
+			for(ty = 0; ty < typelen; ty++){
+				type = types[ty];
 				if(!catchMode){
 					//プレイヤー
 					data = channelsData[ch][type];
 				}else{
 					if(ch != (this.selectNote.ch | 0)){
-						return;
+						break;
 					}
 					//キャッチ
 					data = catchData[type];
 				}
 				
-				Object.keys(data).forEach(function(t){
+				times = Object.keys(data);
+				timelen = times.length;
+				for(ti = 0; ti < timelen; ti++){
+					t = times[ti]
+				// Object.keys(data).forEach(function(t){
+				// }, this);
 				//(t in data){
 					if(t in tuneWrited && type in AudioChannel.tuneParamsProp){
 						//未使用分岐
-						return;
+						continue;
 					}
 					if(!catchMode && this.isCatch(t, ch, type)){
-						return;//キャッチ点滅用非表示
+						continue;//キャッチ点滅用非表示
 					}
 					drawCnt = (drawCnt + 1) % 8;
 
@@ -3386,11 +3424,11 @@ LitroKeyboard.prototype = {
 					if(type == 'note'){
 					
 						if(eventset.value > keyEnd || eventset.value < keyStart){
-							return;
+							continue;
 						}
 						chr = this.CHARS_INDEX[eventset.value % this.octaveInKeys];
 						x = ((eventset.time - timeStart) * DISPLAY_WIDTH / this.noteRangeScale) | 0;
-						if(x in drawnNotes){return;}
+						if(x in drawnNotes){continue;}
 						y = cellhto(this.noteCurrentHeight(eventset.value));
 						rot = this.isBlackKey(chr) ? 3 : 0;
 						if(catchMode){
@@ -3401,7 +3439,7 @@ LitroKeyboard.prototype = {
 					}else{
 						tuneWrited[t] = true;
 						x = ((eventset.time - timeStart) * DISPLAY_WIDTH / this.noteRangeScale) | 0;
-						if(x in drawnNotes){return;}
+						if(x in drawnNotes){continue;}
 						y = cellhto(-1);
 						//console.log(eventset, type);
 						settype = type == 'event' ? this.eventValue2Key(eventset.value) : type;
@@ -3413,11 +3451,10 @@ LitroKeyboard.prototype = {
 					}
 					drawnNotes[x] = t;
 					noteCnt++;
-				}, this);
+				}
 				drawnNotes = {};
-			}, this);
-		}, this);
-		
+			}
+		}
 	},
 	
 	//一括eventset描画
@@ -3884,24 +3921,6 @@ LitroKeyboard.prototype = {
 		word.print('Oct', cellhto(cm.x - 1), cellhto(cm.y - (i * cDistance) + 1), COLOR_NOTEPRINT, COLOR_NOTEFACE);
 	},
 	
-	drawOctaveButton: function()
-	{
-		var scr = scrollByName('sprite')
-			, sprite_u = makeSpriteChunk(this.uiImageName, makeRect([9, 3, 2, 1]))
-			, sprite_d = makeSpriteChunk(this.uiImageName, makeRect([9, 4, 2, 1]))
-			, cm_u = {x: 36, y: 24}
-			, cm_d = {x: 36, y: 26}
-			, cnt = this.keyControll
-		;
-		
-		if(cnt.getState('^')){
-			scr.drawSpriteChunk(sprite_u, cellhto(cm_u.x), cellhto(cm_u.y));
-		}
-		if(cnt.getState('-')){
-			scr.drawSpriteChunk(sprite_d, cellhto(cm_d.x), cellhto(cm_d.y));
-		}
-	},
-	
 	drawChannelTab_on: function(ch, toggle)
 	{
 		var i
@@ -3990,20 +4009,19 @@ LitroKeyboard.prototype = {
 	{
 		var scrpos, i, sparam, scr = scrollByName('sprite');
 		this.catchNoteBlinkCycle++;
-		for(i = 0; i < this.blinkDrawParams.length; i++){
+		this.blinkDrawParams.forEach(function(sparam, i){
 			sparam = this.blinkDrawParams[i];
-			if(this.catchNoteBlinkCycle % 8 == i % 8){continue;}
-			if(sparam.noref && this.catchNoteBlinkCycle % 2 == i % 2){continue;}
+			if(this.catchNoteBlinkCycle % 8 == i % 8){return;}
+			if(sparam.noref && this.catchNoteBlinkCycle % 2 == i % 2){return;}
 			scr.drawSpriteChunk(sparam.sprite, sparam.x, sparam.y);
-		}
+		}, this);
 		scrpos = (this.noteScrollPos.x % DISPLAY_WIDTH);
 		scrpos = 0;
-		for(i = 0; i < this.blinkDrawEventset.length; i++){
-			sparam = this.blinkDrawEventset[i];
-			if(this.catchNoteBlinkCycle % 8 == i % 8){continue;}
-			if(sparam.noref && this.catchNoteBlinkCycle % 2 == i % 2){continue;}
+		this.blinkDrawEventset.forEach(function(sparam, i){
+			if(this.catchNoteBlinkCycle % 8 == i % 8){return;}
+			if(sparam.noref && this.catchNoteBlinkCycle % 2 == i % 2){return;}
 			this.drawNoteRaster(sparam.ch, sparam.type, sparam.x - scrpos, sparam.y, sparam.rot, sparam.bottom, sparam.catchMode, sparam.time);
-		}
+		}, this);
 	},
 	
 	scrollManual: function()
@@ -4124,7 +4142,7 @@ LitroKeyboard.prototype = {
 			, chOscHeight = cellhto(this.chOscCHeight)
 			, chOscHeight_h = ((chOscHeight / 2) | 0) - 1
 			, sepWidth = chOscWidth / this.analyseRate
-			, data
+			, data0
 			, size = (PROCESS_BUFFER_SIZE / this.analyseRate) | 0
 			, cm = this.ocsWaveCmargin
 			, px, py, i, dindex, ofsx = 0, ofsy = 128, pre_y
@@ -4244,11 +4262,16 @@ LitroKeyboard.prototype = {
 			, scr = scrollByName('sprite')
 			, chr, phase
 			, keyIndex
+			, status = this.status_on
+			, len = status.length
 			;
-			
-		this.status_on.forEach(function(status, i){
-		// (i = 0; i < this.status_on.length; i++){
-			chr = status;
+		
+		
+		// this.status_on.forEach(function(status, i){
+		// }, this);
+
+		for(i = 0; i < len; i++){
+			chr = status[i];
 			phase = this.litroSound.getPhase(i, false);
 			if(chr == null && (phase == 'r' || phase == '')){
 				return;
@@ -4265,7 +4288,7 @@ LitroKeyboard.prototype = {
 				sprite = this.whiteKeysSprite[spritekeys[chr]];
 				scr.drawSpriteChunk(sprite, cellhto(cm_w.x + (keyIndex * 2)), cellhto(cm_w.y));
 			}
-		}, this);
+		}
 	},
 	
 	drawOnBaseKey: function(code, status){
@@ -4457,7 +4480,6 @@ function drawLitroScreen()
 	// ltkb.drawNoteTest();
 	ltkb.repeatDrawMenu();
 	if(ltkb.editMode != 'manual'){
-		ltkb.drawOctaveButton();
 		bg2.rasterto(view, 0, 0, null, DISPLAY_HEIGHT / 2, ltkb.bg2x.t + cellhto(ltkb.noteScrollCmargin.x), 0);
 		bg2.rasterto(view, 0, DISPLAY_HEIGHT / 2, null, DISPLAY_HEIGHT / 2, ltkb.bg2x.b + cellhto(ltkb.noteScrollCmargin.x), 0);
 		bg1.drawto(view);
@@ -4495,6 +4517,8 @@ function litroKeyboardMain()
 	;
 	// ltkb.test();
 	ltkb.keycheck();
+	// console.time("key");
+	// console.timeEnd("key");
 	ltkb.playLitro();
 	drawLitroScreen();
 };
