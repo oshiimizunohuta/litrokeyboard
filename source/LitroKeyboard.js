@@ -2,7 +2,7 @@
  * Litro Keyboard Interface
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.07.06
+ * ver 0.07.07
  */
 
 var PaformTime = 0; //時間計測
@@ -10,7 +10,8 @@ var litroKeyboardInstance = null;
 var VIEWMULTI = 2;
 var DISPLAY_WIDTH = 320;
 var DISPLAY_HEIGHT = 240;
-var CHIPCELL_SIZE = 16;
+// var CHIPCELL_SIZE = 16;
+var CHIPCELL_SIZE = 8;
 var layerScroll = null;
 var COLOR_STEP = [184, 248, 216, 255];
 var COLOR_TIME = [248, 216, 120, 255];
@@ -654,7 +655,7 @@ LitroKeyboard.prototype = {
 	{
 		var i
 		;
-		this.waveSprite = makePoint(this.uiImageName, 1);
+		// this.waveSprite = makePoint(this.uiImageName, 1);
 		for(i = 0; i < this.whiteKeysSprite.length; i++){
 			this.whiteKeysSprite[i] = makeSpriteChunk(this.uiImageName, makeRect(this.whiteKeysSprite[i]));
 		}
@@ -823,15 +824,26 @@ LitroKeyboard.prototype = {
 	loadImages: function()
 	{
 		// this.loader.init();
-		var resorce = loadResource([this.uiImageName, this.snsImageName])
-			, self = this;
-		resorce.onload = function(){
+		var self = this, resorce = loadImages([
+			 [this.uiImageName, 16, 16],
+			 [this.snsImageName, 16, 16],
+			 ['font4v6p', 4, 6],
+			 ['font8p', 8, 8]], function(){
 			self.imageLoaded = true;
 			self.initSprite();
 			self.initFrameSprites();
 			self.openFrame();
 			requestAnimationFrame(main);
-		};
+		});
+		// var resorce = loadResource([this.uiImageName, this.snsImageName])
+			// , self = this;
+		// resorce.onload = function(){
+			// self.imageLoaded = true;
+			// self.initSprite();
+			// self.initFrameSprites();
+			// self.openFrame();
+			// requestAnimationFrame(main);
+		// };
 	},
 	
 	isBlackKey: function(name){
@@ -3962,7 +3974,7 @@ LitroKeyboard.prototype = {
 		;
 		
 		// console.log(sprite, cx, cy, rep_x, rep_y, size);
-		size = size == null ? CHIPCELL_SIZE : size;
+		size = size == null ? cellto(2) : size;
 		rep_y = (rep_y == null ? 1 : rep_y);
 		rep_x = (rep_x == null ? 1 : rep_x);
 		for(y = 0; y < rep_y; y++){
