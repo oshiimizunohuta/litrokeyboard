@@ -4,7 +4,7 @@
  * @author しふたろう
  * ver 0.07.07
  */
-//t
+
 var PaformTime = 0; //時間計測
 var litroKeyboardInstance = null;
 var VIEWMULTI = 2;
