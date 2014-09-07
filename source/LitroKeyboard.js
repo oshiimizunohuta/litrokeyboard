@@ -19,6 +19,7 @@ var COLOR_TIME = [248, 216, 120, 255];
 var COLOR_NOTEFACE = [184, 248, 184, 255];
 var COLOR_NOTEPRINT = [0, 168, 0, 255];
 var COLOR_PARAMKEY = [188, 188, 188, 255];
+var COLOR_DISABLE = [120, 120, 120, 255];
 var COLOR_LINE = [88, 216, 84, 255];
 var COLOR_ARRAY = [[248, 120, 88, 255], [252, 168, 68, 255], [248, 184, 0, 255], [88, 216, 84, 255], [60, 188, 252, 255], [152, 120, 248, 255], [248, 120, 248, 255], [248, 88, 152, 255], ];
 
@@ -236,7 +237,7 @@ function LitroKeyboard() {
 	
 	this.fileMenuList = ['LOAD', 'SAVE', 'TITLE', 'LOGIN'];
 	// this.fileMenuList_login = ['LOAD', 'SAVE', 'TITLE', 'LOGOUT'];
-	this.fileMenuList_login = ['LOAD', 'SAVE', 'PACK', 'TITLE', 'LOGOUT'];
+	this.fileMenuList_login = ['LOAD', 'SAVE', 'TITLE', 'PACK', 'SHARE', 'LOGOUT'];
 	this.fileTypeList = ['COOKIE', 'SERVER'];
 	
 	// this.fileLoginList = ['TWITTER']; //GOOGLE+
@@ -246,7 +247,8 @@ function LitroKeyboard() {
 	this.fileListList = ['FILESELECT'];
 	this.fileTitleList = ['', '', '', 'CANCEL', 'FINISH'];
 	
-	this.packListMenuList = ['PACKSELECT'];
+	// this.packListMenuList = ['PACKSELECT'];
+	this.packListMenuList = ['PACKFILES', 'SHIP', 'CANCEL'];
 	// this.eventsetMenuList = ['SET'];
 	this.eventsetMenuList = ['NOTEOFF', 'NOTE-EX', 'RESTART', 'RETURN', ];
 	this.finalConf = ["NO", "OK"];
@@ -268,13 +270,18 @@ function LitroKeyboard() {
 	this.fileListLoadLimit = 60;
 	this.fileListOffset = 0;
 
-	this.packMenuList = ['APPEND', 'REMOVE', 'RENAME',];
-	this.packCursor = {x: 0, y:0};
+	this.packMenuList = ['APPEND', 'RENAME', 'REMOVE',];
+	this.packMenuCursor = {x: 0, y:0};
+	this.packListCursor = {x: 0, y:0};
+	this.packMaxSize = 16;
+	this.packedFiles = [];
 	// this.packRCursor = {x: 0, y:0};
 	
 	this.eventsetMenuCursor = {x:0, y:0};
 	
- 	this.modeRect = {tune: [8, 9, 2, 2], note: [10, 9, 2, 2], file: [12, 9, 2, 2], play: [14, 9, 2, 2], 'catch': [8, 11, 2, 2], eventset: [10, 11, 2, 2], loading: [12, 11, 2, 2], error: [14, 11, 2, 2], manual: [12, 11, 2, 2]};
+ 	this.modeRect = {tune: [8, 9, 2, 2], note: [10, 9, 2, 2], file: [12, 9, 2, 2], play: [14, 9, 2, 2]
+ 		, 'catch': [8, 11, 2, 2], eventset: [10, 11, 2, 2], loading: [12, 11, 2, 2], error: [14, 11, 2, 2]
+ 		, manual: [12, 11, 2, 2], pack: [8, 13, 2, 2],  share: [10, 13, 2, 2]};
 	this.modeCmargin = {x: 32, y: 19};
 	this.word = null;
 	
@@ -835,15 +842,7 @@ LitroKeyboard.prototype = {
 			self.openFrame();
 			requestAnimationFrame(main);
 		});
-		// var resorce = loadResource([this.uiImageName, this.snsImageName])
-			// , self = this;
-		// resorce.onload = function(){
-			// self.imageLoaded = true;
-			// self.initSprite();
-			// self.initFrameSprites();
-			// self.openFrame();
-			// requestAnimationFrame(main);
-		// };
+
 	},
 	
 	isBlackKey: function(name){
@@ -853,6 +852,13 @@ LitroKeyboard.prototype = {
 			return true;
 		}
 	},
+	
+	isPackedFile: function(file){
+		return this.packedFiles.some(function(pack, i){
+				return pack.sound_id == file.sound_id;
+		});
+	},
+
 	seekDispSide: function(pos){
 		var ppos = this.seekPosition()
 			, center = DISPLAY_WIDTH / 2
@@ -970,15 +976,21 @@ LitroKeyboard.prototype = {
 			}
 			return this.fileMenuList;
 		}
-		if(com == 'PACK'){
-			return this.packMenuList;
-		}else if(com == 'APPEND' || com ==  'REMOVE' || com == 'RENAME'){
-			return this.packListMenuList;
-		}
 		mapIndex = this.commandPath[this.commandPath.length - 1];
 		
 		return  this.fileMenuMap[mapIndex] == null ? 
 		null :  this.fileMenuMap[mapIndex];
+	},
+	
+	getPackMenuList: function()
+	{
+		var com = this.getLastCommand();
+		// if(com == 'PACK'){
+		return this.packListMenuList;
+		// }else{
+			// return this.packMenuList;
+		// }
+		return null;
 	},
 		
 	getCatchMenuList: function()
@@ -1015,25 +1027,32 @@ LitroKeyboard.prototype = {
 			case 'play': return this.getFileMenuList();
 			case 'catch': return this.getCatchMenuList();
 			case 'file': return this.getFileMenuList();
+			case 'pack': return this.getPackMenuList();
 			case 'eventset': return this.getEventsetMenuList();
 			case 'manual': return this.getManualMenuList();
 			default: return [];
 		}
 	},
 	
-	getActiveModeCursor: function()
+	getModeCursor: function(mode)
 	{
-		switch(this.getMode())
+		switch(mode)
 		{
 			case 'tune': return this.paramCursor;
 			case 'note': return this.noteMenuCursor;
 			case 'play': return this.fileMenuCursor;
 			case 'catch': return this.catchMenuCursor;
 			case 'file': return this.fileMenuCursor;
+			case 'pack': return this.packMenuCursor;
 			case 'eventset': return this.eventsetMenuCursor;
 			case 'manual': return this.manualCursor;
 			default: return {};
 		}
+	},
+	
+	getActiveModeCursor: function()
+	{
+		return this.getModeCursor(this.getMode());
 	},
 	
 	getLoginParams: function()
@@ -1444,7 +1463,6 @@ LitroKeyboard.prototype = {
 		if(this.offkeyEvent != null){
 			this.offkeyEvent(chr);
 		}
-		// console.log(this.status_on);
 		this.status_on[channel] = null;
 		// this.litroSound.offNoteFromCode(channel);
 		// this.litroSound.channel[channel].refChannel = -1;
@@ -1560,12 +1578,44 @@ LitroKeyboard.prototype = {
 		return this.iBLACK_KEYS[chr] != null ? this.iBLACK_KEYS[chr] : -1;
 	},
 	
-	fileInListAtIndex: function(index){
+	fileInListAtIndex: function(index)
+	{
 		var id, c = 0, list = this.player.fileList();
 		for(id in list){
 			if(c++ == index){return list[id];}
 		}
 		return null;
+	},
+	
+	pushPackFile: function(file)
+	{
+		if(this.isPackedFile(file)){
+			return false;
+		}
+		this.packedFiles.push(file);
+		this.packedFiles = this.packedFiles.slice(0, this.packMaxSize);
+		return this.packedFiles.length >= this.packMaxSize;
+	},
+	popPackFile: function()
+	{
+		return this.packedFiles.length == 0 ? null : this.packedFiles.pop();
+	},
+	
+	clearPackedFiles: function()
+	{
+		this.packedFiles = [];
+	},
+	
+	shipPackFiles: function()
+	{
+		var packstr, ids = [], len = this.packedFiles.length
+		;
+		this.packedFiles.map(function(file, i){
+			ids.push(file.sound_id);
+		});
+		packstr = '[' + ids.join(',') + ']';
+		prompt('Add Your Script :', 'LitroPlayer.loadPack(' + packstr + ');');
+		this.keyControll.allReset();
 	},
 	
 	manualChapterName: function(next)
@@ -1610,9 +1660,7 @@ LitroKeyboard.prototype = {
 		if(comClear){
 			this.commandPath = [];
 		}
-		
 		if(this.getActiveModeCursor().y >= this.getActiveModeMenuList().length){
-			// console.log(this.editMode, this.getActiveModeMenuList());
 			this.getActiveModeCursor().y = 0;
 		}
 		
@@ -1625,7 +1673,9 @@ LitroKeyboard.prototype = {
 		try{
 			this.player.listFromServer(this.loginParams.user_id, page, limit, 
 				function(list){
-					var i, player = self.player;
+					var i, player = self.player, com1 = self.getLastCommand(1), com0 = self.getLastCommand(0)
+					mode = '', curX = 0, title = ''
+					;
 					if(list == null || list.error_code != null){
 						self.changeEditMode('error');
 						self.drawMenu();
@@ -1633,22 +1683,26 @@ LitroKeyboard.prototype = {
 					}
 					// append = append.length == null ? [append] : append;
 
-					if(self.getLastCommand(1) == 'SAVE'){
-						list[0] = {sound_id: 0, user_id: self.loginParams.user_id, title: 'NEW FILE'};
-					}else if(self.getLastCommand(1) == 'LOAD'){
+					if(com1 == 'SAVE'){
+						title = 'NEW FILE';
+						mode = 'file';
+					}else if(com1 == 'LOAD'){
 						//最初にスコア削除を入れておく
-						list[0] = {sound_id: 0, user_id: self.loginParams.user_id, title: '！！CLEAR　NOTES！！'};
+						title = '！！CLEAR　NOTES！！';
+						mode = 'file';
+					}else if(com0 == 'SHARE'){
+						title = 'SHARE APP！';
+						mode = 'share';
+					}else if(com0 == 'PACK'){
+						title = 'PACK RESET';
+						mode = 'pack';
+						curX = 1;
 					}
-					self.changeEditMode('file', false);
-					if(self.fileListCursor.y >= Object.keys(list).length){
-						self.fileListCursor.y = 0;
-						self.fileListOffset = 0;
-					}
-
-					self.drawFileMenu();
-					// self.drawMenu();
-					self.drawFileList();
-					self.drawFileListCursor();
+					list[0] = {sound_id: 0, user_id: self.loginParams.user_id, title: title, packed: false};
+					self.finishLoadList(mode, list);
+					self.packMenuCursor.x = curX;
+					self.drawMenu();
+					
 				}, function(){
 					self.changeEditMode('error');
 					self.drawMenu();
@@ -1657,6 +1711,23 @@ LitroKeyboard.prototype = {
 			console.error(e);
 			self.changeEditMode('error');
 			self.drawMenu();
+		}
+	},
+	
+	finishLoadList: function(mode, list)
+	{
+		this.changeEditMode(mode, false);
+		// if(cursor.y >= Object.keys(list).length){
+			// cursor.y = 0;
+		// }
+		// this.getModeCursor('file').y = 0;
+		// this.getModeCursor().y = 0;
+		if(mode == 'pack'){
+			this.drawPackedFileList();
+			this.drawFileListCursor();
+		}else{
+			this.drawFileList();
+			this.drawFileListCursor();
 		}
 	},
 	
@@ -1715,7 +1786,7 @@ LitroKeyboard.prototype = {
 	
 	loadCommand: function(type)
 	{
-		var self = this, tid, file;
+		var self = this, tid, file, pack;
 		switch(type){
 			case 'COOKIE': this.player.loadFromCookie(); this.changeEditMode('note');break;
 			case 'SERVER': 
@@ -1752,6 +1823,13 @@ LitroKeyboard.prototype = {
 				function(data){
 					self.setError(data != null ? data : {error_code: 0, message: 'error'});
 				}); break;
+			case 'PACK': 
+				// pack = this.fileInListAtIndex(this.packListCursor.y);
+				// if(pack == null){
+					// this.packListCursor.y = 0;
+					// return;
+				// }
+			break;
 		}
 	},
 		
@@ -2155,11 +2233,9 @@ LitroKeyboard.prototype = {
 		offset = cur.y - offset >= dispHeight ? cur.y - dispHeight + 1 : offset;
 
 		this.fileListOffset = offset;
-		this.drawFileList();
-		this.drawFileListCursor();
 		
-		this.drawFileMenu();
-		this.drawFileCursor();
+		// this.drawFileMenu();
+		// this.drawFileCursor();
 
 	},
 	
@@ -2170,9 +2246,11 @@ LitroKeyboard.prototype = {
 			return;
 		}else if(this.getLastCommand() == 'SERVER'){
 			this.moveFileListCursor(dir, ext);
+			this.drawFileList();
+			this.drawFileListCursor();
+
 			return;
 		}
-		
 		var cur = this.fileMenuCursor
 			, limit
 			, chLength = this.litroSound.channel.length
@@ -2193,8 +2271,42 @@ LitroKeyboard.prototype = {
 			case 'right': cur.y = limit - 1; break;
 		}
 		this.drawFileMenu();
-		
 		this.drawFileCursor();
+	},
+	
+	movePackMenuCursor: function(dir, ext)
+	{
+		var cur = this.getActiveModeCursor()
+			, limit
+			, list = this.getPackMenuList()
+			, currentLength
+		;
+		if(list == null){
+			 return;
+		}
+		limit = list.length;
+		
+		if(cur.x == 0){
+			switch(dir){
+				case 'up': cur.y = (cur.y + limit - 1) % limit; break;
+				case 'down': cur.y = (cur.y + 1) % limit; break;
+				case 'left': cur.y = 0; break;
+				case 'right': cur.y = limit - 1; break;
+			}
+			this.drawPackMenu();
+			this.drawPackCursor();
+		}else{
+			this.moveFileListCursor(dir, ext);
+			this.drawPackMenu();
+			this.drawPackedFileList();
+			this.drawFileListCursor();
+		}
+	},
+	
+	moveShareMenuCursor: function(dir, ext)
+	{
+		this.drawShareMenu();
+		this.drawShareCursor();
 	},
 	
 	moveEventsetCursor: function(dir, ext)
@@ -2519,15 +2631,6 @@ LitroKeyboard.prototype = {
 					break;
 				}
 			break;
-			case 'SERVER':
-				break;
-			case 'TITLE':
-				this.titleBackup = this.player.title;
-				this.getActiveModeCursor().y = 0;
-				if(key == '<'){
-					break;
-				}
-				break;
 			case 'LOGIN':
 				this.getActiveModeCursor().y = 0;
 				if(key == '<'){
@@ -2735,40 +2838,156 @@ LitroKeyboard.prototype = {
 			return;
 		}		
 		com = this.baseKeyMenuCommon(fcur, key);
-		if(key == '<' && this.fileMenuList.indexOf(com) >= 0){
+		if(key == '<' && (this.fileMenuList.indexOf(com) >= 0 || this.fileMenuList_login.indexOf(com) >= 0)){
 			this.changeEditMode('note');
 			this.drawMenu();
-		}else if(com == 'FILELIST'){
-			this.commandExecute(); //未使用？
-		}else if(com == 'TITLE'){
-			this.fileMenuCursor.x = -1;
-			this.fileMenuCursor.y = 3;
-			this.charBoardCursor.x = 0;
-			this.clearLeftScreen();
-			this.drawCharBoard();
-			return;
-		}else if(com == 'SERVER'){
-			cur = this.fileMenuCursor;
-			if(key == '<'){
-				cur.y = 0;
-			}else{
-				this.changeEditMode('loading', false);
-				this.loadList(this.fileListPage, this.fileListLoadLimit);
-				this.getActiveModeCursor().y = 0;
-				this.drawMenu();
+		}else{
+			switch(com){
+				case 'FILELIST':
+					this.commandExecute(); //未使用？
+					break;
+				case 'TITLE':
+					this.titleBackup = this.player.title;
+					this.getActiveModeCursor().y = 0;
+					
+					this.fileMenuCursor.x = -1;
+					this.fileMenuCursor.y = 3;
+					this.charBoardCursor.x = 0;
+					this.clearLeftScreen();
+					this.drawCharBoard();
+					break;
+				case 'SHARE':
+				case 'PACK':
+					this.packMenuCursor.x = 1;
+				case 'SERVER':
+					cur = this.fileMenuCursor;
+					if(key == '<'){
+						cur.y = 0;
+					}else{
+						this.changeEditMode('loading', false);
+						this.loadList(this.fileListPage, this.fileListLoadLimit);
+						this.getActiveModeCursor().y = 0;
+						this.drawMenu();
+					}
+					break;
+				case 'LOGIN':
+					fcur.y = 0;
+					this.loginSNS();
+					this.openSNSTab();
+					break;
+				case 'LOGOUT':
+					fcur.y = 0;
+					this.logoutSNS();
+					break;
+				default: fcur.y = 0;
 			}
-			this.drawEventsetBatch();
-		}else if(com == 'LOGIN'){
-			fcur.y = 0;
-			this.loginSNS();
-			this.openSNSTab();
-		}else if(com == 'LOGOUT'){
-			fcur.y = 0;
-			this.logoutSNS();
-		}else if(key == '>'){
-			fcur.y = 0;
 		}
+		this.drawEventsetBatch();
 	},	
+	
+	baseKeyOnPack: function(key, ext)
+	{
+		var fcur = this.fileMenuCursor, ccur = this.charBoardCursor
+			, menu = this.getPackMenuList(), path = this.getMenuCommandPath()
+			, cur = this.getActiveModeCursor(), self = this
+			, refreshRight = function(enable){
+				self.drawMenu();
+				if(enable){
+					self.drawPackCursor();
+				}}
+			, refreshLeft = function(enable){
+				self.drawPackedFileList();
+				if(enable){
+					self	.drawFileListCursor();
+				}}
+			;
+		if(key == 'select'){
+			cur.x ^= 1;
+			if(cur.x == 0){
+				refreshRight(true);
+				refreshLeft(false);
+			}else{
+				refreshRight(false);
+				refreshLeft(true);
+			}
+			return;
+		}
+		
+		com = this.baseKeyMenuCommon(fcur, key);
+		
+		if(key == '<'){
+			if(cur.x == 0){
+				if(menu.indexOf(com) < 0){return;}
+				this.changeEditMode('file');
+				this.drawMenu();
+				this.clearLeftScreen();
+				return;
+			}else{
+				//file選択
+				if(this.popPackFile() == null){
+					cur.x = 0;
+					refreshRight(true);
+					refreshLeft(false);
+				}else{
+					refreshRight(false);
+					refreshLeft(true);
+				}
+			}
+		}else{
+			if(cur.x == 0){
+				switch(com){
+					case 'CANCEL':
+						this.changeEditMode('file');
+						this.drawMenu();
+						this.clearLeftScreen();
+						return;
+					case 'PACKFILES': cur.x = 1;
+						this.drawFileListCursor();
+						break;
+					case 'SHIP': this.shipPackFiles(); break;
+				}
+			}else{
+				if(this.fileListCursor.y == 0){
+					this.clearPackedFiles();
+				}else{
+					this.pushPackFile(this.fileInListAtIndex(this.fileListCursor.y));
+				}
+				refreshRight(false);
+				refreshLeft(true);
+			}
+		}
+		
+		// this.drawMenu();
+		// this.drawPackCursor();
+	},
+	
+	baseKeyOnShare: function(key, ext)
+	{
+		var fcur = this.fileMenuCursor, ccur = this.charBoardCursor
+			, menu = this.getPackMenuList(), path = this.getMenuCommandPath()
+		if(key == 'select'){
+			this.commonTabKey(true);
+			return;
+		}
+		com = this.baseKeyMenuCommon(fcur, key);
+		if(key == '<' && menu.indexOf(com) >= 0){
+			if(path.length > 1){
+				this.drawPackCursor();
+			}else{
+				this.changeEditMode('file');
+				this.drawMenu();
+				return;
+			}
+		}else{
+			// this.loadPackList(0, 10);
+			// fcur.y = 0;
+			return;
+		}
+		
+		this.drawMenu();
+		this.drawPackCursor()
+	},
+	
 	baseKeyOnManual: function(key, ext)
 	{
 		var cur = this.paramCursor, mCur = this.getActiveModeCursor()
@@ -2814,7 +3033,7 @@ LitroKeyboard.prototype = {
 	{
 		var  player = this.player
 			;
-		
+		if(this.getMode() == 'manual'){return;}
 		this.initCatchEvent();
 		this.initSelect();
 		this.drawSelectEvents({time: -1});
@@ -2865,6 +3084,8 @@ LitroKeyboard.prototype = {
 			case 'catch': this.baseKeyOnCatch(key, ext);break;
 			case 'eventset': this.baseKeyOnEventset(key, ext);break;
 			case 'file': this.baseKeyOnFile(key, ext);break;
+			case 'pack': this.baseKeyOnPack(key, ext);break;
+			case 'share': this.baseKeyOnShare(key, ext);break;
 			case 'manual': this.baseKeyOnManual(key, ext);break;
 			default: break;
 		}
@@ -2884,6 +3105,8 @@ LitroKeyboard.prototype = {
 			case 'catch': this.moveCatchCursor(dir, ext);break;
 			case 'eventset': this.moveEventsetCursor(dir, ext);break;
 			case 'file': this.moveFileMenuCursor(dir, ext);break;
+			case 'pack': this.movePackMenuCursor(dir, ext);break;
+			case 'share': this.moveShareMenuCursor(dir, ext);break;
 			case 'manual': this.moveManualMenuCursor(dir, ext);break;
 			// case 3: this.baseKeyOnChannel(dir);break;
 		}
@@ -3157,6 +3380,8 @@ LitroKeyboard.prototype = {
 		this.paramCursorBlinkFlag = !this.paramCursorBlinkFlag;
 		if(this.paramCursorBlinkFlag){return;}
 		word.setFontSize('8px');
+		word.setMaxRows(2);
+		word.setLineCols(32);
 		word.setScroll(scrollByName('sprite'));
 		
 		word.print('　', cellhto(cm.x + cur.x), cellhto(cm.y + 0), COLOR_BLACK, COLOR_NOTEFACE);
@@ -3178,6 +3403,7 @@ LitroKeyboard.prototype = {
 		;
 		word.setFontSize('8px');
 		word.setScroll(scr);
+		word.setMaxRows(2);
 		word.setMarkAlign('vertical');
 		word.setLineCols(this.player.titleMaxLength);
 		
@@ -3253,6 +3479,8 @@ LitroKeyboard.prototype = {
 		
 		word.setFontSize('8px');
 		word.setScroll(scr);
+		word.setMaxRows(2);
+		word.setLineCols(32);
 		word.setMarkAlign('horizon');
 		word.setMarkAlign('vertical');
 		word.print(str_t, cellhto(tcm.x + 2), cellhto(tcm.y + 1), COLOR_NOTEFACE, COLOR_BLACK);
@@ -3482,7 +3710,7 @@ LitroKeyboard.prototype = {
 	{
 		var cm = this.menuDispCmargin
 			, indent = this.menuCindent
-			, word = this.word
+			, word = this.word, sublen = 10
 			, i
 		;
 		if(list == null){
@@ -3492,6 +3720,8 @@ LitroKeyboard.prototype = {
 		// console.log(list);
 		word.setFontSize('8px');
 		word.setScroll(scrollByName("bg1"));
+		word.setLineCols(sublen);
+
 		for(i = 0; i < list.length; i++){
 			word.print(list[i].substr(0, 10), cellhto(cm.x + indent), cellhto(cm.y + i), COLOR_PARAMKEY, COLOR_BLACK);
 		}		
@@ -3572,18 +3802,21 @@ LitroKeyboard.prototype = {
 			this.drawCatchType(this.catchType);
 		}
 		this.drawSelectEvents(this.selectNote);
+		this.drawMenuListCursor(this.getActiveModeMenuList(), this.getActiveModeCursor().y);
 	},
 	
 	drawNoteMenu: function()
 	{
 		var menu = this.noteMenuList;
 		this.drawMenuList(menu);
+		this.drawNoteCursor();
 	},	
 	
 	drawEventsetMenu: function()
 	{
 		var menu = this.eventsetMenuList;
 		this.drawMenuList(menu);
+		this.drawMenuListCursor(this.eventsetMenuList, this.eventsetMenuCursor.y);
 	},
 	
 	drawFileMenu: function()
@@ -3598,16 +3831,11 @@ LitroKeyboard.prototype = {
 			menu = ['？？？'];
 		}
 		
-		if(this.getLastCommand() == 'PACK'){
-			this.drawPackMenu();
-
-			return;
-		}
-		
 		this.drawMenuList(menu);
-		
+		this.drawFileCursor();
 		if(spr != null && this.getLastCommand() != 'TITLE'){
 			bg.drawSprite(spr, cellhto(this.snsCmargin.x), cellhto(this.snsCmargin.y));
+			this.drawMenuListCursor(this.getActiveModeMenuList(), this.getActiveModeCursor().y);
 		}
 		
 		if(this.commandPath.indexOf('LOAD') > -1){
@@ -3617,12 +3845,29 @@ LitroKeyboard.prototype = {
 		}
 	},
 	
-	drawPackMenu: function()
+	drawPackMenu: function(enableCur)
 	{
 		var menu = this.getActiveModeMenuList()
 			, cur = this.getActiveModeCursor()
-			// console.log(menu);
+			, now = this.packedFiles.length
+			, max = this.packMaxSize
+			, print = '00'.slice((now + '').length) + now + '/' + max
+			, mc = this.menuDispCmargin
 		this.drawMenuList(menu);
+		enableCur = enableCur == null ? false : enableCur 
+		
+		this.word.print(print, cellhto(mc.x + 1), cellhto(mc.y + 5), now >= max ? COLOR_ARRAY[0] : COLOR_PARAMKEY, COLOR_BLACK);
+		if(enableCur){
+			this.drawMenuListCursor(this.getActiveModeMenuList(), this.getActiveModeCursor().y);
+		}
+		
+	},
+	drawShareMenu: function()
+	{
+		var menu = this.getActiveModeMenuList()
+			, cur = this.getActiveModeCursor()
+		this.drawMenuList(menu);
+		this.drawMenuListCursor(this.getActiveModeMenuList(), this.getActiveModeCursor().y);
 		
 	},
 	
@@ -3636,15 +3881,15 @@ LitroKeyboard.prototype = {
 	{
 		var keyCm = this.menuDispCmargin
 			, indent = this.menuCindent
-			, word = this.word
+			, word = this.word, sublen = 10
 			;
 		if(list == null){
 			list = ['？？？'];
 		}
 		word.setFontSize('8px');
 		word.setScroll(scrollByName('bg1'));
+		word.setLineCols(sublen);
 		word.print(list[y], cellhto(indent + keyCm.x), cellhto(keyCm.y + y), COLOR_BLACK, COLOR_PARAMKEY);
-		
 	},
 	
 	drawEventsetCursor: function()
@@ -3683,9 +3928,35 @@ LitroKeyboard.prototype = {
 			// console.log(offset, cur.y);
 			word.setFontSize('8px');
 			word.setScroll(scrollByName('bg1'));
+			word.setLineCols(16);
+			word.setMaxRows(1);
 			if(file == null){return;}
+			// console.log(file, cur);
 			title = file.title.substr(0, 16);
-			word.print(title == '' ? '　' : title, cellhto(cm.x), cellhto(cm.y + cur.y - offset), COLOR_BLACK, COLOR_NOTEFACE);
+			word.print(title == '' ? '　' : title, cellhto(cm.x), cellhto(cm.y + cur.y - offset), COLOR_BLACK, cur.y == 0 ? COLOR_ARRAY[0] : COLOR_NOTEFACE);
+	},
+	
+	drawPackCursor: function()
+	{
+		var cur = this.packMenuCursor, offset = this.fileListOffset
+			, menu = this.getPackMenuList()
+			, word = this.word, cm = this.channelParamsCmargin
+			, title, list = this.player.fileList()
+			, file = list[Object.keys(list)[cur.y]]
+			;
+			
+			this.drawMenuListCursor(menu, cur.y);
+	},
+	
+	drawShareCursor: function()
+	{
+		var cur = this.packMenuCursor, offset = this.fileListOffset
+			, menu = this.getPackMenuList()
+			, word = this.word, cm = this.channelParamsCmargin
+			, title, list = this.player.fileList()
+			, file = list[Object.keys(list)[cur.y]]
+			;
+			this.drawMenuListCursor(menu, cur.y);
 	},
 	
 	// drawParamCursorBlink: function(toggle, scrollName)
@@ -3731,13 +4002,59 @@ LitroKeyboard.prototype = {
 			
 	},
 	
+	currentTitleIndexes: function(list, offset, limit)
+	{
+		var title, key, file, i
+			, keylen = 4, titlelen = 16, len = Object.keys(list).length
+			, files = []
+		;
+		limit = limit == null ? this.paramLimit : limit;
+		for(i = 0; i < limit; i++){
+			if(i + offset < len){
+				file = list[Object.keys(list)[i + offset]];
+				key = (i + offset) + '';
+				title = file.title;
+			}else{
+				key = '　　　　　';
+				title = '';
+			}
+			title += '                    '.substr(0, titlelen - title.length);
+			index = '0000'.substr(0, keylen - key.length) + key + ':';
+			files.push({title: title, index: index, sound_id: file.sound_id});
+		}
+		return files;
+	},
+	
+	drawPackedFileList: function()
+	{
+		var list = this.player.fileList()
+			, offset = this.fileListOffset
+			, imc = this.paramskeysCmargin, mc = this.channelParamsCmargin
+			, dispFiles, i, title, index, isPacked
+			, indexLen = 5, titlelen = 16
+			, icol, tcol, file
+			, haveLength = this.packedFiles.length > 0
+		;
+		dispFiles = this.currentTitleIndexes(this.player.fileList(), offset, this.paramLimit);
+		for(i = 0; i < dispFiles.length; i++){
+			file = dispFiles[i];
+			sound_id = file.sound_id;
+			isPacked = this.isPackedFile(file);
+			icol = isPacked ? COLOR_DISABLE : COLOR_PARAMKEY;
+			tcol = isPacked ? COLOR_DISABLE: COLOR_NOTEFACE;
+			this.drawParamKeys(0, null, imc.x, imc.y + i, [file.index], indexLen, sound_id > 0 || haveLength ? icol : COLOR_DISABLE);
+			this.drawParamKeys(0, null, mc.x, mc.y + i, [file.title], titlelen, sound_id > 0 ? tcol : COLOR_ARRAY[0]);
+		}
+	},
+	
 	drawFileList: function()
 	{
 		var list = this.player.fileList()
 			, len = Object.keys(list).length, offset = this.fileListOffset
 			, i, indexes = [], titles = []
 			, key = '', title = '', file
-			, keylen = 4, titlelen = 16, mc = this.channelParamsCmargin
+			, keylen = 4, indexLen = 5, titlelen = 16, mc = this.channelParamsCmargin
+			, imc = this.paramskeysCmargin
 		;
 		for(i = 0; i < this.paramLimit; i++){
 			if(i + offset < len){
@@ -3748,32 +4065,39 @@ LitroKeyboard.prototype = {
 				key = '　　　　　';
 				title = '';
 			}
+			title += '                    '.substr(0, titlelen - title.length);
 			indexes.push('0000'.substr(0, keylen - key.length) + key + ':');
-			titles.push(title + '                    '.substr(0, titlelen - title.length));
+			titles.push(title);
 		}
 		
-		this.drawParamKeys(0, null, null, null, indexes);
-		this.drawParamKeys(0, null, mc.x, mc.y, titles, titlelen);
+		if(offset == 0){
+			this.drawParamKeys(0, null, imc.x, imc.y, [indexes.shift()], indexLen, COLOR_DISABLE);
+			this.drawParamKeys(0, null, mc.x, mc.y, [titles.shift()], titlelen, COLOR_ARRAY[0]);
+			this.drawParamKeys(0, null, imc.x, imc.y + 1, indexes, indexLen, COLOR_PARAMKEY);
+			this.drawParamKeys(0, null, mc.x, mc.y + 1, titles, titlelen, COLOR_NOTEFACE);
+		}else{
+			this.drawParamKeys(0, null, imc.x, imc.y, indexes, indexLen, COLOR_PARAMKEY);
+			this.drawParamKeys(0, null, mc.x, mc.y, titles, titlelen, COLOR_NOTEFACE);
+		}
 	},
 	
-	drawParamKeys: function(offset, limit, xc, yc, params, sublen)
+	// drawParamKeys: function(offset, limit, xc, yc, params, sublen, firstCol, secondCol)
+	drawParamKeys: function(offset, limit, xc, yc, params, sublen, printCol)
 	{
 		offset = offset == null ? this.paramOffset : offset;
 		limit = limit == null ? this.paramLimit : limit;
-		if(this.editMode == 'play'){return;}
 		var i, index
 			, keys = []
 			, word = this.word
 			, mc = (xc == null || yc == null) ? this.paramskeysCmargin : {x: xc, y: yc}
 			, tuneKeyLavel = {} //tuneKeyLavel= key:lavel
-			, col = COLOR_NOTEFACE
-			// , tuneLavelKey = this.ltSoundChParamKeys
+			, col
+			, mode = this.getMode()
 			;
-			//params= key:eventset
-		if(sublen == null){
-			sublen = 5;
-			col = COLOR_PARAMKEY;
-		}
+			
+		if(mode == 'play'){return;}
+		sublen = sublen == null ? 5 : sublen;
+		
 		for(i in  this.ltSoundChParamKeys){
 			tuneKeyLavel[this.ltSoundChParamKeys[i]] = i;
 		}
@@ -3785,13 +4109,19 @@ LitroKeyboard.prototype = {
 				keys.push(params[i]);
 			}
 		}
+		printCol = printCol == null ? COLOR_PARAMKEY: printCol;
 		//draw> tune:value
 		word.setFontSize('8px');
 		word.setScroll(scrollByName('bg1'));
+		word.setLineCols(sublen);
+		word.setMaxRows(1);
 		for(i = 0; i < limit; i++){
 			index = i + offset;
 			if(keys.length < index){break;}
-			word.print(str_pad(keys[index], sublen, "　", "STR_PAD_RIGHT") , cellhto(mc.x), cellhto(mc.y + i), col, COLOR_BLACK);
+			word.setStr(str_pad(keys[index], sublen, "　", "STR_PAD_RIGHT"));
+			word.setPos(cellhto(mc.x), cellhto(mc.y + i));
+			word.setColor(printCol, COLOR_BLACK);
+			word.draw();
 		}
 	},
 
@@ -3995,6 +4325,9 @@ LitroKeyboard.prototype = {
 		if(modeName == null){
 			return;
 		}
+		if(this.modeRect[modeName] == null){
+			return;
+		}
 		sprite = makeSpriteChunk(this.uiImageName, makeRect(this.modeRect[modeName]));
 		scrollByName('bg1').drawSpriteChunk(sprite, cellhto(cm.x), cellhto(cm.y));
 	},
@@ -4083,6 +4416,8 @@ LitroKeyboard.prototype = {
 			case 'play': this.drawOutputWave(); this.drawThumbVolume(); break;
 			case 'catch': ; break;
 			case 'file': if(this.getLastCommand() == 'TITLE'){this.drawTitleCursor();} break;
+			// case 'pack': this.drawPackMenu(); break;
+
 			case 'manual': this.scrollManual(); return;
 			default: break;
 		}
@@ -4104,15 +4439,13 @@ LitroKeyboard.prototype = {
 		// this.drawMenuCommon(mode);
 		switch(mode){
 			case 'tune': this.drawOscillo(); break;
-			case 'note': this.drawNoteMenu(); this.drawNoteCursor(); break; //this.drawNoteScroll(); 
+			case 'note': this.drawNoteMenu(); break; //this.drawNoteScroll(); 
 			case 'play': this.drawOscillo(); break;
-			case 'catch': this.drawCatchMenu(); this.drawMenuListCursor(this.getActiveModeMenuList(), this.getActiveModeCursor().y); break;
-			case 'eventset': this.drawEventsetMenu(); this.drawMenuListCursor(this.eventsetMenuList, this.eventsetMenuCursor.y); break;
-			case 'file': 
-				this.drawFileMenu();
-				if(this.getLastCommand() != 'TITLE'){
-					this.drawMenuListCursor(this.getActiveModeMenuList(), this.getActiveModeCursor().y);
-				} break;
+			case 'catch': this.drawCatchMenu(); break;
+			case 'eventset': this.drawEventsetMenu(); break;
+			case 'file': this.drawFileMenu();break;
+			case 'pack': this.drawPackMenu(false); break;
+			case 'share': this.drawShareMenu(); break;
 			case 'manual': return;
 			case 'error': break;
 			
@@ -4276,6 +4609,7 @@ LitroKeyboard.prototype = {
 			, keyIndex
 			, status = this.status_on
 			, len = status.length
+			, litro = this.litroSound
 			;
 		
 		
@@ -4283,13 +4617,16 @@ LitroKeyboard.prototype = {
 		// }, this);
 
 		for(i = 0; i < len; i++){
+			if(!litro.channel[i].isEnable()){
+				continue;
+			}
 			chr = status[i];
-			phase = this.litroSound.getPhase(i, false);
+			phase = litro.getPhase(i, false);
 			if(chr == null && (phase == 'r' || phase == '')){
-				return;
+				continue;
 			}
 			chr = chr == null ? this.key2Char(this.litroSound.getNoteKey(i)) : chr;
-			if(chr == null){return;}
+			if(chr == null){continue;}
 			
 			if(this.isBlackKey(chr)){
 				keyIndex = this.indexAtBlack(chr);
@@ -4304,6 +4641,8 @@ LitroKeyboard.prototype = {
 	},
 	
 	drawOnBaseKey: function(code, status){
+		if(this.getMode() == 'manual'){return;}
+
 		var fchip = this.frameChunks[this.frameChunksKeys.baseKeyDisp[0]]
 			, baseCm = {x: fchip.rect.x, y: fchip.rect.y}
 			, wm = {x: cellhto((baseCm.x * 2) + 1) + 2, y:cellhto((baseCm.y * 2) + 1)}
@@ -4312,6 +4651,7 @@ LitroKeyboard.prototype = {
 			;
 		word.setFontSize('4v6px');
 		word.setMarkAlign('horizon');
+		word.setMaxRows(5);
 		word.setScroll(scrollByName('bg1'));
 		if(name != '' ){
 			select = this.controllDispWordPos[name];
@@ -4328,14 +4668,17 @@ LitroKeyboard.prototype = {
 			, bg = scrollByName('bg1')
 			, view = scrollByName('view')
 			, spr = makeSprite(this.snsImageName, 0)
-			, self = this
+			, self = this, word = this.word
 			, iconCrect = {x: 18, y: 26, w:2, h: 2} //this.snsIconCmargin
 		;
 		view.y = cellhto(7);
 		bg.clear(COLOR_BLACK, r);
 		bg.drawSprite(spr, cellhto(iconCrect.x), cellhto(iconCrect.y));
-		this.word.setScroll(bg);
-		this.word.print('Click SNS Icon for Login', crect.x + cellhto(1), crect.y + cellhto(1), COLOR_WHITE, COLOR_BLACK);
+		word.setScroll(bg);
+		word.setFontSize('8px');
+		word.setLineCols(0);
+		word.setMarkAlign('horizon');
+		word.print('Click SNS Icon for Login', crect.x + cellhto(1), crect.y + cellhto(1), COLOR_WHITE, COLOR_BLACK);
 		this.appendClickableItem(makeRect(cellhto(iconCrect.x), cellhto(iconCrect.y), cellhto(iconCrect.w), cellhto(iconCrect.h)), function(item){
 			self.openLoginWindow(item.name);
 		}, 'TWITTER');

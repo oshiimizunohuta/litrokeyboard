@@ -1101,6 +1101,11 @@ LitroPlayer.prototype = {
 		}, errorFunc);
 	},
 	
+	packListFromServer: function(user_id, page, limit, func, errorFunc)
+	{
+		this.playPack.listFromServer(user_id, page, limit, func, errorFunc);
+	},
+	
 	setPlayData: function(data)
 	{
 		this.clearEventsData();
@@ -1471,7 +1476,7 @@ function LitroPlayPack(){return;};
 LitroPlayPack.prototype = {
 	init: function()
 	{
-		this.dataPacks = {};
+		this.packList = [];
 		this.parseFiles = {};
 		// this.litroSound = litroSoundInstance;
 		
@@ -1479,10 +1484,30 @@ LitroPlayPack.prototype = {
 
 	},
 	
-	loadSoundPackage: function(user_id, packName, func, errorFunc)
+	listFromServer: function(user_id, page, limit, func, errorFunc)
+	{
+		var params = {page: page, limit: limit, user_id: user_id}
+		self = this;
+		func = func == null ? function(){return;} : func;
+		errorFunc = errorFunc == null ? function(){return;} : errorFunc;
+		sendToAPIServer('GET', 'packlist', params, function(data){
+			var i;
+			if(data == null || data.error_code != null){
+				errorFunc(data);
+				return;
+			}
+			//取得ファイルでリストを更新
+			for(i = 0; i < data.length; i++){
+				self.packList[data[i].sound_id] = data[i];
+			}
+			func(self.serverFileList);
+		}, errorFunc);
+	},
+	
+	loadSoundPackage: function(user_id, pack_id, func, errorFunc)
 	{
 		var self = this
-			, params = {user_id: user_id, packName: packName}
+			, params = {user_id: user_id, pack_id: pack_id}
 		;
 		if(user_id == 0){
 			errorFunc({error_code: 0, message: 'no user_id'});
@@ -1502,12 +1527,12 @@ LitroPlayPack.prototype = {
 				errorFunc(data);
 			}
 			
-			self.dataPacks[packName] = {};
+			self.packList[packName] = {};
 			for(i = 0; i < data.length; i++){
-				self.dataPacks[packName][data[i].title] = data[i];
+				self.packList[packName][data[i].title] = data[i];
 			}
 			
-			func(self.dataPacks[packName]);
+			func(self.packList[packName]);
 			}, errorFunc);
 	},
 	
