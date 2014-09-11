@@ -1696,7 +1696,7 @@ LitroKeyboard.prototype = {
 						title = '！！CLEAR　NOTES！！';
 						mode = 'file';
 					}else if(com0 == 'SHARE'){
-						title = 'SHARE APP！';
+						title = 'SHARE LITROKEYBOARD！';
 						mode = 'share';
 					}else if(com0 == 'PACK'){
 						title = 'PACK RESET';
@@ -4724,7 +4724,7 @@ LitroKeyboard.prototype = {
 		if(type == 'TWITTER'){
 			url += [
 				'url=' + encodeURIComponent('http://' + location.host + location.pathname 
-				+ file.sound_id == 0 : '' : '?sound_id=' + file.sound_id),
+				+ (file.sound_id == 0 ? '' : '?sound_id=' + file.sound_id)),
 				'text=' + encodeURIComponent('"'+ file.title + '" play on the litrokeyboard!!'),
 				'hashtags=' + encodeURIComponent('litrokeyboard,dtm'),
 				].join('&');
