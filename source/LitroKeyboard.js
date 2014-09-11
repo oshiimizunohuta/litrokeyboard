@@ -4723,7 +4723,7 @@ LitroKeyboard.prototype = {
 		var url = this.shareURLs[type];
 		if(type == 'TWITTER'){
 			url += [
-				'url=' + encodeURIComponent('http://' + location.hostname + '?sound_id=' + file.sound_id),
+				'url=' + encodeURIComponent('http://' + location.host + location.pathname + '?sound_id=' + file.sound_id),
 				'text=' + encodeURIComponent('"'+ file.title + '" play on the litrokeyboard!!'),
 				'hashtags=' + encodeURIComponent('litrokeyboard,dtm'),
 				].join('&');
