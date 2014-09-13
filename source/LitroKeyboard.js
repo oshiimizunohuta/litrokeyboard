@@ -154,7 +154,7 @@ function LitroKeyboard() {
 		'+' : '+', '^' : '+',
 		'-' : '-',
 		'ext' : 'Shift',
-	}
+	};
 	this.controllDispNameStr = 'Tab C$n+-  コ$n,.   $nShift$nSpace';
 	this.controllDispWordPos = {};
 	
@@ -172,7 +172,7 @@ function LitroKeyboard() {
 	
 	this.frameChunks = []; //背景フレーム用ChunkRepeat
 	this.frameSprites = {}; //背景フレーム用spriteChunk
-	this.frameChunksKeys = {} //framechunksのkeyインデックス重複はArray
+	this.frameChunksKeys = {}; //framechunksのkeyインデックス重複はArray
 	
 	this.catchNotes = {}; //キャッチ操作
 	this.selectNote = {}; //選択中
@@ -501,7 +501,7 @@ LitroKeyboard.prototype = {
 			, self = this;
 			
 		if(buff != null){
-			PROCESS_BUFFER_SIZE = parseInt(buff[1], 10) == null ? 4096 : buff[1]
+			PROCESS_BUFFER_SIZE = parseInt(buff[1], 10) == null ? 4096 : buff[1];
 			if(this.litroSound.context != null){
 				this.litroSound.connectOff();
 				this.litroSound.createContext(PROCESS_BUFFER_SIZE);;
@@ -1679,7 +1679,7 @@ LitroKeyboard.prototype = {
 			this.player.listFromServer(this.loginParams.user_id, page, limit, 
 				function(list){
 					var i, player = self.player, com1 = self.getLastCommand(1), com0 = self.getLastCommand(0)
-					mode = '', curX = 0, title = ''
+						, mode = '', curX = 0, title = ''
 					;
 					if(list == null || list.error_code != null){
 						self.changeEditMode('error');
@@ -2791,6 +2791,7 @@ LitroKeyboard.prototype = {
 	baseKeyOnFile_title: function(key, ext)
 	{
 		var fcur = this.fileMenuCursor, ccur = this.charBoardCursor
+		;
 		if(key == 'select'){
 			if(fcur.x == 0){
 				ccur.x = 0; fcur.x = 2;
@@ -2998,7 +2999,7 @@ LitroKeyboard.prototype = {
 		}
 		
 		this.drawMenu();
-		this.drawShareCursor()
+		this.drawShareCursor();
 	},
 	
 	baseKeyOnManual: function(key, ext)
@@ -3659,7 +3660,7 @@ LitroKeyboard.prototype = {
 				times = Object.keys(data);
 				timelen = times.length;
 				for(ti = 0; ti < timelen; ti++){
-					t = times[ti]
+					t = times[ti];
 				// Object.keys(data).forEach(function(t){
 				// }, this);
 				//(t in data){
@@ -3834,10 +3835,10 @@ LitroKeyboard.prototype = {
 	
 	drawFileMenu: function()
 	{
-		var menu = this.getFileMenuList()
-			 cm = this.menuDispCmargin
-			 indent = this.menuCindent
-			 bg = scrollByName('bg1')
+		var menu = this.getFileMenuList(),
+			 cm = this.menuDispCmargin,
+			 indent = this.menuCindent,
+			 bg = scrollByName('bg1'),
 			 spr = this.loginParams.sns_type != null ? makeSprite(this.snsImageName, this.snsIconId[this.loginParams.sns_type]) : null
 		;
 		if(menu == null){
@@ -3866,8 +3867,9 @@ LitroKeyboard.prototype = {
 			, max = this.packMaxSize
 			, print = '00'.slice((now + '').length) + now + '/' + max
 			, mc = this.menuDispCmargin
+			;
 		this.drawMenuList(menu);
-		enableCur = enableCur == null ? false : enableCur 
+		enableCur = enableCur == null ? false : enableCur;
 		
 		this.word.print(print, cellhto(mc.x + 1), cellhto(mc.y + 5), now >= max ? COLOR_ARRAY[0] : COLOR_PARAMKEY, COLOR_BLACK);
 		if(enableCur){
@@ -3879,6 +3881,7 @@ LitroKeyboard.prototype = {
 	{
 		var menu = this.getActiveModeMenuList()
 			, cur = this.getActiveModeCursor()
+			;
 		this.drawMenuList(menu);
 		this.drawMenuListCursor(this.getActiveModeMenuList(), this.getActiveModeCursor().y);
 	},
@@ -4830,7 +4833,7 @@ function printDebug(val, row){
 			return;
 		}
 		word.setFontSize('4v6px');
-		word.setMarkAlign('horizon')
+		word.setMarkAlign('horizon');
 		word.setScroll(scr);
 		word.setColor(COLOR_WHITE, COLOR_BLACK);
 		word.print(val, cellhto(mc.x), cellhto(mc.y - row));

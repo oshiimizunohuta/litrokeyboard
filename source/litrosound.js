@@ -2,7 +2,7 @@
  * Litro Sound Library
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.07.07
+ * ver 0.07.08
  */
 // var SAMPLE_RATE = 24000;
 // var SAMPLE_RATE = 48000;
@@ -100,11 +100,14 @@ LitroSound.prototype = {
 		}
 		// this.context = new AudioContext();
 		// this.setSampleRate(sampleRate, PROCESS_BUFFER_SIZE);
-		this.createContext(PROCESS_BUFFER_SIZE);
+		this.createContext();
 		
 		this.initWaveProperties();
 		
 		this.audioChennelInit(channelNum);
+		
+		this.connectModules(PROCESS_BUFFER_SIZE);
+
 		// 出力開始
 		// src.noteOn(0);
 	},
@@ -176,14 +179,17 @@ LitroSound.prototype = {
 		return data;
 	},
 	
-	createContext: function(size){
-		var i, channel, context, scriptProcess, src, self = this, vol;
+	createContext: function(){
 		if(this.context == null){this.context = new AudioContext();}
-		context = this.context;
 		// context.sampleRate = rate; //read only
 		
-		this.sampleRate = context.sampleRate; //
-		
+		this.sampleRate = this.context.sampleRate; //
+	},
+	
+	connectModules: function(size)
+	{
+		var i, channel, scriptProcess, src, self = this, vol;
+		context = this.context;
 		//ゲイン
 		if(this.gain != null){
 			vol = this.gain.gain.value;
@@ -219,8 +225,8 @@ LitroSound.prototype = {
 		// this.delay.connect(context.destination);
 		// scriptProcess.connect(this.delay);
 		
-		return;
 	},
+	
 	initWaveProperties: function()
 	{
 		if(this.context == null){return;}
@@ -234,7 +240,7 @@ LitroSound.prototype = {
 	connectOn: function()
 	{
 		this.connectOff();
-		this.createContext(PROCESS_BUFFER_SIZE);
+		this.connectModules(PROCESS_BUFFER_SIZE);
 		// this.scriptProcess.connect(this.gain);
 		// this.scriptProcess.connect(this.analyser);
 		// this.gain.connect(this.context.destination);
@@ -255,8 +261,9 @@ LitroSound.prototype = {
 	bufferProcess: function(ev)
 	{
 		var i, ch, channels = this.channel
+			, players = this.players
 			, data = ev.outputBuffer.getChannelData(0)
-			, dlen = data.length, clen = channels.length, plen = this.players.length
+			, dlen = data.length, clen = channels.length, plen = players.length
 			, rate = this.refreshRate, rCrock = this.refreshClock
 			, d0 = new Float32Array(ev.outputBuffer.length)
 			;
@@ -269,7 +276,7 @@ LitroSound.prototype = {
 		for(i = 0; i < dlen; i++){
 			if(rCrock == 0){
 				for(ch = 0; ch < plen; ch++)
-				this.players[ch].player.playSound();
+				players[ch].player.playSound();
 				for(ch = 0; ch < clen; ch++){
 					this.refreshWave(ch);
 				}
@@ -292,7 +299,7 @@ LitroSound.prototype = {
 				console.log('process has become overloaded!!');
 				this.processHeavyLoad = true;
 				this.connectOff();
-				this.radiationTimer = setInterval(function(e, ev){self.checkPerformance(ev)}, this.radiateTime, ev);
+				this.radiationTimer = setInterval(function(e, ev){self.checkPerformance(ev);}, this.radiateTime, ev);
 				// console.log(pf - this.performanceValue, this.refreshRate * 4);
 			}
 			this.recoverCount = 0;
@@ -656,7 +663,7 @@ LitroSound.prototype = {
 	
 	envelopedVolume: function(ch)
 	{
-		if(this.getChannel(ch, 'enable') == 0){return 0;}
+		if(!this.channel[ch].isEnable()){return 0;}
 		// printDebug(ch);
 		var i
 		, channel = this.channel[ch]
@@ -1018,7 +1025,7 @@ LitroPlayer.prototype = {
 	saveToServer: function(user_id, sound_id, dataObj, func, errorFunc)
 	{
 		var data = encodeURIComponent(this.headerInfo() + this.dataToString(dataObj))
-		params = {user_id: user_id, sound_id: sound_id, data: data, title: this.title};
+			, params = {user_id: user_id, sound_id: sound_id, data: data, title: this.title};
 		
 		func = func == null ? function(){return;} : func;
 		errorFunc = errorFunc == null ? function(){return;} : errorFunc;
@@ -1083,7 +1090,7 @@ LitroPlayer.prototype = {
 	listFromServer: function(user_id, page, limit, func, errorFunc)
 	{
 		var params = {page: page, limit: limit, user_id: user_id}
-		self = this;
+			, self = this;
 		func = func == null ? function(){return;} : func;
 		errorFunc = errorFunc == null ? function(){return;} : errorFunc;
 		sendToAPIServer('GET', 'filelist', params, function(data){
@@ -1120,7 +1127,7 @@ LitroPlayer.prototype = {
 	//パースしたデータが入る
 	insertPack: function(pack)
 	{
-		var title, playdata
+		var title, playdata;
 		for(title in pack){
 			playdata = pack[title];
 			// playdata = 
@@ -1458,8 +1465,9 @@ LitroPlayer.prototype = {
 };
 
 function makeEventsetData(channels){
-	var eventset = [], type, ch, addEtc = 0;
-	channels = channels == null ? litroSoundInstance.channel.length : channels
+	var eventset = [], type, ch, addEtc = 0
+	;
+	channels = channels == null ? litroSoundInstance.channel.length : channels;
 	for(ch = 0; ch < channels + addEtc; ch++){
 		// this.noteData.push({});
 		eventset.push({});
@@ -1487,7 +1495,7 @@ LitroPlayPack.prototype = {
 	listFromServer: function(user_id, page, limit, func, errorFunc)
 	{
 		var params = {page: page, limit: limit, user_id: user_id}
-		self = this;
+			, self = this;
 		func = func == null ? function(){return;} : func;
 		errorFunc = errorFunc == null ? function(){return;} : errorFunc;
 		sendToAPIServer('GET', 'packlist', params, function(data){
@@ -1869,12 +1877,14 @@ AudioChannel.prototype = {
 	},
 	
 	nextWave: function(){
-		var vol, avol, detune = this.getDetunePosition()
+		if(this.waveLength == 0){return 0;}
+		var vol, avol
 		, wpos = this.waveClockPosition, wlen = this.waveLength
+		, detune = this.getDetunePosition()
 		;
-		
-		if(wpos == 0 && this.isNoiseType()){
-			// switch(this.tune('waveType')){
+
+		// if(wpos == 0 && this.isNoiseType()){
+		if(wpos == 0){
 			switch(this.tuneParams.waveType){
 				case 12: noiseWave(this, 1); break;
 				case 13: noiseWave(this, 6); break;
@@ -1882,7 +1892,6 @@ AudioChannel.prototype = {
 				case 15: noiseWave(this, 69); break;
 			}
 		}
-		
 		vol = this.data[(wlen + wpos + detune) % wlen];
 		if(this.envelopeEnd == true){
 			//クリック音防止余韻
@@ -1894,7 +1903,6 @@ AudioChannel.prototype = {
 			avol = 0;
 			return avol;
 		}
-		// if(this.absorbNegCount == 1){console.log(this.absorbPosition, this.waveClockPosition, vol + avol );}
 		this.waveClockPosition = wpos + 1 < wlen ? wpos + 1 : 0;
 		return vol + avol;
 	},
