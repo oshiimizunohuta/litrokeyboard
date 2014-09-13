@@ -4728,8 +4728,9 @@ LitroKeyboard.prototype = {
 			url += [
 				'url=' + encodeURIComponent('http://' + location.host + location.pathname 
 				+ (file.sound_id == 0 ? '' : '?sound_id=' + file.sound_id)),
-				'text=' + encodeURIComponent('"'+ file.title + '" play on the litrokeyboard!!'),
+				'text=' + encodeURIComponent(file.sound_id == 0 ? 'ブラウザでPSG音源DTM！' : ('"'+ file.title + '" play on the litrokeyboard!!')),
 				'hashtags=' + encodeURIComponent('litrokeyboard,dtm'),
+				'via=' + 'LitroKeyboard'
 				].join('&');
 			}
 		window.open(url, null,"width=640,height=480,scrollbars=yes");
