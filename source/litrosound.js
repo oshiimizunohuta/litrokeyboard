@@ -274,17 +274,19 @@ LitroSound.prototype = {
 		}
 		data.set(d0);
 		for(i = 0; i < dlen; i++){
-			if(rCrock == 0){
+			if(++rCrock >= rate){
 				for(ch = 0; ch < plen; ch++)
 				players[ch].player.playSound();
 				for(ch = 0; ch < clen; ch++){
 					this.refreshWave(ch);
 				}
+				rCrock = 0;
+			// }else{
+				// rCrock = rCrock >= rate ? 0 : rCrock + 1;
 			}
 			for(ch = 0; ch < clen; ch++){
 				data[i] += channels[ch].nextWave();
 			}
-			rCrock = rCrock >= rate ? 0 : rCrock + 1;
 		}
 		this.refreshClock = rCrock;
 	},
@@ -538,7 +540,6 @@ LitroSound.prototype = {
 			channel.detuneClock++;
 			channel.sweepClock++;
 			channel.vibratoClock++;
-			// channel.refreshClock = 0;//?
 		}
 	},
 	
@@ -573,7 +574,6 @@ LitroSound.prototype = {
 		channel.envelopeClock = 0;
 		channel.detuneClock = 0;
 		channel.sweepClock = 0;
-		// channel.refreshClock = 0;
 		channel.vibratoClock = 0;
 		channel.dataUpdateFlag = true;
 		channel.resetEnvelope();
@@ -591,7 +591,6 @@ LitroSound.prototype = {
 		channel.envelopeClock = 0;
 		channel.detuneClock = 0;
 		channel.sweepClock = 0;
-		// channel.refreshClock = 0;
 		channel.vibratoClock = 0;
 		channel.dataUpdateFlag = true;
 		channel.resetEnvelope();
