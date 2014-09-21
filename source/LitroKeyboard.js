@@ -235,9 +235,9 @@ function LitroKeyboard() {
 	this.noteMenuList = ['EVENTSET', 'CATCH', 'FILE', 'MANUAL'];
 	this.noteMenuCursor = {x:0, y:0};
 	
-	this.fileMenuList = ['LOAD', 'SAVE', 'TITLE', 'LOGIN'];
+	this.fileMenuList = ['LOAD', 'SAVE', 'SHARE', 'TITLE', 'LOGIN'];
 	// this.fileMenuList_login = ['LOAD', 'SAVE', 'TITLE', 'LOGOUT'];
-	this.fileMenuList_login = ['LOAD', 'SAVE', 'TITLE', 'PACK', 'SHARE', 'LOGOUT'];
+	this.fileMenuList_login = ['LOAD', 'SAVE', 'SHARE', 'PACK', 'TITLE', 'LOGOUT'];
 	this.fileTypeList = ['COOKIE', 'SERVER'];
 	
 	// this.fileLoginList = ['TWITTER']; //GOOGLE+
@@ -1065,15 +1065,17 @@ LitroKeyboard.prototype = {
 		return this.loginParams.user_id == 0 ? null : this.loginParams;
 	},
 	
-	setError: function()
+	setError: function(errorObj, mode, comClear)
 	{
 		var self = this;
-		this.changeEditMode('error');
+		comClear = comClear == null ? true : comClear;
+
+		this.changeEditMode('error', comClear);
 		this.drawMenu();
 		window.setTimeout(function(){
-			self.changeEditMode('note');
+			self.changeEditMode(mode == null ? 'note' : mode, comClear);
 			self.drawMenu();
-		}, 2000);
+		}, 1200);
 	},
 	
 	logoutSNS: function()
@@ -1654,14 +1656,14 @@ LitroKeyboard.prototype = {
 		}else if(mode == parseInt(mode, 10)){
 			this.editMode = this.modeNames[mode];
 		}
-		var self = this;
-		if(this.editMode == 'error'){
-			setTimeout(function(){
-				self.changeEditMode('note');
-				self.drawMenu();
-			}, 1000);
-		}
-
+		// var self = this;
+		// if(this.editMode == 'error'){
+			// setTimeout(function(){
+				// self.changeEditMode('note');
+				// self.drawMenu();
+			// }, 1000);
+		// }
+// console.log(comClear);
 		if(comClear){
 			this.commandPath = [];
 		}
@@ -1674,59 +1676,71 @@ LitroKeyboard.prototype = {
 	
 	loadList: function(page, limit)
 	{
-		var self = this;
+		var self = this, commonError = {error_code: 0, message: 'server error'};
 		try{
 			this.player.listFromServer(this.loginParams.user_id, page, limit, 
 				function(list){
-					var i, player = self.player, com1 = self.getLastCommand(1), com0 = self.getLastCommand(0)
-						, mode = '', curX = 0, title = ''
-					;
 					if(list == null || list.error_code != null){
-						self.changeEditMode('error');
-						self.drawMenu();
-						return;
+						// self.setError(list, 'file');
+						list = {};
+						// self.changeEditMode('error');
+						// self.drawMenu();
+						// return;
 					}
 					// append = append.length == null ? [append] : append;
 
-					if(com1 == 'SAVE'){
-						title = 'NEW FILE';
-						mode = 'file';
-					}else if(com1 == 'LOAD'){
-						//最初にスコア削除を入れておく
-						title = '！！CLEAR　NOTES！！';
-						mode = 'file';
-					}else if(com0 == 'SHARE'){
-						title = 'SHARE LITROKEYBOARD！';
-						mode = 'share';
-					}else if(com0 == 'PACK'){
-						title = 'PACK RESET';
-						mode = 'pack';
-						curX = 1;
-						self.packMenuCursor.x = curX;
-					}
-					list[0] = {sound_id: 0, user_id: self.loginParams.user_id, title: title, packed: false};
-					self.finishLoadList(mode, list);
+					self.finishLoadList(list);
 					self.drawMenu();
 					
 				}, function(){
-					self.changeEditMode('error');
-					self.drawMenu();
+					// self.setError(commonError, 'file');
+					self.finishLoadList(null);
+					// self.drawMenu();
 				});
 		}catch(e){
 			console.error(e);
-			self.changeEditMode('error');
-			self.drawMenu();
+			self.setError(commonError, 'file');
 		}
 	},
 	
-	finishLoadList: function(mode, list)
+	finishLoadList: function(list)
 	{
-		this.changeEditMode(mode, false);
-		// if(cursor.y >= Object.keys(list).length){
-			// cursor.y = 0;
-		// }
-		// this.getModeCursor('file').y = 0;
-		// this.getModeCursor().y = 0;
+		var i, player = self.player, com1 = this.getLastCommand(1), com0 = this.getLastCommand(0)
+			, mode = '', curX = 0, title = '', isError = false, clear = false
+			, commonError = {error_code: 0, message: 'server error'};
+		;
+		if(list == null || list.error_code != null){
+			list = {};
+			isError = true;
+			this.player.fileList(list);
+		}
+		
+		if(com1 == 'SAVE'){
+			title = 'NEW FILE';
+			mode = 'file';
+			clear = true;
+		}else if(com1 == 'LOAD'){
+			//最初にスコア削除を入れておく
+			title = '！！CLEAR　NOTES！！';
+			mode = 'file';
+		}else if(com0 == 'SHARE'){
+			title = 'SHARE LITROKEYBOARD！';
+			mode = 'share';
+		}else if(com0 == 'PACK'){
+			title = 'PACK RESET';
+			mode = 'pack';
+			curX = 1;
+			this.packMenuCursor.x = curX;
+		}
+		list[0] = {sound_id: 0, user_id: this.loginParams.user_id, title: title, packed: false};
+		
+		if(isError){
+			console.log(list);
+			this.setError(commonError, mode, clear);
+		}else{
+			this.changeEditMode(mode, false);
+		}
+
 		if(mode == 'pack'){
 			this.drawPackedFileList();
 			this.drawFileListCursor();
@@ -2189,11 +2203,13 @@ LitroKeyboard.prototype = {
 			if(Fcur.x > 0){
 				Ccur.x = 0;
 				this.drawCharBoard();
-				this.drawFileMenu();
+				this.drawMenuList(this.getFileMenuList());
+				// this.drawFileMenu();
 			}else if(Fcur.x < 0){
 				Ccur.x = Climit.x - 1;
 				this.drawCharBoard();
-				this.drawFileMenu();
+				this.drawMenuList(this.getFileMenuList());
+				// this.drawFileMenu();
 			}else{
 				this.drawMenu();
 				this.drawFileCursor();
@@ -2795,7 +2811,7 @@ LitroKeyboard.prototype = {
 		if(key == 'select'){
 			if(fcur.x == 0){
 				ccur.x = 0; fcur.x = 2;
-				this.drawFileMenu();
+				this.drawMenuList(this.getFileMenuList());
 			}else{
 				fcur.x = 0;	ccur.x = -1;
 				this.drawFileCursor();
@@ -2864,6 +2880,7 @@ LitroKeyboard.prototype = {
 					this.charBoardCursor.x = 0;
 					this.clearLeftScreen();
 					this.drawCharBoard();
+					this.drawMenuList(this.getFileMenuList());
 					break;
 				case 'SHARE':
 				case 'PACK':

@@ -1152,8 +1152,9 @@ LitroPlayer.prototype = {
 		// }, errorFunc);
 	// },
 	
-	fileList: function()
+	fileList: function(list)
 	{
+		this.serverFileList = list == null ? this.serverFileList : list;
 		return this.serverFileList;
 	},
 
