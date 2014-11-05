@@ -1,0 +1,3 @@
+[submodule "chunklekit"]
+	path = chunklekit
+	url = https://github.com/oshiimizunohuta/chunklekit.git
