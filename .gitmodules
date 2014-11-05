@@ -4,3 +4,6 @@
 [submodule "litrosound"]
 	path = litrosound
 	url = https://github.com/oshiimizunohuta/litrosound.git
+[submodule "litroreceiver"]
+	path = litroreceiver
+	url = https://github.com/oshiimizunohuta/litroreceiver.git

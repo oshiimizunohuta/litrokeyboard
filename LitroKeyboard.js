@@ -2,7 +2,7 @@
  * Litro Keyboard Interface
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.07.08
+ * ver 0.07.09
  */
 
 var PaformTime = 0; //時間計測
@@ -3411,13 +3411,15 @@ LitroKeyboard.prototype = {
 		this.paramCursorBlinkFlag = !this.paramCursorBlinkFlag;
 		if(this.paramCursorBlinkFlag){return;}
 		word.setFontSize('8px');
+		word.setMarkAlign('vertical');
 		word.setMaxRows(2);
 		word.setLineCols(32);
 		word.setScroll(scrollByName('sprite'));
 		
 		word.print('　', cellhto(cm.x + cur.x), cellhto(cm.y + 0), COLOR_BLACK, COLOR_NOTEFACE);
 		word.print('　', cellhto(cm.x + cur.x), cellhto(cm.y + 1), COLOR_BLACK, COLOR_NOTEFACE);
-		
+		word.setMarkAlign('holizon');
+
 	},
 	
 	drawCharBoard: function()
@@ -4162,7 +4164,7 @@ LitroKeyboard.prototype = {
 		offset = offset == null ? this.paramOffset : offset;
 		limit = limit == null ? this.paramLimit : limit;
 		if(this.editMode == 'play'){return;}
-		var i, index, key, color, num, sprite, noref
+		var i, j, index, key, color, num, sprite, noref
 			, keys = []
 			, word = this.word
 			, mc = (xc == null || yc == null) ? this.channelParamsCmargin: {x: xc, y: yc}
@@ -4684,6 +4686,7 @@ LitroKeyboard.prototype = {
 		word.setFontSize('4v6px');
 		word.setMarkAlign('horizon');
 		word.setMaxRows(5);
+		word.setLineCols(0);
 		word.setScroll(scrollByName('bg1'));
 		if(name != '' ){
 			select = this.controllDispWordPos[name];
@@ -4927,12 +4930,37 @@ function main() {
 	requestAnimationFrame(main);
 };
 
-window.onbeforeunload = function(event){
-	// event = event || window.event;
-	return event.returnValue = 'LitroKeyboardを中断します';
+
+function getClient()
+{
+	var client
+	, agent = navigator.userAgent
+	, spDevices = ['iPhone', 'iPad', 'ipod', 'Android']
+	, deviceName = ''
+	, isSmartDevice = false
+	;
+	spDevices.map(function(d){
+		if(agent.indexOf(d) >= 0){
+			deviceName = d;
+			isSmartDevice = true;
+		}
+	});
+	client = {isSmartDevice: isSmartDevice, deviceName: deviceName};
+	return client;
+	
 };
 
 window.addEventListener('load', function() {
+	var client = getClient()
+		, query = location.href.match(/\?([^?/]*)/)
+		;
+	
+	if(client.isSmartDevice){
+		location.href = './litroreceiver' + (query != null ? '/?' + query[1] : '');
+		return;
+	}
+	
+	
 	var ltkb = new LitroKeyboard()
 	;
 	window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame || window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
@@ -4942,6 +4970,10 @@ window.addEventListener('load', function() {
 	// requestAnimationFrame(main);
 	removeEventListener('load', this, false);
 	
+	window.onbeforeunload = function(event){
+		// event = event || window.event;
+		return event.returnValue = 'LitroKeyboardを中断します';
+};
 }, false);
 
 
