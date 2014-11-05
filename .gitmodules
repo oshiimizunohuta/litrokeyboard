@@ -1,3 +1,6 @@
 [submodule "chunklekit"]
 	path = chunklekit
 	url = https://github.com/oshiimizunohuta/chunklekit.git
+[submodule "litrosound"]
+	path = litrosound
+	url = https://github.com/oshiimizunohuta/litrosound.git
