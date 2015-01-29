@@ -182,6 +182,8 @@ function LitroKeyboard() {
 	this.blinkDrawParams = []; //点滅スプライト保持
 	this.blinkDrawEventset = []; //点滅スプライト保持
 	this.catchEventset = {}; // tune{param0:x param1:x}
+	
+	this.scrollCallbackStack = [];//manualスクロールコールバック
 
 	this.debgCell = false;
 	this.debugCellPos = {x: 0, y :0};
@@ -846,7 +848,10 @@ LitroKeyboard.prototype = {
 			self.initSprite();
 			self.initFrameSprites();
 			self.openFrame();
+			self.drawScoreBoard(true);
+			self.drawScoreBoard(false);
 			requestAnimationFrame(main);
+			
 		});
 
 	},
@@ -2046,23 +2051,27 @@ LitroKeyboard.prototype = {
 									curr.y = offset == 0 ? limit - 1 : 0;
 									offset = (offset + currentLength - 1) % currentLength; //4
 								}
+								this.drawParamKeys(offset, limit);
+								this.drawChannelParams(offset, limit);
 								break;
 				case 'down': cur.y = (cur.y + 1) % paramsLength;
 								if(++curr.y > limit - 1){
 									curr.y = offset + limit - 1 >= paramsLength - 1 ? 0 : limit - 1;
 									offset = (offset + 1) % currentLength;
 								}
+								this.drawParamKeys(offset, limit);
+								this.drawChannelParams(offset, limit);
 								break;
 				case 'left': this.litroSound.setChannel(cur.x, param, this.litroSound.getChannel(cur.x, param, false) - 1);
-								this.drawParamCursor();
+								// this.drawParamCursor();
 								break;
 				case 'right': this.litroSound.setChannel(cur.x, param, this.litroSound.getChannel(cur.x, param, false) + 1);
-								this.drawParamCursor();
+								// this.drawParamCursor();
 								break;
 			}
 			this.paramOffset = offset;
-			this.drawParamKeys(offset, limit);
-			this.drawChannelParams(offset, limit);
+			// this.drawParamKeys(offset, limit);
+			// this.drawChannelParams(offset, limit);
 			this.drawParamCursor();
 		}else{
 			//描画込み
@@ -2560,13 +2569,11 @@ LitroKeyboard.prototype = {
 			case '<': 
 				com = this.backMenu();
 				this.selectMenuItem(com, key);
-				// this.drawSelectEvents(this.selectNote);
 				this.drawMenu();
 				break;
 			case '>': 
 				com = this.setMenuCommandPath();
 				this.selectMenuItem(com, key);
-				// this.drawSelectEvents(this.selectNote);
 				this.drawMenu();
 				break;
 			case 'select': 
@@ -3132,6 +3139,7 @@ LitroKeyboard.prototype = {
 	
 	moveCursor: function(dir, ext)
 	{
+		if(scrollByName('bg1').isDrawingInfoStack()){return;}
 		switch(this.editMode){
 			case 'tune': this.moveChannelParamCursor(dir, ext);break;
 			case 'note': this.moveNoteMenuCursor(dir, ext);break;
@@ -3301,6 +3309,7 @@ LitroKeyboard.prototype = {
 	openFrame: function()
 	{
 		scrollByName('bg1').clear(null, makeRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT / 2));
+		this.clearLeftScreen();
 		this.frameChunks.forEach(function(chunk){
 			var rect = chunk.rect;
 			// console.log(rect.x, rect.y, rect.w, rect.h);
@@ -3327,8 +3336,6 @@ LitroKeyboard.prototype = {
 		
 		this.drawOnBaseKey(null, false);
 		
-		this.drawScoreBoard(true);
-		this.drawScoreBoard(false);
 	},
 	
 	drawSeek: function()
@@ -3827,7 +3834,6 @@ LitroKeyboard.prototype = {
 			scroll.clear(null, makeRect(cellhto(left.x), cellhto(left.y), cellhto(size.w * 2), cellhto(size.h)));
 			return;
 		}
-		
 		keys = this.intersectParamKeys(eventset);
 		
 		word.setFontSize('8px');
@@ -3853,7 +3859,7 @@ LitroKeyboard.prototype = {
 			this.drawMenuList(menu);
 			this.drawCatchType(this.catchType);
 		}
-		this.drawSelectEvents(this.selectNote);
+		// this.drawSelectEvents(this.selectNote);
 		this.drawMenuListCursor(this.getActiveModeMenuList(), this.getActiveModeCursor().y);
 	},
 	
@@ -4427,11 +4433,16 @@ LitroKeyboard.prototype = {
 		var params = this.manualScrollParams
 			, d = params.dulation
 			, c = params.count
+			, fstack = null
 			;
 		params.bg1.x = 0;
 		params.bg2.x = 0;
 		params.bg1.y = 0;
 		params.bg2.y = 0;
+		
+		
+		if(scrollByName('bg3').isDrawingInfoStack()){return;}//
+		
 		if(params.dir == 'up'){
 			params.bg1.y = -c * (DISPLAY_HEIGHT / d);
 			params.bg2.y = -c * (DISPLAY_HEIGHT / d) + DISPLAY_HEIGHT;
@@ -4447,6 +4458,7 @@ LitroKeyboard.prototype = {
 		}
 		if(params.dir != null && params.count++ >= d){
 			if(params.dir == 'left'){
+				scrollByName('bg1').clear();
 				this.changeEditMode(params.changeMode);
 				params.changeMode = null;
 				this.openFrame();
@@ -4790,15 +4802,22 @@ LitroKeyboard.prototype = {
 			, spr = scrollByName('sprite')
 			, bg1 = scrollByName('bg1')
 			, bg2 = scrollByName('bg2')
+			, bg3 = scrollByName('bg3')
 			, view = scrollByName('view')
 			, scr = scrollByName('screen')
+			, self = this
 		;
+		
+		if(params.count > 0 && params.dir == 'left'){
+			return;
+		}
 		params.count = 0;
-		bg2.drawto(view);
-		this.openFrame();
-		this.drawMenu(params.changeMode);
-		bg1.drawto(bg2);
+		bg3.visible();
 		view.drawto(bg1);
+		bg3.drawto(bg2);
+		this.drawScoreBoard(true);
+		this.drawScoreBoard(false);
+		
 
 		// this.manualPage = 0;
 		params.dir = 'left';
@@ -4809,7 +4828,13 @@ LitroKeyboard.prototype = {
 		var self = this, pre, prePage = this.manualPage
 			, img, i
 			, params = this.manualScrollParams
-		;
+			, sbnf = scrollByName
+			, view = sbnf('view')
+			, bg1 = sbnf('bg1')
+			, bg2 = sbnf('bg2')
+			, bg3 = sbnf('bg3')
+			, sprite
+			;
 		page = page == null ? this.manualPage : page;
 		if(page === ''){page = this.manualImage.length - 1;}
 		if(typeof page == 'string'){
@@ -4825,16 +4850,19 @@ LitroKeyboard.prototype = {
 		img = this.manualImage[page];
 		if(self.editMode != 'manual'){
 			setImageLoadRefreshTime(Date.now());
+			//復帰画面を複写
+			view.drawto(bg3); bg3.hide();
 		}
 
 		// this.keyControll.allReset();
 		this.manualPage = page;
 		this.loadManualImage(img.name, function(){
+
 			params.count = 0;
-			scrollByName('view').drawto(scrollByName('bg1'));
-			scrollByName('bg2').clear(COLOR_BLACK);
-			var sprite = makeSprite(img.name, 0);
-			scrollByName('bg2').drawSprite(sprite, ((DISPLAY_WIDTH - sprite.w) * 0.5) | 0, ((DISPLAY_HEIGHT - sprite.h) * 0.5) | 0);
+			view.drawto(bg1);
+			bg2.clear(COLOR_BLACK);
+			sprite = makeSprite(img.name, 0);
+			bg2.drawSprite(sprite, ((DISPLAY_WIDTH - sprite.w) * 0.5) | 0, ((DISPLAY_HEIGHT - sprite.h) * 0.5) | 0);
 			if(page == prePage || self.editMode != 'manual'){
 				params.dir = 'right';
 			}else if(page < prePage){
@@ -4890,6 +4918,7 @@ function drawLitroScreen()
 	, bg3 = scrollByName('bg3')
 	, view = scrollByName('view')
 	, scr = scrollByName('screen')
+	, pbg2, pbg1
 	;
 	// printDebug(ltkb.litroSound.channel[0].isRefreshClock(), 1);
 	if(ltkb.hiddenScreen){
@@ -4900,8 +4929,8 @@ function drawLitroScreen()
 	}
 	// ltkb.drawNoteTest();
 	ltkb.repeatDrawMenu();
+	// if(!){console.log('stack');}
 	drawCanvasStacks();
-	
 	if(ltkb.editMode != 'manual'){
 		h = DISPLAY_HEIGHT / 2;
 		w = null;
@@ -4915,11 +4944,12 @@ function drawLitroScreen()
 		bg2.rasterto(view, 0, h, w, h, x, y);
 		bg1.drawto(view);
 	}else{
-		x = ltkb.manualScrollParams.bg2.x;
-		y = ltkb.manualScrollParams.bg2.y;
-		bg3.rasterto(view, 0, 0, null, null, x, y);
-		bg2.rasterto(view, 0, 0, null, null, x, y);
-		bg1.rasterto(view, 0, 0, null, null, ltkb.manualScrollParams.bg1.x, ltkb.manualScrollParams.bg1.y);
+		pbg2 = ltkb.manualScrollParams.bg2;
+		pbg1 = ltkb.manualScrollParams.bg1;
+		
+		bg3.rasterto(view, 0, 0, null, null, pbg1.x | 0, pbg1.y | 0);
+		bg2.rasterto(view, 0, 0, null, null, pbg2.x | 0, pbg2.y | 0);
+		bg1.rasterto(view, 0, 0, null, null, pbg1.x | 0, pbg1.y | 0);
 	}
 	
 	if(ltkb.debugCell && ltkb.word != null){

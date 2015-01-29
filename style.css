@@ -16,9 +16,12 @@ h1{
 	overflow:hidden;
 }
 
-canvas{
+
+canvas, img{
 	/*-webkit-backface-visibility: hidden;*/
+	transform: translate(0, 0);
 	-webkit-transform: translate(0, 0);
+	-moz--transform: translate(0, 0);
 	z-index:1;
 }
 .center{
