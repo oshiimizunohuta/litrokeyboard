@@ -2,7 +2,7 @@
  * Litro Keyboard Interface
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.08.01
+ * ver 0.08.02
  */
 
 var PaformTime = 0; //時間計測
@@ -622,6 +622,14 @@ LitroKeyboard.prototype = {
 		this.litroSound.setOnNoteKeyEvent(function(ch, key){
 			if(ch == self.paramCursor.x){
 				self.status_on[0] = self.key2Char(key);
+			}
+			return;
+		});
+		this.litroSound.setOffNoteKeyEvent(function(ch, chr){
+			var fnum = self.searchState(self.key2Char(chr));
+			if(fnum >= 0){
+			// console.log(fnum, self.status_on, chr, self.key2Char(chr));
+				self.status_on[fnum] = null;
 			}
 			return;
 		});
@@ -3383,6 +3391,7 @@ LitroKeyboard.prototype = {
 		var sprite = this.editMode == 'note' || this.editMode == 'eventset' || this.editMode == 'catch' || this.player.isPlay()
 			 ? makeSprite(this.uiImageName, this.seekSprite) : makeSprite(this.uiImageName, this.seekWaitSprite)
 			, arrow = makeSprite(this.uiImageName, this.arrowSprite)
+			, arrow_l = makeSprite(this.uiImageName, this.arrowSprite)
 			, scr = scrollByName('sprite')
 			, mc = this.seekCmargin
 			, i, mode, ch = this.editChannel()
@@ -3401,9 +3410,8 @@ LitroKeyboard.prototype = {
 		scr.drawSprite(sprite, cellhto(mc.x) + x, mc.y);
 		if(this.getMode() in arrowDisps){
 			scr.drawSprite(arrow, cellhto(mc.x + 2) + x + px, mc.y);
-			arrow.hflip(true);
-			scr.drawSprite(arrow, cellhto(mc.x - 2) + x - px, mc.y);
-			arrow.hflip(false);
+			arrow_l.hflip(true);
+			scr.drawSprite(arrow_l, cellhto(mc.x - 2) + x - px, mc.y);
 		}
 		
 		from = {x: cellhto(mc.x + 2) + x - 1, y: mc.y + this.seekLineCount + cellhto(2)};
@@ -4624,7 +4632,6 @@ LitroKeyboard.prototype = {
 			, chOscHeight = cellhto(this.chOscCHeight)
 			, chOscHeight_h = ((chOscHeight / 2) | 0) - 1
 			, sepWidth = chOscWidth / this.analyseRate
-			, data0
 			, size = (PROCESS_BUFFER_SIZE / this.analyseRate) | 0
 			, cm = this.ocsWaveCmargin
 			, px, py, i, dindex, ofsx = 0, ofsy = 128, pre_y
@@ -4632,17 +4639,30 @@ LitroKeyboard.prototype = {
 			, spr = scrollByName('bg1')
 			, sprite = this.waveSprite
 			, cnt = 0
+			, debug = this.debugCell
 			;
 			
 		pre_y = null;
 		this.analyseCount = (this.analyseCount + 1) % this.analyseRate;
+
+		if(debug){
+			cm.x = 0;
+			cm.y = 4 + (((((this.catchNoteBlinkCycle) / 5) | 0) % 3) * this.chOscCHeight);
+			spr.clear(COLOR_BLACK, makeRect(cellhto(cm.x), cellhto(cm.y), DISPLAY_WIDTH, cellhto(this.chOscCHeight)));
+			this.analyseRate = 1;
+			size = PROCESS_BUFFER_SIZE;
+			chOscWidth = DISPLAY_WIDTH;
+			sepWidth = chOscWidth;
+		}else{
+			this.drawOscillo((this.analyseCount + 1) % this.analyseRate);
+		}
+		
 		if(this.analyseCount == 0){
 			data = this.litroSound.getAnalyseData(size);
 			this.analysedData = data;
 		}
 		data = this.analysedData;
-
-		this.drawOscillo((this.analyseCount + 1) % this.analyseRate);
+		
 		for(i = this.analyseCount * sepWidth; i < chOscWidth; i++){
 			if(cnt++ >= sepWidth){break;}
 			dindex = (i * (size / (chOscWidth ) ) | 0);
@@ -4997,6 +5017,7 @@ function drawLitroScreen()
 	, view = scrollByName('view')
 	, scr = scrollByName('screen')
 	, pbg2, pbg1
+	, spmax = ltkb.debugCell == null ? null : 3200
 	;
 	// printDebug(ltkb.litroSound.channel[0].isRefreshClock(), 1);
 	if(ltkb.hiddenScreen){
@@ -5007,7 +5028,17 @@ function drawLitroScreen()
 	}
 	// ltkb.drawNoteTest();
 	ltkb.repeatDrawMenu();
-	if(drawCanvasStacks()){
+	
+	if(ltkb.debugCell && ltkb.word != null){
+		ltkb.word.setFontSize('8px');
+		ltkb.word.setScroll(spr);
+		cx = ltkb.debugCellPos.x, cy = ltkb.debugCellPos.y;
+		x = cellhto(cx), y = cellhto(cy);
+		ltkb.word.print((cx < 10 ? 'x:0' : 'x:') + cx + '', x - cellhto(3), y - cellhto(2));
+		ltkb.word.print((cy < 10 ? 'y:0' : 'y:') + cy + '', x - cellhto(3), y - cellhto(1));
+		spr.drawSprite(ltkb.cellCursorSprite, x, y);
+	}
+	if(drawCanvasStacks(spmax)){
 		//スプライト表示が完了したら
 		ltkb.doneDrawStackCallback();
 	}
@@ -5033,17 +5064,7 @@ function drawLitroScreen()
 		bg2.rasterto(view, 0, 0, null, null, pbg2.x | 0, pbg2.y | 0);
 		bg1.rasterto(view, 0, 0, null, null, pbg1.x | 0, pbg1.y | 0);
 	}
-	
-	if(ltkb.debugCell && ltkb.word != null){
-		ltkb.word.setFontSize('8px');
-		ltkb.word.setScroll(spr);
-		cx = ltkb.debugCellPos.x, cy = ltkb.debugCellPos.y;
-		x = cellhto(cx), y = cellhto(cy);
-		ltkb.word.print((cx < 10 ? 'x:0' : 'x:') + cx + '', x - cellhto(3), y - cellhto(2));
-		ltkb.word.print((cy < 10 ? 'y:0' : 'y:') + cy + '', x - cellhto(3), y - cellhto(1));
-		
-		spr.drawSprite(ltkb.cellCursorSprite, x, y);
-	}
+
 	// printDebug(Math.round(litroSoundInstance.context.currentTime), 0);
 	// printDebug(testval);
 	spr.drawto(view);
