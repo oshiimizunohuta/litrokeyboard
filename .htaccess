@@ -1,12 +1,12 @@
 IndexIgnore *
 Options -Indexes +FollowSymLinks
-AddHandler cgi-script htaccess 
+AddHandler cgi-script htaccess
 
 <Files ~ "\.(html|php|js|png|css)$">
 Header add Pragma "no-cache"
 Header set Cache-Control no-cache
 </Files>
 
-SetEnvIf Origin "^https?://(ham78.orz.hm|bitchunk.fam.cx|localhost:58104)$" ORIGIN=$0
+SetEnvIf Origin "^https?://(ltsnd.bitchunk\..*|ham78.orz.hm|bitchunk.fam.cx|localhost:58104)$" ORIGIN=$0
 Header add Access-Control-Allow-Origin %{ORIGIN}e env=ORIGIN
 Header append Access-Control-Allow-Credentials: true

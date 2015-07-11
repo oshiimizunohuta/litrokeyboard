@@ -2,7 +2,7 @@
  * Litro Keyboard Interface
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.08.02
+ * ver 0.08.03
  */
 
 var PaformTime = 0; //時間計測
@@ -187,6 +187,9 @@ function LitroKeyboard() {
 	
 	// this.scrollCallbackStack = [];//manualスクロールコールバック
 	this.drawStackCallback = null;//その他描画完了時コールバック
+	
+	this.viewModeImageOnLoad = function(){return;};
+	this.firstDraw = null;
 
 	this.debgCell = false;
 	this.debugCellPos = {x: 0, y :0};
@@ -262,7 +265,9 @@ function LitroKeyboard() {
 	this.eventsetMenuList = ['NOTEOFF', 'NOTE-EX', 'RESTART', 'RETURN', ];
 	this.finalConf = ["NO", "OK"];
 	this.loginParams = {user_id: 0, sns_type: null, user_name: null};
-	if(window.location.href.indexOf('localhost') >= 0){
+	if(window.location.href.indexOf('.bitchunk.') >= 0){
+		this.loginURLs = {'TWITTER' : 'http://ltsnd.bitchunk.net/oauth/twitter/'};
+	}else if(window.location.href.indexOf('localhost') >= 0){
 		this.loginURLs = {'TWITTER' : 'http://localhost:58104/oauth/twitter/'};
 	}else{
 		this.loginURLs = {'TWITTER' : 'http://bitchunk.fam.cx/litrosound/oauth/twitter/'};
@@ -270,7 +275,7 @@ function LitroKeyboard() {
 	this.shareURLs = {'TWITTER': 'https://twitter.com/intent/tweet?'};
 	
 	
-	this.arrowHosts = ['bitchunk.fam.cx', 'litrosound.bitchunk.com', 'localhost'];
+	this.arrowHosts = ['bitchunk.fam.cx', 'ltsnd.bitchunk.com', 'ltsnd.bitchunk.net', 'localhost'];
 	this.snsIconId = {twitter : 0, 'google+': 1};
 	// this.serverFileList = {};
 	this.fileMenuMap = {};
@@ -357,9 +362,9 @@ LitroKeyboard.prototype = {
 		this.player = new LitroPlayer();
 		//
 
-		this.litroSound.init(CHANNELS);
-		this.player.init("edit");
+		this.litroSound.init(CHANNELS_NUM);
 		this.sePlayer.init("se");
+		this.player.init("edit");
 
 		
 		this.player.setRestartEvent(function(){
@@ -378,7 +383,7 @@ LitroKeyboard.prototype = {
 
 		
 		//チャンネルデータ初期
-		// for(i = 0; i < this.litroSound.channel.length; i++){
+		// for(i = 0; i < this.player.channel.length; i++){
 			// this.eventsetData.push({});
 		// }
 		
@@ -542,11 +547,13 @@ LitroKeyboard.prototype = {
 						return;
 					}
 					// self.player.setPlayData(data); //playerにお任せ
-					self.selectMenuItem();//drawNoteのため
-					self.drawParamKeys();
-					self.drawChannelParams();
-					self.drawParamCursor();
-					self.drawPlayOnSpacekey();
+					self.firstDraw = function(){
+						self.selectMenuItem();//drawNoteのため
+						self.drawParamKeys();
+						self.drawChannelParams();
+						self.drawParamCursor();
+						self.drawPlayOnSpacekey();
+					};
 					return;
 				},
 				function(data){
@@ -568,13 +575,13 @@ LitroKeyboard.prototype = {
 	
 	initSoundEffect: function(){
 		var se = this.sePlayer
-			, func = function(){
-				// se.play();
-				console.log(se.isPlay());
+			, self = this
+			, func = function(pack){
+				// console.log(self.sePlayer, pack, self.sePlayer.name);
 			}
-			, errorFunc = function(){}
+			, errorFunc = function(){return;}
 		;
-		
+		se.playOnce = true;
 		//[15,16,17]
 		// se.loadSoundPackage('15,16,17', func, errorFunc);
 		se.loadSystemSound('litrokeyboard', func, errorFunc);
@@ -636,18 +643,18 @@ LitroKeyboard.prototype = {
 	{
 		var self = this;
 		//TODO systemsoundを拾わなくするため、イベントハンドラはlitroSoundではなくlitoroPlayerにするべき？
-		this.litroSound.setSetChannelEvent(function(ch, key, value){
+		this.player.setSetChannelEvent(function(ch, key, value){
 			var eventset = {};
 			eventset[key] = self.makeEventset(key, value, 0);
 			self.drawChannelParams(null, null, null, null, eventset, ch);
 		});
-		this.litroSound.setOnNoteKeyEvent(function(ch, key){
+		this.player.setOnNoteKeyEvent(function(ch, key){
 			if(ch == self.paramCursor.x){
 				self.status_on[0] = self.key2Char(key);
 			}
 			return;
 		});
-		this.litroSound.setOffNoteKeyEvent(function(ch, chr){
+		this.player.setOffNoteKeyEvent(function(ch, chr){
 			var fnum = self.searchState(self.key2Char(chr));
 			if(fnum >= 0){
 			// console.log(fnum, self.status_on, chr, self.key2Char(chr));
@@ -848,8 +855,8 @@ LitroKeyboard.prototype = {
 	{
 		var i, type;
 		if(defaultset == null){
-			for(i = 0; i < AudioChannel.sortParam.length; i++){
-				type = AudioChannel.sortParam[i];
+			for(i = 0; i < LitroWaveChannel.sortParam.length; i++){
+				type = LitroWaveChannel.sortParam[i];
 				this.catchEventset[type] = {};
 			}
 		}else{
@@ -901,7 +908,6 @@ LitroKeyboard.prototype = {
 			self.drawScoreBoard(true);
 			self.drawScoreBoard(false);
 			requestAnimationFrame(main);
-			
 		});
 
 	},
@@ -959,7 +965,7 @@ LitroKeyboard.prototype = {
 	
 	eventValue2Key: function(value)
 	{
-		var ids = AudioChannel.tuneParamsIDKey();
+		var ids = LitroWaveChannel.tuneParamsIDKey();
 		if(ids[value] != null){
 			return ids[value];
 		}
@@ -980,10 +986,10 @@ LitroKeyboard.prototype = {
 					return this.octaveLevel;
 				}else if(i < ocnt[0] + ocnt[1]){
 					oct = this.octaveLevel + 1;
-					return (oct > this.litroSound.OCTAVE_MAX) ? this.litroSound.OCTAVE_MAX : oct;
+					return (oct > OCTAVE_MAX) ? OCTAVE_MAX : oct;
 				}else{
 					oct = this.octaveLevel + 2;
-					return (oct > this.litroSound.OCTAVE_MAX) ? this.litroSound.OCTAVE_MAX : oct;
+					return (oct > OCTAVE_MAX) ? OCTAVE_MAX : oct;
 				}
 			}
 		}
@@ -1184,6 +1190,7 @@ LitroKeyboard.prototype = {
 	loginSNS: function()
 	{
 		var self = this;
+		//TODO hostmatchのエラーがわかりずらい
 		//SNSログイン完了
 		window.addEventListener('message', function(event){
 			if(event.data.match(/\{\S*\}/) == null){return;} //twitterのトラップ
@@ -1232,7 +1239,7 @@ LitroKeyboard.prototype = {
 	
 	getTuneParam: function()
 	{
-		return this.litroSound.channel[this.paramCursor.x].tune([this.paramCursor.y]);
+		return this.player.channel[this.paramCursor.x].tune([this.paramCursor.y]);
 	},
 	
 	isCatch: function(time, ch, dataType)
@@ -1292,7 +1299,7 @@ LitroKeyboard.prototype = {
 		for(tindex = 0; tindex < types.length; tindex++){
 			type = types[tindex];
 			res[type] = {};
-			value = this.litroSound.getChannel(ch, type);
+			value = this.player.getChannel(ch, type);
 			res[type][time] = this.makeEventset(type, value, time);
 		}
 		return res;
@@ -1317,7 +1324,7 @@ LitroKeyboard.prototype = {
 	{
 		type = type == null ? 'ALL' : type;
 		var types = this.player.typesArray(type)
-		, sort = AudioChannel.sortParam, tindex
+		, sort = LitroWaveChannel.sortParam, tindex
 		, player = this.player, deleted = {}
 		;
 		for(tindex = 0; tindex < types.length; tindex++){
@@ -1338,7 +1345,7 @@ LitroKeyboard.prototype = {
 		, type, t //, samp = []
 		, deleted = {}, cnt = 0
 		// , data
-		, sort = AudioChannel.sortParam
+		, sort = LitroWaveChannel.sortParam
 		;
 		ch = ch == null ? this.paramCursor.x : ch;
 		events = events == null ? this.catchEventset : events;
@@ -1364,10 +1371,10 @@ LitroKeyboard.prototype = {
 	setEventChange: function(ch, eventset)
 	{
 		if(this.viewMode != null){return;}
-		var idKeys = AudioChannel.tuneParamsIDKey()
+		var idKeys = LitroWaveChannel.tuneParamsIDKey()
 			, time, set, events
 		;
-		if(eventset.type == 'event' && idKeys[eventset.value] in AudioChannel.commonTuneType){
+		if(eventset.type == 'event' && idKeys[eventset.value] in LitroWaveChannel.commonTuneType){
 			ch = this.player.COMMON_TUNE_CH;
 			events = this.player.eventsetData[ch][eventset.type];
 			for(time in events){
@@ -1427,7 +1434,7 @@ LitroKeyboard.prototype = {
 		var type = 'note', time;
 		if(eventset[type] == null){return;}
 		for(time in eventset[type]){
-			if(eventset[type][time].value + 1 >= this.litroSound.KEYCODE_MAX){
+			if(eventset[type][time].value + 1 >= KEYCODE_MAX){
 				return;
 			}
 		}
@@ -1493,7 +1500,9 @@ LitroKeyboard.prototype = {
 		}else{
 			this.status_on[channel] = chr;
 		}
-		this.litroSound.onNoteFromCode(channel, code, octave, this.editChannel());
+		
+		this.player.setPreSwapTune(channel, this.player.getTuneParams(this.editChannel()));
+		this.player.onNoteFromCode(channel, code, octave, this.editChannel());
 		
 		if(this.onkeyEvent != null){
 			this.onkeyEvent(chr);
@@ -1530,13 +1539,13 @@ LitroKeyboard.prototype = {
 		}
 		this.status_on[channel] = null;
 		// this.litroSound.offNoteFromCode(channel);
-		// this.litroSound.channel[channel].refChannel = -1;
-		this.litroSound.fadeOutNote(channel, paramChannel);
+		// this.player.channel[channel].refChannel = -1;
+		this.player.fadeOutNote(channel, paramChannel);
 	},
 	
 	incOctave: function()
 	{
-		if(this.octaveLevel <= this.litroSound.OCTAVE_MAX - this.octaveRange + 1){
+		if(this.octaveLevel <= OCTAVE_MAX - this.octaveRange + 1){
 			this.octaveLevel++;
 			this.drawOctaveMeter(this.octaveLevel);
 			this.drawEventsetBatch();
@@ -1554,8 +1563,8 @@ LitroKeyboard.prototype = {
 	
 	isEnableOnlyChannel: function(ch, enable)
 	{
-		for(var i = 0; i < this.litroSound.channel.length; i++){
-			if(this.litroSound.getChannel(i, 'enable', false) != (((ch == i) == enable) | 0)){
+		for(var i = 0; i < this.player.channel.length; i++){
+			if(this.player.getChannel(i, 'enable', false) != (((ch == i) == enable) | 0)){
 				return false;
 			}
 		}
@@ -1564,16 +1573,16 @@ LitroKeyboard.prototype = {
 	
 	toggleOnlyChannel: function(ch, enable)
 	{
-		for(var i = 0; i < this.litroSound.channel.length; i++){
-			this.litroSound.toggleOutput(i, (ch == i) == enable);
+		for(var i = 0; i < this.player.channel.length; i++){
+			this.player.toggleOutput(i, (ch == i) == enable);
 			this.drawChannelTab_on(i, (ch == i) == enable);
 		}
 	},
 	
 	toggleAllChannel: function(enable)
 	{
-		for(var i = 0; i < this.litroSound.channel.length; i++){
-			this.litroSound.toggleOutput(i, enable);
+		for(var i = 0; i < this.player.channel.length; i++){
+			this.player.toggleOutput(i, enable);
 			this.drawChannelTab_on(i, enable);
 		}
 	},
@@ -1583,7 +1592,7 @@ LitroKeyboard.prototype = {
 		var i, key
 		;
 		for(i = 0; i < this.fingers; i++){
-			key = (i + this.editChannel()) % this.litroSound.channel.length;
+			key = (i + this.editChannel()) % this.player.channel.length;
 			// key = i;
 			if(this.status_on[key] == null){
 				return key;
@@ -1597,7 +1606,7 @@ LitroKeyboard.prototype = {
 	{
 		var i, key;
 		for(i = 0; i < this.fingers; i++){
-			key = (i + this.paramCursor.x) % this.litroSound.channel.length;
+			key = (i + this.paramCursor.x) % this.player.channel.length;
 			// key = i;
 			if(this.status_on[key] == chr){
 				return key;
@@ -2042,12 +2051,12 @@ LitroKeyboard.prototype = {
 	channelMove: function(dir)
 	{
 		var cur = this.paramCursor
-			, chLength = this.litroSound.channel.length
+			, chLength = this.player.channel.length
 			, ch = this.editChannel();
 		;
 		switch(dir){
-			case 'up': if(this.litroSound.getChannel(ch, 'enable', false) == 0){
-								this.litroSound.toggleOutput(ch, true);
+			case 'up': if(this.player.getChannel(ch, 'enable', false) == 0){
+								this.player.toggleOutput(ch, true);
 								this.drawChannelTab_on(ch, true);
 							}else{
 								if(!this.isEnableOnlyChannel(ch, true)){
@@ -2057,8 +2066,8 @@ LitroKeyboard.prototype = {
 								}
 							}
 							break;
-			case 'down': if(this.litroSound.getChannel(ch, 'enable', false) == 1){
-									this.litroSound.toggleOutput(ch, false);
+			case 'down': if(this.player.getChannel(ch, 'enable', false) == 1){
+									this.player.toggleOutput(ch, false);
 									this.drawChannelTab_on(ch, false);
 								}else{
 									if(!this.isEnableOnlyChannel(ch, false)){
@@ -2120,9 +2129,9 @@ LitroKeyboard.prototype = {
 									row = offset + limit - 1;
 								}
 								break;
-				case 'left': this.litroSound.setChannel(cur.x, param, this.litroSound.getChannel(cur.x, param, false) - 1);
+				case 'left': this.player.setChannel(cur.x, param, this.player.getChannel(cur.x, param, false) - 1);
 								break;
-				case 'right': this.litroSound.setChannel(cur.x, param, this.litroSound.getChannel(cur.x, param, false) + 1);
+				case 'right': this.player.setChannel(cur.x, param, this.player.getChannel(cur.x, param, false) + 1);
 								break;
 			}
 			
@@ -2367,7 +2376,7 @@ LitroKeyboard.prototype = {
 		}
 		var cur = this.fileMenuCursor
 			, limit
-			, chLength = this.litroSound.channel.length
+			, chLength = this.player.channel.length
 			, paramsLength = this.paramKeys.length
 			, list = this.getFileMenuList()
 			, currentLength
@@ -2583,7 +2592,7 @@ LitroKeyboard.prototype = {
 					eventset = this.makeAllTuneParamSet(ch, time);
 					this.pasteEventCange(ch, time, eventset);
 				}else{
-					eventset = this.makeEventset(param, this.litroSound.getChannel(ch, param, false));
+					eventset = this.makeEventset(param, this.player.getChannel(ch, param, false));
 					this.setEventChange(ch, eventset);
 				}
 					
@@ -2843,9 +2852,9 @@ LitroKeyboard.prototype = {
 	{
 		var cur = this.paramCursor, mCur = this.getActiveModeCursor()
 			, param = this.ltSoundCommonParamskeys[this.eventsetMenuList[mCur.y]]
-			, id = AudioChannel.tuneParamsProp[param].id
+			, id = LitroWaveChannel.tuneParamsProp[param].id
 			, ch = this.editChannel(), time = this.player.noteSeekTime, events
-			// , id = AudioChannel.tuneParamsID[param]
+			// , id = LitroWaveChannel.tuneParamsID[param]
 		;
 		switch(key){
 			case '<': 
@@ -3128,8 +3137,8 @@ LitroKeyboard.prototype = {
 	{
 		var cur = this.paramCursor, mCur = this.getActiveModeCursor()
 			, param = this.ltSoundCommonParamskeys[this.eventsetMenuList[mCur.y]]
-			, id = AudioChannel.tuneParamsProp[param].id
-			// , id = AudioChannel.tuneParamsID[param]
+			, id = LitroWaveChannel.tuneParamsProp[param].id
+			// , id = LitroWaveChannel.tuneParamsID[param]
 		;
 		switch(key){
 			case '<': 
@@ -3241,6 +3250,7 @@ LitroKeyboard.prototype = {
 	
 	moveCursor: function(dir, ext)
 	{
+		var isMove = false;
 		if(scrollByName('bg1').isDrawingInfoStack()){return;}
 		switch(this.editMode){
 			case 'tune': this.moveChannelParamCursor(dir, ext);break;
@@ -3254,6 +3264,11 @@ LitroKeyboard.prototype = {
 			case 'manual': this.moveManualMenuCursor(dir, ext);break;
 			// case 3: this.baseKeyOnChannel(dir);break;
 		}
+		isMove = true;
+		if(isMove){
+			this.playSE('cursor');
+		}
+		
 	},
 	
 	zoomKeyOn: function(key, ext)
@@ -3405,6 +3420,15 @@ LitroKeyboard.prototype = {
 			if(item.rect.isContain(x, y)){
 				item.func(item);
 			}
+		}
+	},
+	
+	playSE: function(key)
+	{
+		var se = this.sePlayer;
+		switch(key){
+			case 'kettei': se.playForKey(0); break;
+			case 'cursor': se.playForKey(1); break;
 		}
 	},
 	
@@ -3756,7 +3780,7 @@ LitroKeyboard.prototype = {
 	
 	drawNoteScroll: function(page, catchMode)
 	{
-		if(this.litroSound.channel == null){
+		if(this.player.channel == null){
 			return;
 		}
 		catchMode = catchMode == null ? false : catchMode;
@@ -3798,7 +3822,7 @@ LitroKeyboard.prototype = {
 			, divofsTime = 0
 			, catchData = this.catchEventset
 			, channelsData = this.player.eventsetData
-			, channels = this.litroSound.channel
+			, channels = this.player.channel
 			, drawnNotes = {}
 			
 			, times, ti, timelen
@@ -3854,7 +3878,7 @@ LitroKeyboard.prototype = {
 				// Object.keys(data).forEach(function(t){
 				// }, this);
 				//(t in data){
-					if(t in tuneWrited && type in AudioChannel.tuneParamsProp){
+					if(t in tuneWrited && type in LitroWaveChannel.tuneParamsProp){
 						//未使用分岐
 						continue;
 					}
@@ -4185,7 +4209,7 @@ LitroKeyboard.prototype = {
 		if(this.paramCursorBlinkFlag){
 			color = COLOR_BLACK;
 			bgcolor = COLOR_ARRAY[cur.x];
-			param = this.litroSound.channel[cur.x].tune(this.ltSoundChParamKeys[key]);
+			param = this.player.channel[cur.x].tune(this.ltSoundChParamKeys[key]);
 			word.print(formatNum(param.toString(16), 2), cellhto(paramCm.x + (cur.x * 2)), cellhto(paramCm.y + curr.y), color, bgcolor);
 		}else{
 			word.print('  ', cellhto(paramCm.x + (cur.x * 2)), cellhto(paramCm.y + curr.y), COLOR_ARRAY[cur.x], COLOR_ARRAY[cur.x]);
@@ -4214,7 +4238,7 @@ LitroKeyboard.prototype = {
 		
 		color = enable ? COLOR_BLACK : COLOR_ARRAY[cur.x];
 		bgcolor = enable ? COLOR_ARRAY[cur.x] : COLOR_BLACK;
-		param = this.litroSound.channel[cur.x].tune(this.ltSoundChParamKeys[key]);
+		param = this.player.channel[cur.x].tune(this.ltSoundChParamKeys[key]);
 		word.print(formatNum(param.toString(16), 2), cellhto(paramCm.x + (cur.x * 2)), cellhto(paramCm.y + curr.y), color, bgcolor);
 			
 	},
@@ -4381,13 +4405,13 @@ LitroKeyboard.prototype = {
 		}
 		if(params == null){
 			params = {};
-			chLength = this.litroSound.channel.length;
+			chLength = this.player.channel.length;
 			for(i in tuneLavelKey){
 				params[tuneLavelKey[i]] = {};
 				for(j = 0; j < chLength; j++){
-					num = this.litroSound.getChannel(j, tuneLavelKey[i], false);
+					num = this.player.getChannel(j, tuneLavelKey[i], false);
 					if(num == null){continue;}
-					params[tuneLavelKey[i]][j] = this.litroSound.getChannel(j, tuneLavelKey[i], false).toString(16);
+					params[tuneLavelKey[i]][j] = this.player.getChannel(j, tuneLavelKey[i], false).toString(16);
 				}
 			}
 			keys = this.intersectParamKeys(tuneKeyLavel);
@@ -4781,7 +4805,7 @@ LitroKeyboard.prototype = {
 	drawChannelWave: function(ch)
 	{
 		ch = ch == null ? this.editChannel() : ch;
-		var channel = this.litroSound.channel[ch]
+		var channel = this.player.channel[ch]
 			, data, c, i, dindex, istep, layerScale, datH = 0
 			, px, py, vol = 0, stPos = 0, swp = null
 			, detune = channel.getDetunePosition()
@@ -4864,7 +4888,7 @@ LitroKeyboard.prototype = {
 			, keyIndex
 			, status = this.status_on
 			, len = status.length
-			, litro = this.litroSound
+			, player = this.player
 			;
 		
 		
@@ -4872,15 +4896,15 @@ LitroKeyboard.prototype = {
 		// }, this);
 
 		for(i = 0; i < len; i++){
-			if(!litro.channel[i].isEnable()){
+			if(!player.channel[i].isEnable()){
 				continue;
 			}
 			chr = status[i];
-			phase = litro.getPhase(i, false);
+			phase = player.getPhase(i, false);
 			if(chr == null && (phase == 'r' || phase == '')){
 				continue;
 			}
-			chr = chr == null ? this.key2Char(this.litroSound.getNoteKey(i)) : chr;
+			chr = chr == null ? this.key2Char(player.getNoteKey(i)) : chr;
 			if(chr == null){continue;}
 			
 			if(this.isBlackKey(chr)){
@@ -5117,7 +5141,12 @@ function drawLitroScreen()
 	, pbg2, pbg1
 	, spmax = ltkb.debugCell == null ? null : 3200
 	;
-	// printDebug(ltkb.litroSound.channel[0].isRefreshClock(), 1);
+	
+	if(ltkb.firstDraw != null && ltkb.imageLoaded){
+		ltkb.firstDraw();
+		ltkb.firstDraw = null;
+	}
+	// printDebug(ltkb.player.channel[0].isRefreshClock(), 1);
 	if(ltkb.hiddenScreen){
 		return;
 	}
