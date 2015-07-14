@@ -2,7 +2,7 @@
  * Litro Keyboard Interface
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.08.03
+ * ver 0.08.04
  */
 
 var PaformTime = 0; //時間計測
@@ -1502,7 +1502,9 @@ LitroKeyboard.prototype = {
 			, editch = this.editChannel()
 		;
 		// console.log(chr);
-		this.referChannel = this.player.channel[editch];
+		if(this.referChannel == null){
+			this.referChannel = this.player.channel[editch];
+		}
 
 		octave = this.getOctaveFromKeyChar(chr);
 		code = this.CODE_NAME_INDEX[this.CHARS_CODE_NAME[chr]];
@@ -1550,7 +1552,8 @@ LitroKeyboard.prototype = {
 		}
 		this.status_on[channel] = null;
 		
-		if(this.searchState(chr) < 0){
+		if(this.searchOnState() < 0){
+			console.log(1);
 			this.referChannel = null;
 		}
 
@@ -1614,7 +1617,6 @@ LitroKeyboard.prototype = {
 				return key;
 			}
 		}
-
 		return -1;
 	},
 	
@@ -1628,10 +1630,21 @@ LitroKeyboard.prototype = {
 				return key;
 			}
 		}
-
 		return -1;
 	},
 	
+	searchOnState: function()
+	{
+		var i, key
+		;
+		for(i = 0; i < this.fingers; i++){
+			if(this.status_on[i] != null){
+				return i;
+			}
+		}
+		return -1;
+	},
+		
 	getMode: function()
 	{
 		return this.editMode;
@@ -3426,6 +3439,20 @@ LitroKeyboard.prototype = {
 			this.drawOnBaseKey('ext', ext_s);
 		}
 		// console.timeEnd('chars');
+	},
+	
+	//全てのエンベロープが終了した時の処理
+	envelopeCheck: function()
+	{
+		// var channels = this.player.channel, ch
+		// ;
+		// for(ch = 0; ch < channels.length; ch++){
+			// if(channels[ch].envelopeEnd == false){
+				// return false;
+			// }
+		// }
+		// this.referChannel = null;
+		// return true;
 	},
 	
 	clickEvent: function(x, y)
@@ -5228,6 +5255,7 @@ function litroKeyboardMain()
 	;
 	// ltkb.test();
 	ltkb.keycheck();
+	ltkb.envelopeCheck();
 	// console.time("key");
 	// console.timeEnd("key");
 	ltkb.playLitro();
