@@ -172,6 +172,8 @@ function LitroKeyboard() {
 	this.modeNames = ['tune', 'note', 'play', 'catch', 'file', 'error'];
 	// this.modeNames = ['tune', 'note'];
 	
+	this.referChannel = null;
+	
 	this.frameChunks = []; //背景フレーム用ChunkRepeat
 	this.frameSprites = {}; //背景フレーム用spriteChunk
 	this.frameChunksKeys = {}; //framechunksのkeyインデックス重複はArray
@@ -661,6 +663,14 @@ LitroKeyboard.prototype = {
 				self.status_on[fnum] = null;
 			}
 			return;
+		});
+		
+		this.player.setReferChannelFunc(function(){
+			
+		// if(self.referChannel != null){
+			// console.log(self.referChannel.id);
+		// }
+			return self.referChannel;
 		});
 	},
 	
@@ -1489,8 +1499,11 @@ LitroKeyboard.prototype = {
 		var channel, chars, row, octave, code, i
 			, pos = this.getNoteDispPos()
 			, seekPage = this.getNoteSeekPage()
+			, editch = this.editChannel()
 		;
 		// console.log(chr);
+		this.referChannel = this.player.channel[editch];
+
 		octave = this.getOctaveFromKeyChar(chr);
 		code = this.CODE_NAME_INDEX[this.CHARS_CODE_NAME[chr]];
 		channel = this.searchReadySlot();
@@ -1501,16 +1514,16 @@ LitroKeyboard.prototype = {
 			this.status_on[channel] = chr;
 		}
 		
-		this.player.setPreSwapTune(channel, this.player.getTuneParams(this.editChannel()));
-		this.player.onNoteFromCode(channel, code, octave, this.editChannel());
+		this.player.setPreSwapTune(channel, this.player.getTuneParams(editch));
+		this.player.onNoteFromCode(channel, code, octave, editch);
 		
 		if(this.onkeyEvent != null){
 			this.onkeyEvent(chr);
 		}
 		
 		//仮使用
-		if(channel == this.editChannel()){
-			this.setEventChange(this.editChannel(), this.makeEventset('note', code + (octave * this.octaveInKeys)));
+		if(channel == editch){
+			this.setEventChange(editch, this.makeEventset('note', code + (octave * this.octaveInKeys)));
 		}
 		this.drawNoteScroll(seekPage);
 		if(pos < cellhto(2) ){
@@ -1527,17 +1540,20 @@ LitroKeyboard.prototype = {
 		var channel = this.searchState(chr)
 			, paramChannel = this.paramCursor.x
 			;
+
 		if(chr == null || channel < 0){
-			// this.offkeyEvent();
-			// this.initFingerState(this.fingers);
-			// this.litroSound.offNoteFromCode();
-			// console.log('chr: ' + chr);
+			//見つからない
 			return;
 		}
 		if(this.offkeyEvent != null){
 			this.offkeyEvent(chr);
 		}
 		this.status_on[channel] = null;
+		
+		if(this.searchState(chr) < 0){
+			this.referChannel = null;
+		}
+
 		// this.litroSound.offNoteFromCode(channel);
 		// this.player.channel[channel].refChannel = -1;
 		this.player.fadeOutNote(channel, paramChannel);
@@ -4900,7 +4916,7 @@ LitroKeyboard.prototype = {
 				continue;
 			}
 			chr = status[i];
-			phase = player.getPhase(i, false);
+			phase = player.channel[i].getPhase();
 			if(chr == null && (phase == 'r' || phase == '')){
 				continue;
 			}
