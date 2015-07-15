@@ -1553,7 +1553,6 @@ LitroKeyboard.prototype = {
 		this.status_on[channel] = null;
 		
 		if(this.searchOnState() < 0){
-			console.log(1);
 			this.referChannel = null;
 		}
 
@@ -2911,9 +2910,11 @@ LitroKeyboard.prototype = {
 	
 	baseKeyOnTitle: function(key, ext)
 	{
-		var cur = this.fileTitleCursor, limit = this.player.titleMaxLength
+		var parser = new LitroSoundParser()
+			,  cur = this.fileTitleCursor, limit = parser.titleMaxLength
 			, Ccur = this.charBoardCursor, Climit = this.charBoardLimit
 			, title = this.player.title, cha = this.word.indexOf(Ccur.x + (Ccur.y * Climit.x))
+			;
 		;
 		switch(key){
 			case '<': 
@@ -2949,6 +2950,7 @@ LitroKeyboard.prototype = {
 				break;
 		}
 		this.player.title = title.substr(0, limit);
+		parser = null;
 	},
 	
 	baseKeyOnFile_title: function(key, ext)
@@ -3253,6 +3255,7 @@ LitroKeyboard.prototype = {
 	
 	baseKeyOn: function(key, ext)
 	{
+		var isOk = true;
 		if(key == 'space'){
 			this.playKeyOn(ext);
 			return;
@@ -3269,6 +3272,13 @@ LitroKeyboard.prototype = {
 			case 'share': this.baseKeyOnShare(key, ext);break;
 			case 'manual': this.baseKeyOnManual(key, ext);break;
 			default: break;
+		}
+		
+		if(isOk){
+			switch(key){
+				case '>': this.playSE('ok'); break;
+				case '<': this.playSE('cancel'); break;
+			}
 		}
 	},
 	
@@ -3470,8 +3480,9 @@ LitroKeyboard.prototype = {
 	{
 		var se = this.sePlayer;
 		switch(key){
-			case 'kettei': se.playForKey(0); break;
+			case 'ok': se.playForKey(0); break;
 			case 'cursor': se.playForKey(1); break;
+			case 'cancel': se.playForKey(2); break;
 		}
 	},
 	
@@ -3663,6 +3674,7 @@ LitroKeyboard.prototype = {
 			, spr, tspr, rev, chrNum, hiphens = '', spaces = ''
 			, maxCurrent = 200
 			, cur = this.charBoardCursor
+			, parser = new LitroSoundParser()
 		;
 		
 		this.presetWordFormat('charboard');
@@ -3676,9 +3688,9 @@ LitroKeyboard.prototype = {
 		
 		word.print(this.player.title, cellhto(cm.x), cellhto(tcm.y + 1), COLOR_NOTEFACE, COLOR_BLACK);
 		
-		for(x = 0; x < this.player.titleMaxLength - this.player.title.length; x++){
+		for(x = 0; x < parser.titleMaxLength - this.player.title.length; x++){
 			spaces += '　';
-			hiphens += '-';
+			hiphens += '－';
 		}
 		word.print(spaces, cellhto(cm.x + this.player.title.length), cellhto(tcm.y + 1), COLOR_NOTEFACE, COLOR_BLACK);
 		word.print(hiphens, cellhto(cm.x + this.player.title.length), cellhto(tcm.y + 1.25), COLOR_NOTEFACE, COLOR_BLACK);
@@ -3700,7 +3712,7 @@ LitroKeyboard.prototype = {
 			}
 		}
 		word.setMarkAlign('horizon');
-		
+		parser = null;
 	},	
 	
 	drawThumbVolume: function()
