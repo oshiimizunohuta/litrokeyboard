@@ -2,7 +2,7 @@
  * Litro Keyboard Interface
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.08.04
+ * ver 0.09.00
  */
 
 var PaformTime = 0; //時間計測
@@ -224,8 +224,8 @@ function LitroKeyboard() {
 	this.titleSprites = {title: 49, user: 50, vol: 51, thumb_1: 65, thumb_2: 66, gauge: 67}; //タイトルアイコン
 	this.titleCmargin = {x: 2, y: 17};
 	this.titleVolCmargin = {x: 21, y: 21};
-	this.VOLUME_INC = 0.01;
-	this.VOLUME_MAX = 0.80;
+	this.VOLUME_INC = VOLUME_CELLSIZE; //0.01;
+	this.VOLUME_MAX = this.VOLUME_INC * 80; //0.80
 	this.VOLUME_MIN = 0.0;
 
 	this.seekSprite = 242; //ノートカーソル
@@ -644,13 +644,13 @@ LitroKeyboard.prototype = {
 	initEventFunc: function()
 	{
 		var self = this;
-		//TODO systemsoundを拾わなくするため、イベントハンドラはlitroSoundではなくlitoroPlayerにするべき？
 		this.player.setSetChannelEvent(function(ch, key, value){
 			var eventset = {};
 			eventset[key] = self.makeEventset(key, value, 0);
 			self.drawChannelParams(null, null, null, null, eventset, ch);
 		});
 		this.player.setOnNoteKeyEvent(function(ch, key){
+		// this.sePlayer.setOnNoteKeyEvent(function(ch, key){
 			if(ch == self.paramCursor.x){
 				self.status_on[0] = self.key2Char(key);
 			}
@@ -658,14 +658,15 @@ LitroKeyboard.prototype = {
 		});
 		this.player.setOffNoteKeyEvent(function(ch, chr){
 			var fnum = self.searchState(self.key2Char(chr));
-			if(fnum >= 0){
 			// console.log(fnum, self.status_on, chr, self.key2Char(chr));
+			if(fnum >= 0){
 				self.status_on[fnum] = null;
 			}
 			return;
 		});
 		
 		this.player.setReferChannelFunc(function(){
+		// this.sePlayer.setReferChannelFunc(function(){
 			
 		// if(self.referChannel != null){
 			// console.log(self.referChannel.id);
@@ -1490,6 +1491,18 @@ LitroKeyboard.prototype = {
 			this.player.eventsetData[ch][type] = result[type];
 		}
 	},
+	
+	sePlayCode: function(ch, code, octave)
+	{
+		var editch = this.editChannel(), p;
+		this.sePlayer.stop();
+		// console.log(ch, editch, this.sePlayer.channel[ch]);
+		for(p in this.player.channel[editch].tuneParams){
+			this.sePlayer.setChannel(ch, p, this.player.getChannel(editch, p, false));
+		}
+		
+		this.sePlayer.onNoteFromCode(ch, code, octave, editch);
+	},
 
 //TODO 複数キーの操作は選択中チャンネルで
 	onCode: function(chr)
@@ -1502,9 +1515,9 @@ LitroKeyboard.prototype = {
 			, editch = this.editChannel()
 		;
 		// console.log(chr);
-		if(this.referChannel == null){
-			this.referChannel = this.player.channel[editch];
-		}
+		// if(this.referChannel == null){
+			// this.referChannel = this.player.channel[editch];
+		// }
 
 		octave = this.getOctaveFromKeyChar(chr);
 		code = this.CODE_NAME_INDEX[this.CHARS_CODE_NAME[chr]];
@@ -1516,8 +1529,8 @@ LitroKeyboard.prototype = {
 			this.status_on[channel] = chr;
 		}
 		
-		this.player.setPreSwapTune(channel, this.player.getTuneParams(editch));
-		this.player.onNoteFromCode(channel, code, octave, editch);
+		// this.player.setPreSwapTune(channel, this.player.getTuneParams(editch));
+		this.sePlayCode(channel, code, octave);
 		
 		if(this.onkeyEvent != null){
 			this.onkeyEvent(chr);
@@ -1555,10 +1568,10 @@ LitroKeyboard.prototype = {
 		if(this.searchOnState() < 0){
 			this.referChannel = null;
 		}
-
+		this.sePlayer.stop();
 		// this.litroSound.offNoteFromCode(channel);
 		// this.player.channel[channel].refChannel = -1;
-		this.player.fadeOutNote(channel, paramChannel);
+		this.sePlayer.fadeOutNote(channel, paramChannel);
 	},
 	
 	incOctave: function()
@@ -1610,7 +1623,7 @@ LitroKeyboard.prototype = {
 		var i, key
 		;
 		for(i = 0; i < this.fingers; i++){
-			key = (i + this.editChannel()) % this.player.channel.length;
+			key = (i + this.editChannel()) % this.sePlayer.channel.length;
 			// key = i;
 			if(this.status_on[key] == null){
 				return key;
@@ -2235,6 +2248,8 @@ LitroKeyboard.prototype = {
 
 		if(eventset != null){
 			this.player.soundEventPush(ch, eventset.type, eventset.value);
+			// this.sePlayKey(ch, code, octave);
+
 
 			if(!ext || (this.catchType != 'ALL' && ((this.catchType == 'TUNE' && this.selectNote.type == 'note') || (this.catchType == 'note' && this.selectNote.type != 'note')) && (this.selectNote.ch != ch || this.selectNote.type != this.catchType))){
 				//違うチャンネルをキャッチした
@@ -4810,6 +4825,7 @@ LitroKeyboard.prototype = {
 			, chOscHeight_h = ((chOscHeight / 2) | 0) - 1
 			, sepWidth = chOscWidth / this.analyseRate
 			, size = (PROCESS_BUFFER_SIZE / this.analyseRate) | 0
+			// , size = 2048
 			, cm = this.ocsWaveCmargin
 			, px, py, i, dindex, ofsx = 0, ofsy = 128, pre_y
 			, from, to
@@ -4856,15 +4872,15 @@ LitroKeyboard.prototype = {
 			
 		}
 	},
-	
+
 	drawChannelWave: function(ch)
 	{
 		ch = ch == null ? this.editChannel() : ch;
-		var channel = this.player.channel[ch]
+		var channel = this.player.isPlay() ? this.player.channel[ch] : this.sePlayer.channel[ch]
 			, data, c, i, dindex, istep, layerScale, datH = 0
 			, px, py, vol = 0, stPos = 0, swp = null
 			, detune = channel.getDetunePosition()
-			, pre_y, from, to
+			, pre_y, from, to, ofsy = 128
 			, spr = scrollByName('bg1')
 			, sprite = makePoint(this.uiImageName, 1)
 			, sprite2 = makePoint(this.uiImageName, 1)
@@ -4911,7 +4927,9 @@ LitroKeyboard.prototype = {
 			dindex = (i * istep) | 0;
 			datH = channel.waveLength > dindex ? data[(dindex + detune) % channel.waveLength] : 0;
 			px = i + cellhto(cm.x);
-			py = (-(datH + vol) * chOscHeight) | 0;
+			py = (-(datH + vol) * (chOscHeight_h / ofsy)) | 0;
+			// py = (py * (chOscHeight_h / ofsy)) | 0;
+			// if(i == 0){console.log(datH , vol, chOscHeight)}
 			if(py > chOscHeight_h){continue;}
 			if(py < -chOscHeight_h){continue;}
 			py += chOscHeight_h + cellhto(cm.y);
@@ -4927,8 +4945,7 @@ LitroKeyboard.prototype = {
 			pre_y = py;
 		}
 		// console.log(data.length);
-	},
-	
+	},	
 	drawOnkey: function()
 	{
 		var i
