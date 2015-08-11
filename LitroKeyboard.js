@@ -172,7 +172,7 @@ function LitroKeyboard() {
 	this.modeNames = ['tune', 'note', 'play', 'catch', 'file', 'error'];
 	// this.modeNames = ['tune', 'note'];
 	
-	this.referChannel = null;
+	// this.referChannel = null;
 	
 	this.frameChunks = []; //背景フレーム用ChunkRepeat
 	this.frameSprites = {}; //背景フレーム用spriteChunk
@@ -665,14 +665,11 @@ LitroKeyboard.prototype = {
 			return;
 		});
 		
-		this.player.setReferChannelFunc(function(){
+		// this.player.setReferChannelFunc(function(){
 		// this.sePlayer.setReferChannelFunc(function(){
 			
-		// if(self.referChannel != null){
-			// console.log(self.referChannel.id);
-		// }
-			return self.referChannel;
-		});
+			// return self.referChannel;
+		// });
 	},
 	
 	initWords: function()
@@ -1565,9 +1562,9 @@ LitroKeyboard.prototype = {
 		}
 		this.status_on[channel] = null;
 		
-		if(this.searchOnState() < 0){
-			this.referChannel = null;
-		}
+		// if(this.searchOnState() < 0){
+			// this.referChannel = null;
+		// }
 		this.sePlayer.stop();
 		// this.litroSound.offNoteFromCode(channel);
 		// this.player.channel[channel].refChannel = -1;
@@ -2392,9 +2389,9 @@ LitroKeyboard.prototype = {
 			case 'left': cur.y = 0; break;
 			case 'right': cur.y = limit - 1; break;
 		}
-		if(dispHeight <= limit){
-		}else{
-		}
+		// if(dispHeight <= limit){
+		// }else{
+		// }
 		offset = cur.y - offset < 0 ? cur.y : offset;
 		offset = cur.y - offset >= dispHeight ? cur.y - dispHeight + 1 : offset;
 
