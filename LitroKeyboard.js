@@ -3316,6 +3316,9 @@ LitroKeyboard.prototype = {
 			// case 3: this.baseKeyOnChannel(dir);break;
 		}
 		isMove = true;
+		if(this.editMode == 'catch'){
+			isMove = false;
+		}
 		if(isMove){
 			this.playSE('cursor');
 		}
