@@ -5,6 +5,25 @@
  * ver 0.09.00
  */
 
+//環境判定
+var IS_PRODUCTION = window.location.href.indexOf('ltkb.bitchunk.') >= 0;
+var IS_DEVELOPMENT = window.location.href.indexOf('ham78.orz.hm') >= 0;
+var IS_LOCAL = window.location.href.indexOf('localhost') >= 0;
+
+var PRODUCTION = 0;
+var DEVELOPMENT = 1;
+var LOCAL = 2;
+var HOST_ID =
+	 (IS_PRODUCTION ? PRODUCTION : 0)
+	+ (IS_DEVELOPMENT ? DEVELOPMENT : 0)
+	+ (IS_LOCAL ? LOCAL : 0)
+;
+
+var RECEIVER_URL = {};
+RECEIVER_URL[PRODUCTION] = 'http://ltrs.bitchunk.net';
+RECEIVER_URL[DEVELOPMENT] = 'http://ham78.orz.hm';
+RECEIVER_URL[LOCAL] = 'http://localhost:58105';
+
 var PaformTime = 0; //時間計測
 var litroKeyboardInstance = null;
 var VIEWMULTI = 2;
@@ -267,6 +286,7 @@ function LitroKeyboard() {
 	this.eventsetMenuList = ['NOTEOFF', 'NOTE-EX', 'RESTART', 'RETURN', ];
 	this.finalConf = ["NO", "OK"];
 	this.loginParams = {user_id: 0, sns_type: null, user_name: null};
+	
 	if(window.location.href.indexOf('.bitchunk.') >= 0){
 		this.loginURLs = {'TWITTER' : 'http://ltsnd.bitchunk.net/oauth/twitter/'};
 	}else if(window.location.href.indexOf('localhost') >= 0){
@@ -5321,16 +5341,16 @@ function getClient()
 window.addEventListener('load', function() {
 	var client = getClient()
 		, query = location.href.match(/\?([^?/]*)/)
+		, ltkb = new LitroKeyboard()
 		;
-	
+		
 	if(client.isSmartDevice){
-		location.href = './litroreceiver' + (query != null ? '/?' + query[1] : '');
+		location.href = RECEIVER_URL[HOST_ID] + (query != null ? '/?' + query[1] : '');
+		// location.href = './litroreceiver' + (query != null ? '/?' + query[1] : '');
 		return;
 	}
 	
 	
-	var ltkb = new LitroKeyboard()
-	;
 	window.requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame || window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
 	
 	ltkb.init();

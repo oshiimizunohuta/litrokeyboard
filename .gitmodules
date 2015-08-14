@@ -4,6 +4,3 @@ url=git@github.com:oshiimizunohuta/chunklekit.git
 [submodule "litrosound"]
 	path = litrosound
 url=git@github.com:oshiimizunohuta/litrosound.git
-[submodule "litroreceiver"]
-	path = litroreceiver
-url=git@github.com:oshiimizunohuta/litroreceiver.git
