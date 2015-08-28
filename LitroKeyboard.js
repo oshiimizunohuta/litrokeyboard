@@ -20,7 +20,7 @@ var HOST_ID =
 ;
 
 var RECEIVER_URL = {};
-RECEIVER_URL[PRODUCTION] = 'http://ltrs.bitchunk.net';
+RECEIVER_URL[PRODUCTION] = 'http://ltrc.bitchunk.net';
 RECEIVER_URL[DEVELOPMENT] = 'http://ham78.orz.hm';
 RECEIVER_URL[LOCAL] = 'http://localhost:58105';
 
@@ -710,7 +710,7 @@ LitroKeyboard.prototype = {
 		makeScroll('bg2', false);
 		makeScroll('bg3', false);
 		makeScroll('sprite', false);
-		makeScroll('tmp', false);
+		// makeScroll('tmp', false); 未使用
 		
 		var bg1 = scrollByName('bg1')
 			, bg2 = scrollByName('bg2')
