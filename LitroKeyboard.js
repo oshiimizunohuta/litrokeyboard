@@ -2,7 +2,7 @@
  * Litro Keyboard Interface
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.09.00
+ * ver 0.10.00
  */
 
 //環境判定
@@ -20,7 +20,7 @@ var HOST_ID =
 ;
 
 var RECEIVER_URL = {};
-RECEIVER_URL[PRODUCTION] = 'http://ltrc.bitchunk.net';
+RECEIVER_URL[PRODUCTION] = '//ltsnd.bitchunk.net/receiver';
 RECEIVER_URL[DEVELOPMENT] = 'http://ham78.orz.hm';
 RECEIVER_URL[LOCAL] = 'http://localhost:58105';
 
@@ -288,9 +288,9 @@ function LitroKeyboard() {
 	this.loginParams = {user_id: 0, sns_type: null, user_name: null};
 	
 	if(window.location.href.indexOf('.bitchunk.') >= 0){
-		this.loginURLs = {'TWITTER' : 'http://ltsnd.bitchunk.net/oauth/twitter/'};
+		this.loginURLs = {'TWITTER' : '//ltsnd.bitchunk.net/oauth/twitter/'};
 	}else if(window.location.href.indexOf('localhost') >= 0){
-		this.loginURLs = {'TWITTER' : 'http://localhost:58104/oauth/twitter/'};
+		this.loginURLs = {'TWITTER' : '//localhost:58104/oauth/twitter/'};
 	}else{
 		this.loginURLs = {'TWITTER' : 'http://bitchunk.fam.cx/litrosound/oauth/twitter/'};
 	}
@@ -5083,7 +5083,7 @@ LitroKeyboard.prototype = {
 		var url = this.shareURLs[type];
 		if(type == 'TWITTER'){
 			url += [
-				'url=' + encodeURIComponent('http://' + location.host + location.pathname 
+				'url=' + encodeURIComponent('//' + location.host + location.pathname 
 				+ (file.sound_id == 0 ? '' : '?sound_id=' + file.sound_id)),
 				'text=' + encodeURIComponent(file.sound_id == 0 ? 'ブラウザでPSG音源DTM！' : ('"'+ file.title + '" play on the litrokeyboard!!')),
 				'hashtags=' + encodeURIComponent('litrokeyboard,dtm'),
