@@ -17,7 +17,7 @@
 		<meta name="twitter:site" content="@shiftal_on">
 		<meta name="twitter:title" content="LitroKeyBoard">
 		<meta name="twitter:description" content="8bit Style DTM on Blowser">
-		<meta name="twitter:creator" content="@shiftal_on">
+		<meta name="twitter:creator" content="@LitroSound">
 		<meta name="twitter:image:src" content="https://ltsnd.bitchunk.net/keyboard/img/twitter_card_summary.png">
 		<meta name="twitter:domain" content="ltsnd.bitchunk.net">
 
@@ -35,6 +35,26 @@
 		<script src="./chunklekit/UITools.js"></script>
 		<script src="./litrosound/Litrosound.js"></script>
 		<script src="./LitroKeyboard.js"></script>
+
+		<!-- GoogleAnalytics -->
+		<script>
+			(function(i, s, o, g, r, a, m) {
+				i['GoogleAnalyticsObject'] = r;
+				i[r] = i[r] ||
+				function() {
+					(i[r].q = i[r].q || []).push(arguments)
+				}, i[r].l = 1 * new Date();
+				a = s.createElement(o),
+				m = s.getElementsByTagName(o)[0];
+				a.async = 1;
+				a.src = g;
+				m.parentNode.insertBefore(a, m)
+			})(window, document, 'script', '//www.google-analytics.com/analytics.js', 'ga');
+		
+			ga('create', 'UA-46774451-4', 'auto');
+			ga('send', 'pageview');
+		
+		</script>
 		<style>
 			
 		</style>
