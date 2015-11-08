@@ -231,16 +231,6 @@ function LitroKeyboard() {
 		7: {id: 199, ofx: 0, swap: true},
 	};
 	
-	// this.eventSprite = {
-		// restart: 208,
-		// 'return': 209,
-		// noteoff: 210,
-		// noteextend: 211,
-		// tmpstart: 212,
-		// tmpend: 213,
-		// sweepnotes: 214,
-		// meeknotes: 215,
-	// };
 	this.eventSprite = {
 		restart: {id: 208, ofx: -CW, swap: false},
 		'return': {id: 209, ofx: CW, swap: false},
@@ -251,8 +241,6 @@ function LitroKeyboard() {
 		sweepnotes: {id: 214, ofx: -CW, swap: true},
 		meeknotes: {id: 215, ofx: CW, swap: true},
 	};
-	
-	
 	
 	this.noteScrollCmargin = {x: 3, y: 3};
 	this.noteCmargin = {x: 0, y: 11.5};
@@ -419,6 +407,7 @@ LitroKeyboard.prototype = {
 		this.litroSound.init(CHANNELS_NUM);
 		this.sePlayer.init("se");
 		this.player.init("edit");
+		this.player.tmpEnable = true;
 
 		
 		this.player.setRestartEvent(function(){
@@ -1571,10 +1560,11 @@ LitroKeyboard.prototype = {
 				self.setEventChange(ch, self.makeEventset(type, value, time), self.sePlayer);
 			}
 		;
+		this.sePlayer.setSeekPosition(0);
 		this.sePlayer.stop();
 		this.sePlayer.clearEventsData();
 		this.sePlayer.channel[ch].resetChannelParams();
-		
+
 		setec('waveType', 12, 0);
 		setec('volumeLevel', 4, 0);
 		setec('sustain', 2, 0);
@@ -1583,12 +1573,34 @@ LitroKeyboard.prototype = {
 		setec('release', 2, 0);
 		
 		for(i = 0; i < 8; i++){
-			oct = i % 4 == 2 ? 5 : 7;
+			oct = i % 4 == 2 ? 6 : 7;
 			setec('note', 7 + (oct	 * this.octaveInKeys), i * step);
 		}
+		setec('event', litroTuneProp('return').id, i * step);
 		this.sePlayer.play();
 		self = null;
 		setec = null;
+	},
+	
+	stopPlayer: function()
+	{
+		if(this.editMode != 'tune'){
+			this.getActiveModeCursor().y = 0;
+		}
+		this.changeEditMode(this.prevEditMode);
+		this.prevEditMode = 'note';
+		
+		this.updateBackSeek();
+		this.clearLeftScreen();
+		this.drawParamKeys();
+		this.drawParamCursor();
+		this.drawChannelParams();
+		this.drawMenu();
+		if(this.viewMode != null){
+			this.drawPlayOnSpacekey();
+		}
+		// this.drawChannelCursor();
+		this.initFingerState(this.fingers);
 	},
 	
 //TODO 複数キーの操作は選択中チャンネルで
@@ -2289,6 +2301,8 @@ LitroKeyboard.prototype = {
 			, ignore = this.selectNote
 			, prevNote
 			, ch = this.editChannel()
+			, player = this.player
+			// , player = this.sePlayer
 		;
 		
 		if(this.getLastCommand() == "KEEP"){
@@ -2323,15 +2337,15 @@ LitroKeyboard.prototype = {
 							break;
 			case 'down': this.catchType = catchKey[(catchVal + 1) % catchKey.length];
 							break;
-			case 'left': eventset = this.player.searchNearBack(ch, this.player.noteSeekTime, 0, this.catchType, ignore);
+			case 'left': eventset = player.searchNearBack(ch, player.noteSeekTime, 0, this.catchType, ignore);
 							break;
-			case 'right': eventset = this.player.searchNearForward(ch, this.player.noteSeekTime, -1, this.catchType, ignore);
+			case 'right': eventset = player.searchNearForward(ch, player.noteSeekTime, -1, this.catchType, ignore);
 							break;
 		}
 		this.drawMenu(this.editMode);
 
 		if(eventset != null){
-			this.player.soundEventPush(ch, eventset.type, eventset.value);
+			player.soundEventPush(ch, eventset.type, eventset.value);
 			// this.sePlayKey(ch, code, octave);
 
 
@@ -2351,13 +2365,13 @@ LitroKeyboard.prototype = {
 				this.selectEventset(ch, eventset, false);
 			}
 			
-			if(eventset.time > this.player.noteSeekTime){
+			if(eventset.time > player.noteSeekTime){
 				//前へキャッチ
-				this.player.noteSeekTime = eventset.time;
+				player.noteSeekTime = eventset.time;
 				this.updateForwardSeek();
 			}else{
 				//後ろへキャッチ
-				this.player.noteSeekTime = eventset.time;
+				player.noteSeekTime = eventset.time;
 				this.updateBackSeek();
 			}
 			
@@ -2367,9 +2381,9 @@ LitroKeyboard.prototype = {
 			this.drawSelectEvents(this.selectNote);
 			this.drawEventsetBatch();
 		}else{
-			eventset = this.player.searchNearBack(ch, this.player.noteSeekTime, 0, this.catchType);
+			eventset = player.searchNearBack(ch, player.noteSeekTime, 0, this.catchType);
 			if(eventset != null){
-				this.player.soundEventPush(ch, eventset.type, eventset.value);
+				player.soundEventPush(ch, eventset.type, eventset.value);
 			}
 		}
 		
@@ -3303,6 +3317,7 @@ LitroKeyboard.prototype = {
 		var  player = this.player
 			, tmpendval = LitroWaveChannel.tuneParamsProp.tmpstart.id
 			, cch = player.COMMON_TUNE_CH
+			, self = this
 			;
 		if(this.getMode() == 'manual'){return;}
 		this.initCatchEvent();
@@ -3323,28 +3338,17 @@ LitroKeyboard.prototype = {
 			this.drawMenu('play');
 			this.drawOscillo();
 			this.drawPlayTitle();
+			
+			this.player.setOnStopFunc(function(){
+				self.stopPlayer();
+			});
 		}else{
 			if(ext){
 				this.setEventChange(player.COMMON_TUNE_CH, this.makeEventset('event', LitroWaveChannel.tuneParamsProp.tmpend.id, this.player.noteSeekTime));
 				this.drawEventsetBatch();
 			}
-			if(this.editMode != 'tune'){
-				this.getActiveModeCursor().y = 0;
-			}
-			this.changeEditMode(this.prevEditMode);
-			this.prevEditMode = 'note';
-			// this.changeEditMode('note');
-			// this.editMode = 'note';
-			
-			this.clearLeftScreen();
-			this.drawParamKeys();
-			this.drawParamCursor();
-			this.drawChannelParams();
-			this.drawMenu();
-			if(this.viewMode != null){
-				this.drawPlayOnSpacekey();
-			}
-			// this.drawChannelCursor();
+
+
 		}
 		this.initFingerState(this.fingers);
 		
@@ -3979,6 +3983,7 @@ LitroKeyboard.prototype = {
 			, divofsTime = 0
 			, catchData = this.catchEventset
 			, channelsData = this.player.eventsetData
+			// , channelsData = this.sePlayer.eventsetData
 			, channels = this.player.channel
 			, drawnNotes = {}
 			
@@ -4148,11 +4153,13 @@ LitroKeyboard.prototype = {
 	drawSelectEvents: function(events)
 	{
 		var side = this.seekDispSide(this.seekPosition() + cellhto(4))
+			, player = this.player
+			// , player = this.sePlayer
 			, size = {w: 16, h: 12}
 			, left = {x: 4, y: 2}, right = {x: size.w + 4, y: 2}
 			, cm = side == 'left' ? right : left
 			, scroll = scrollByName('bg1'), word = this.word
-			, eventset = this.player.getEventsFromTime(events.ch, events.time)
+			, eventset = player.getEventsFromTime(events.ch, events.time)
 			, key, keys = [], i
 			, rows = 10
 		;
@@ -4167,7 +4174,7 @@ LitroKeyboard.prototype = {
 		word.setScroll(scroll);
 		scroll.clear(side == 'left' ? null : COLOR_BLACK, makeRect(cellhto(left.x), cellhto(left.y), cellhto(size.w), cellhto(size.h)));
 		scroll.clear(side == 'left' ? COLOR_BLACK : null, makeRect(cellhto(right.x), cellhto(right.y), cellhto(size.w), cellhto(size.h)));
-		word.print('　T:' + this.player.noteSeekTime, cellhto(cm.x), cellhto(cm.y), COLOR_NOTEFACE, COLOR_BLACK);
+		word.print('　T:' + player.noteSeekTime, cellhto(cm.x), cellhto(cm.y), COLOR_NOTEFACE, COLOR_BLACK);
 		this.drawParamKeys(0, rows, cm.x + 1, cm.y + 2, keys);
 		this.drawChannelParams(0, rows, cm.x + 5 + 1, cm.y + 2, eventset, events.ch);
 		this.drawParamKeys(rows, rows, cm.x + 8 + 1, cm.y + 2, keys);
@@ -4570,19 +4577,21 @@ LitroKeyboard.prototype = {
 			, numLength = 2
 			, tuneKeyLavel = {}
 			, tuneLavelKey = this.ltSoundChParamKeys
+			, player = this.player
+			// , player = this.sePlayer
 			;
 		for(i in  this.ltSoundChParamKeys){
 			tuneKeyLavel[this.ltSoundChParamKeys[i]] = i;
 		}
 		if(params == null){
 			params = {};
-			chLength = this.player.channel.length;
+			chLength = player.channel.length;
 			for(i in tuneLavelKey){
 				params[tuneLavelKey[i]] = {};
 				for(j = 0; j < chLength; j++){
-					num = this.player.getChannel(j, tuneLavelKey[i], false);
+					num = player.getChannel(j, tuneLavelKey[i], false);
 					if(num == null){continue;}
-					params[tuneLavelKey[i]][j] = this.player.getChannel(j, tuneLavelKey[i], false).toString(16);
+					params[tuneLavelKey[i]][j] = player.getChannel(j, tuneLavelKey[i], false).toString(16);
 				}
 			}
 			keys = this.intersectParamKeys(tuneKeyLavel);
@@ -4611,7 +4620,7 @@ LitroKeyboard.prototype = {
 						num = (params[key].value | 0).toString(16);
 						if(this.isCatch(params[key].time, fixch, params[key].type)){
 							sprite = word.getSpriteArray(formatNum(num, 2), color, COLOR_BLACK);
-							noref = !(params[key].time in this.player.eventsetData[fixch][params[key].type]);
+							noref = !(params[key].time in player.eventsetData[fixch][params[key].type]);
 							this.blinkDrawParams.push({sprite: sprite, x: cellhto(mc.x + (j * numLength) + chLeft), y: cellhto(mc.y + i), noref: noref});
 							continue;
 						}
