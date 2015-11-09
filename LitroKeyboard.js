@@ -5174,13 +5174,15 @@ LitroKeyboard.prototype = {
 		var url = this.shareURLs[type];
 		if(type == 'TWITTER'){
 			url += [
-				'url=' + encodeURIComponent('//' + location.host + location.pathname 
+				'url=' + encodeURIComponent(location.origin + location.pathname 
 				+ (file.sound_id == 0 ? '' : '?sound_id=' + file.sound_id)),
 				'text=' + encodeURIComponent(file.sound_id == 0 ? 'ブラウザでPSG音源DTM！' : ('"'+ file.title + '" play on the litrokeyboard!!')),
 				'hashtags=' + encodeURIComponent('litrokeyboard,dtm'),
 				// 'via=' + 'LitroKeyboard'
 				].join('&');
 			}
+			console.log(location.origin + location.pathname 
+				+ (file.sound_id == 0 ? '' : '?sound_id=' + file.sound_id));
 		window.open(url, null,"width=640,height=480,scrollbars=yes");
 		this.closeSNSTab();
 		this.changeEditMode('file');
