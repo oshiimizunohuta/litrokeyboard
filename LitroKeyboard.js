@@ -317,7 +317,7 @@ function LitroKeyboard() {
 	this.shareURLs = {'TWITTER': 'https://twitter.com/intent/tweet?'};
 	
 	
-	this.arrowHosts = ['bitchunk.fam.cx', 'ltsnd.bitchunk.com', 'ltsnd.bitchunk.net', 'localhost'];
+	this.allowHosts = ['bitchunk.fam.cx', 'ltsnd.bitchunk.com', 'ltsnd.bitchunk.net', 'localhost'];
 	this.snsIconId = {twitter : 0, 'google+': 1};
 	// this.serverFileList = {};
 	this.fileMenuMap = {};
