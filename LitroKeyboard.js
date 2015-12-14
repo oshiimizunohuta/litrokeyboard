@@ -2,7 +2,7 @@
  * Litro Keyboard Interface
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.11.00
+ * ver 0.11.04
  */
 
 //環境判定
@@ -1252,7 +1252,7 @@ LitroKeyboard.prototype = {
 			if(event.data.match(/\{\S*\}/) == null){return;} //twitterのトラップ
 			if(event.data == null || event.data == 'null'){self.setError('server error'); window.removeEventListener('message'); return;}
 			var data, hostMatch = event.origin.match(/https?\:\/\/([^\s:\/]*):?/);
-			if(hostMatch == null || self.arrowHosts.indexOf(hostMatch[1]) < 0){self.setError('server error'); window.removeEventListener('message'); return;}
+			if(hostMatch == null || self.allowHosts.indexOf(hostMatch[1]) < 0){self.setError('server error'); window.removeEventListener('message'); return;}
 			data = JSON.parse(event.data);
 			if(data.error_code != null){
 				self.setError(data.message);
@@ -1541,7 +1541,13 @@ LitroKeyboard.prototype = {
 	sePlayCode: function(ch, code, octave)
 	{
 		var editch = this.editChannel(), p;
-		this.sePlayer.stop();
+
+		//TODO 検証
+		if(this.sePlayer.isPlay()){
+			this.sePlayer.stop();
+		}
+		
+		
 		// console.log(ch, editch, this.sePlayer.channel[ch]);
 		for(p in this.player.channel[editch].tuneParams){
 			this.sePlayer.setChannel(ch, p, this.player.getChannel(editch, p, false));
@@ -1667,7 +1673,11 @@ LitroKeyboard.prototype = {
 		// if(this.searchOnState() < 0){
 			// this.referChannel = null;
 		// }
-		this.sePlayer.stop();
+		//TODO 検証
+		if(this.sePlayer.isPlay()){
+			this.sePlayer.stop();
+		}
+		
 		// this.litroSound.offNoteFromCode(channel);
 		// this.player.channel[channel].refChannel = -1;
 		this.sePlayer.fadeOutNote(channel, paramChannel);
@@ -2633,13 +2643,27 @@ LitroKeyboard.prototype = {
 		var cur = this.getActiveModeCursor()
 			, list = this.getActiveModeMenuList()
 			, vol = this.player.volume()
+			, ltsnd = this.litroSound
+			, crateInc = 0.05
 		;
-		switch(dir)
-		{
-			// case 'up': cur.y = (cur.y + list.length - 1) % list.length; break;
-			// case 'down': cur.y = (cur.y + 1) % list.length; break;
-			case 'left': this.player.volume(vol > this.VOLUME_MIN ? vol - this.VOLUME_INC : vol); break;
-			case 'right': this.player.volume(vol < this.VOLUME_MAX - this.VOLUME_INC ? vol + this.VOLUME_INC : vol); break;
+		
+		if(ext){
+			switch(dir)
+			{
+				// case 'up': cur.y = (cur.y + list.length - 1) % list.length; break;
+				// case 'down': cur.y = (cur.y + 1) % list.length; break;
+				case 'left': ltsnd.clockRate = ltsnd.clockRate - crateInc < 0 ? 0 : ltsnd.clockRate - crateInc; break;
+				case 'right': ltsnd.clockRate = ltsnd.clockRate + crateInc > 10 ? 10 : ltsnd.clockRate + crateInc; break;
+			}
+			ltsnd.clockRate = Math.round(ltsnd.clockRate * 100) / 100;
+		}else{
+			switch(dir)
+			{
+				// case 'up': cur.y = (cur.y + list.length - 1) % list.length; break;
+				// case 'down': cur.y = (cur.y + 1) % list.length; break;
+				case 'left': this.player.volume(vol > this.VOLUME_MIN ? vol - this.VOLUME_INC : vol); break;
+				case 'right': this.player.volume(vol < this.VOLUME_MAX - this.VOLUME_INC ? vol + this.VOLUME_INC : vol); break;
+			}
 		}
 
 	},
@@ -3847,6 +3871,24 @@ LitroKeyboard.prototype = {
 		scr.clear(COLOR_BLACK, makeRect(cellhto(cm.x + 4) -  bcell, cellhto(cm.y), bcell, cellhto(2)));
 	},
 	
+	drawThumbClock: function(){
+		var scr = scrollByName('sprite')
+			, sprs = this.titleSprites, image = this.uiImageName
+			, cm = this.titleVolCmargin
+			, crate = this.litroSound.clockRate
+			, bcell = cellhto(1)
+		;
+		crate += 0.001;
+		// scr.drawSprite(thumbSpr, cellhto(cm.x), cellhto(cm.y));
+		// scr.drawSprite(makeSprite(image, sprs.vol), cellhto(cm.x), cellhto(cm.y));
+		// scr.drawSprite(makeSprite(image, sprs.gauge), cellhto(cm.x + 2), cellhto(cm.y));
+		// scr.clear(COLOR_BLACK, makeRect(cellhto(cm.x), cellhto(cm.y - 2), bcell, bcell);
+		this.word.print('R:' + str_pad(crate, 4, '0', 'STR_PAD_RIGHT'), cellhto(cm.x), cellhto(cm.y - 2), COLOR_WHITE, COLOR_BLACK);
+		// this.word.print('RATE:' + str_pad(sec, 2, '0', 'STR_PAD_LEFT'));
+		
+		
+	},
+	
 	drawPlayTitle: function()
 	{
 		var scr = scrollByName('bg1')
@@ -4859,7 +4901,7 @@ LitroKeyboard.prototype = {
 		switch(this.editMode){
 			case 'tune': this.drawChannelWave(); this.drawParamCursorBlink(); break;
 			case 'note': ; break;
-			case 'play': this.drawOutputWave(); this.drawThumbVolume(); break;
+			case 'play': this.drawOutputWave(); this.drawThumbVolume(); this.drawThumbClock(); break;
 			case 'catch': ; break;
 			case 'file': if(this.getLastCommand() == 'TITLE'){this.drawTitleCursor();} break;
 			// case 'pack': this.drawPackMenu(); break;
