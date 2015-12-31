@@ -559,7 +559,7 @@ LitroKeyboard.prototype = {
 			, buff = href.match(/[?|&]+buff\=([0-9a-zA-Z]+)/)
 			, debug = href.match(/[?|&]+debug\=([0-9]+)/)
 			, self = this;
-			
+		
 		if(buff != null){
 			PROCESS_BUFFER_SIZE = parseInt(buff[1], 10) == null ? 4096 : buff[1];
 			if(this.litroSound.context != null){
@@ -778,6 +778,12 @@ LitroKeyboard.prototype = {
 	{
 		var img = this.uiImageName, self = this 
 			, msc = function(rect){return makeSpriteChunk(img, makeRect(rect));}
+			, msq = function(query){return makeSpriteQuery(img, query);}
+			, mccf = function(chunk, x, y){
+				var p = {sprites: chunk, cx: x, cy: y};
+				self.frameChunks.push(p);
+				return p;
+			}
 			, mcc = function(name, rr){
 				var keys = self.frameChunksKeys;
 				keys[name] = keys[name] == null ? []: keys[name];
@@ -786,36 +792,70 @@ LitroKeyboard.prototype = {
 			}
 			, fspr = this.frameSprites
 			, ms = function(id){return makeSprite(img, id);}
+			,bftop = 14
+			,bdtop = 22
 		;
 		
 		this.frameSprites = {
-			topRollLeft: msc([9, 1, 2, 1]),
-			leftDispMiddle: msc([9, 3, 2, 1]),
-			leftDispEdge: msc([9, 2, 2, 1]),
-			noteRollLeft: msc([1, 0, 2, 1]),
-			eventRollRight: msc([11, 0, 2, 1]),
-			// eventRollLeft: msc([11, 0, 2, 1]), [0, 0, 1, 1]),
-			leftFrame: msc([0, 1, 1, 8]),
-			rightFrame: msc([7, 1, 2, 5]),
-			baseKeyDisp: msc([7, 6, 2, 3]),
-			topFrameLeft: msc([1, 1, 2, 2]),
-			topFrameRight: msc([5, 1, 2, 2]),
-			topFrameCenter_2: msc([4, 1, 1, 2]),
-			topFrameCenter_1: msc([3, 1, 1, 2]),
-			boardFrameLeft_1: msc([1, 5, 1, 4]),
-			boardFrameCenter_1: msc([2, 5, 1, 4]),
-			boardFrameRight_1: msc([3, 5, 1, 4]),
-			boardFrameLeft_2: msc([4, 5, 1,4]),
-			boardFrameCenter_2: msc([5, 5, 1, 4]),
-			boardFrameRight_2: msc([6, 5, 1, 4]),
+		//上半分左
+			topRollLeft: mccf(msq('9+2:1+1'), 0, 0),
+			topRollLeft2: mccf(msq('9+2:1+1'), 0, 1),
+
+			leftDispMiddle: mccf(msq('(9+2:3+1)^2'), 0, 3),
+			leftDispEdge: mccf(msq('9+2:2+1'), 0, 6),
+			leftDispMiddle2: mccf(msq('(9+2:3+1)^3'), 0, 8),
+			leftDispEdge2: mccf(msq('9+2:2+1'), 0, 13),
 			
-			octaveRoll: msc([3, 0, 2, 1]),
+		//上半分
+			noteRollLeft: mccf(msq('(1+2:0+1)^6'), 36, 2),
+			eventRollRight: mccf(msq('11+2:0+1'), 36, 0),
 			
-			//, [0, 0, 1, 1]),
+		// //下半分
+			leftFrame: mccf(msq('0+1:1+8'), 0, bftop),
+			rightFrame: mccf(msq('7+2:1+5'), 36, bftop),
+			baseKeyDisp: mccf(msq('7+2:6+3'), 36, 24),
+			
+			topFrameLeft: mccf(msq('1+2:1+2'), 2, bftop),
+			topFrameRight: mccf(msq('5+2:1+2'), 32, bftop),
+			
+			topFrameCenter_2: mccf(msq('(4+1:1+2)*2'), 6, bftop),
+			topFrameCenter_1: mccf(msq('(3+1:1+2)*6'), 10, bftop),
+			topFrameCenter_2_2: mccf(msq('(4+1:1+2)*2'), 22, bftop),
+			topFrameCenter_1_2: mccf(msq('3+1:1+2'), 26, bftop),
+			topFrameCenter_2_3: mccf(msq('4+1:1+2'), 28, bftop),
+			topFrameCenter_1_3: mccf(msq('3+1:1+2'), 30, bftop),
+			
+		 //鍵盤
+			boardFrameLeft_1: mccf(msq('1+1:5+4'), 2, bdtop),
+			boardFrameCenter_1: mccf(msq('2+1:5+4'), 4, bdtop),
+			boardFrameRight_2: mccf(msq('6+1:5+4'), 6, bdtop),
+
+			boardFrameLeft_2: mccf(msq('4+1:5+4'), 8, bdtop),
+			boardFrameCenter_1b: mccf(msq('2+1:5+4'), 10, bdtop),
+			boardFrameCenter_1c: mccf(msq('2+1:5+4'), 12, bdtop),
+			boardFrameRight_1: mccf(msq('3+1:5+4'), 14, bdtop),
+			
+			boardFrameLeft_1b: mccf(msq('1+1:5+4'), 16, bdtop),
+			boardFrameCenter_1d: mccf(msq('2+1:5+4'), 18, bdtop),
+			boardFrameRight_1b: mccf(msq('3+1:5+4'), 20, bdtop),
+
+			boardFrameLeft_2b: mccf(msq('4+1:5+4'), 22, bdtop),
+			boardFrameCenter_2: mccf(msq('5+1:5+4'), 24, bdtop),
+			boardFrameCenter_1e: mccf(msq('2+1:5+4'), 26, bdtop),
+			boardFrameRight_1c: mccf(msq('3+1:5+4'), 28, bdtop),
+			
+			boardFrameLeft_1c: mccf(msq('1+1:5+4'), 30, bdtop),
+			boardFrameCenter_1f: mccf(msq('2+1:5+4'), 32, bdtop),
+			boardFrameRight_1d: mccf(msq('3+1:5+4'), 34, bdtop),
+			
+			
+			octaveRoll: msq('3+2:0+1'),
+			
+			// '0:0 1:1')),
 			
 			//Not openframe
-			ocsLineV: msc([5, 4, 1, 1]),
-			ocsLineH: msc([6, 4, 1, 1]),
+			ocsLineV: msq('5+1:4+1'),
+			ocsLineH: msq('6+1:4+1'),
 			//ScoreBoard
 			noteStart: ms(5),
 			notePeriod: ms(6),
@@ -826,58 +866,97 @@ LitroKeyboard.prototype = {
 			eventSpaceStart: ms(13),
 			eventSpacePeriod: ms(14),
 			eventSpace: ms(15),
+			
 		};
 		
-		//上半分左
-		mcc('topRollLeft', [0, 0, 1, 1]);
-		mcc('topRollLeft', [0, 0.5, 1, 1]);
-	
-		mcc('leftDispMiddle', [0, 1.5, 1, 2]);
-		mcc('leftDispEdge', [0, 3, 1, 1]);
-
-		mcc('leftDispMiddle', [0, 4, 1, 3]);
-		mcc('leftDispEdge', [0, 6.5, 1, 1]);
+		// this.frameSprites = {
+			// topRollLeft: msc([9, 1, 2, 1]),
+			// leftDispMiddle: msc([9, 3, 2, 1]),
+			// leftDispEdge: msc([9, 2, 2, 1]),
+			// noteRollLeft: msc([1, 0, 2, 1]),
+			// eventRollRight: msc([11, 0, 2, 1]),
+			// leftFrame: msc([0, 1, 1, 8]),
+			// rightFrame: msc([7, 1, 2, 5]),
+			// baseKeyDisp: msc([7, 6, 2, 3]),
+			// topFrameLeft: msc([1, 1, 2, 2]),
+			// topFrameRight: msc([5, 1, 2, 2]),
+			// topFrameCenter_2: msc([4, 1, 1, 2]),
+			// topFrameCenter_1: msc([3, 1, 1, 2]),
+			// boardFrameLeft_1: msc([1, 5, 1, 4]),
+			// boardFrameCenter_1: msc([2, 5, 1, 4]),
+			// boardFrameRight_1: msc([3, 5, 1, 4]),
+			// boardFrameLeft_2: msc([4, 5, 1,4]),
+			// boardFrameCenter_2: msc([5, 5, 1, 4]),
+			// boardFrameRight_2: msc([6, 5, 1, 4]),
+// 			
+			// octaveRoll: msc([3, 0, 2, 1]),
+// 			
+// 			
+			// //Not openframe
+			// ocsLineV: msc([5, 4, 1, 1]),
+			// ocsLineH: msc([6, 4, 1, 1]),
+			// //ScoreBoard
+			// noteStart: ms(5),
+			// notePeriod: ms(6),
+			// noteLine: ms(7),
+			// noteSpaceStart: ms(8),
+			// noteSpacePeriod: ms(9),
+			// noteSpace: ms(10),
+			// eventSpaceStart: ms(13),
+			// eventSpacePeriod: ms(14),
+			// eventSpace: ms(15),
+		// };
 		
-		//上半分
-		mcc('noteRollLeft', [18, 1, 1, 6]);
-		mcc('eventRollRight', [18, 0, 1, 1]);
-		
-		//下半分
-		mcc('leftFrame', [0, 7, 1, 1]);
-		mcc('rightFrame', [18, 7, 1, 1]);
-		mcc('baseKeyDisp', [18, 12, 1, 1]);//basekey
-		mcc('topFrameLeft', [1, 7, 1, 1]);
-		mcc('topFrameRight', [16, 7, 1, 1]);
-		
-		mcc('topFrameCenter_2', [3, 7, 2, 1]);
-		mcc('topFrameCenter_1', [5, 7, 6, 1]);
-		mcc('topFrameCenter_2', [11, 7, 2, 1]);
-		mcc('topFrameCenter_1', [13, 7, 1, 1]);
-		mcc('topFrameCenter_2', [14, 7, 1, 1]);
-		mcc('topFrameCenter_1', [15, 7, 1, 1]);
-		
-		//鍵盤
-		mcc('boardFrameLeft_1', [1, 11, 1, 1]);
-		mcc('boardFrameCenter_1', [2, 11, 1, 1]);
-		mcc('boardFrameRight_2', [3, 11, 1, 1]);
-		
-		mcc('boardFrameLeft_2', [4, 11, 1, 1]);
-		mcc('boardFrameCenter_1', [5, 11, 1, 1]);
-		mcc('boardFrameCenter_1', [6, 11, 1, 1]);
-		mcc('boardFrameRight_1', [7, 11, 1, 1]);
-		
-		mcc('boardFrameLeft_1', [8, 11, 1, 1]);
-		mcc('boardFrameCenter_1', [9, 11, 1, 1]);
-		mcc('boardFrameRight_1', [10, 11, 1, 1]);
-		
-		mcc('boardFrameLeft_2', [11, 11, 1, 1]);
-		mcc('boardFrameCenter_2', [12, 11, 1, 1]);
-		mcc('boardFrameCenter_1', [13, 11, 1, 1]);
-		mcc('boardFrameRight_2', [14, 11, 1, 1]);
-		
-		mcc('boardFrameLeft_1', [15, 11, 1, 1]);
-		mcc('boardFrameCenter_1', [16, 11, 1, 1]);
-		mcc('boardFrameRight_1', [17, 11, 1, 1]);
+		// //上半分左
+		// mcc('topRollLeft', [0, 0, 1, 1]);
+		// mcc('topRollLeft', [0, 0.5, 1, 1]);
+// 	
+		// mcc('leftDispMiddle', [0, 1.5, 1, 2]);
+		// mcc('leftDispEdge', [0, 3, 1, 1]);
+// 
+		// mcc('leftDispMiddle', [0, 4, 1, 3]);
+		// mcc('leftDispEdge', [0, 6.5, 1, 1]);
+// 		
+		// //上半分
+		// mcc('noteRollLeft', [18, 1, 1, 6]);
+		// mcc('eventRollRight', [18, 0, 1, 1]);
+// 		
+		// //下半分
+		// mcc('leftFrame', [0, 7, 1, 1]);
+		// mcc('rightFrame', [18, 7, 1, 1]);
+		// mcc('baseKeyDisp', [18, 12, 1, 1]);
+		// mcc('topFrameLeft', [1, 7, 1, 1]);
+		// mcc('topFrameRight', [16, 7, 1, 1]);
+// 		
+		// mcc('topFrameCenter_2', [3, 7, 2, 1]);
+		// mcc('topFrameCenter_1', [5, 7, 6, 1]);
+		// mcc('topFrameCenter_2', [11, 7, 2, 1]);
+		// mcc('topFrameCenter_1', [13, 7, 1, 1]);
+		// mcc('topFrameCenter_2', [14, 7, 1, 1]);
+		// mcc('topFrameCenter_1', [15, 7, 1, 1]);
+// 		
+		// //鍵盤
+		// mcc('boardFrameLeft_1', [1, 11, 1, 1]);
+		// mcc('boardFrameCenter_1', [2, 11, 1, 1]);
+		// mcc('boardFrameRight_2', [3, 11, 1, 1]);
+// 		
+		// mcc('boardFrameLeft_2', [4, 11, 1, 1]);
+		// mcc('boardFrameCenter_1', [5, 11, 1, 1]);
+		// mcc('boardFrameCenter_1', [6, 11, 1, 1]);
+		// mcc('boardFrameRight_1', [7, 11, 1, 1]);
+// 		
+		// mcc('boardFrameLeft_1', [8, 11, 1, 1]);
+		// mcc('boardFrameCenter_1', [9, 11, 1, 1]);
+		// mcc('boardFrameRight_1', [10, 11, 1, 1]);
+// 		
+		// mcc('boardFrameLeft_2', [11, 11, 1, 1]);
+		// mcc('boardFrameCenter_2', [12, 11, 1, 1]);
+		// mcc('boardFrameCenter_1', [13, 11, 1, 1]);
+		// mcc('boardFrameRight_2', [14, 11, 1, 1]);
+// 		
+		// mcc('boardFrameLeft_1', [15, 11, 1, 1]);
+		// mcc('boardFrameCenter_1', [16, 11, 1, 1]);
+		// mcc('boardFrameRight_1', [17, 11, 1, 1]);
 		
 		// mcc('baseKeyDisp', [18, 12, 1, 1]),
 		
@@ -3624,14 +3703,18 @@ LitroKeyboard.prototype = {
 		}
 	},
 	
+	//TODO makeSpriteChunk制にする
 	openFrame: function()
 	{
+		var self = this;
 		scrollByName('bg1').clear(null, makeRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT / 2));
 		this.clearLeftScreen();
 		this.frameChunks.forEach(function(chunk){
 			var rect = chunk.rect;
 			// console.log(rect.x, rect.y, rect.w, rect.h);
-			this.drawFrameLine(chunk.sprite, rect.x, rect.y, rect.w, rect.h);
+			// this.drawFrameLine(chunk.sprite, rect.x, rect.y, rect.w, rect.h);
+			// console.log(chunk);
+			self.drawFrameLayout(chunk.sprites, chunk.cx, chunk.cy);
 		}, this);
 		
 		//初期メニュー表示
@@ -3640,7 +3723,7 @@ LitroKeyboard.prototype = {
 		this.drawOctaveMeter(this.octaveLevel);
 		
 		this.drawChannelTab_on();
-		
+
 		this.drawParamKeys();
 		
 		this.drawChannelParams();
@@ -4731,12 +4814,14 @@ LitroKeyboard.prototype = {
 			, cDistance = 3.5
 			, scr = scrollByName('bg1'), word = this.word
 			, sprite = this.frameSprites.octaveRoll
+			, cto = cellhto
 		;
-
-		// this.drawFrameLine(sprite, 18, 0.75, 1, 1);
-		this.drawFrameLine(sprite, 18, 2.5, 1, 1);
-		this.drawFrameLine(sprite, 18, 4.25, 1, 1);
-		this.drawFrameLine(sprite, 18, 6, 1, 1);
+		scr.drawSpriteChunk(sprite, cto(36), cto(5));
+		scr.drawSpriteChunk(sprite, cto(36), cto(8.5));
+		scr.drawSpriteChunk(sprite, cto(36), cto(12));
+		// this.drawFrameLine(sprite, 18, 2.5, 1, 1);
+		// this.drawFrameLine(sprite, 18, 4.25, 1, 1);
+		// this.drawFrameLine(sprite, 18, 6, 1, 1);
 		
 		word.setFontSize('8px');
 		word.setScroll(scr);
@@ -4744,6 +4829,7 @@ LitroKeyboard.prototype = {
 			word.print((level + i), cellhto(cm.x), cellhto(cm.y - (i * cDistance)), COLOR_NOTEPRINT, COLOR_NOTEFACE);
 		}
 		word.print('Oct', cellhto(cm.x - 1), cellhto(cm.y - (i * cDistance) + 1), COLOR_NOTEPRINT, COLOR_NOTEFACE);
+		cto = null;
 	},
 	
 	drawChannelTab_on: function(ch, toggle)
@@ -4778,6 +4864,15 @@ LitroKeyboard.prototype = {
 		
 	},
 	
+	drawFrameLayout: function(chunk, cx, cy)
+	{
+		var x, y, sHeight, sWidth
+			, scr = scrollByName('bg1')
+		;
+		scr.drawSpriteChunk(chunk, cellhto(cx), cellhto(cy));
+	},
+	
+	//TODO msq形式に移行
 	// drawFrameLine: function(frameline, cx, cy, rep_x, rep_y, size)
 	drawFrameLine: function(sprite, cx, cy, rep_x, rep_y, size)
 	{
@@ -5144,12 +5239,15 @@ LitroKeyboard.prototype = {
 		}
 	},
 	
+	//TODO makeSpriteChunk制にする
 	drawOnBaseKey: function(code, status){
 		if(this.getMode() == 'manual'){return;}
-
-		var fchip = this.frameChunks[this.frameChunksKeys.baseKeyDisp[0]]
-			, baseCm = {x: fchip.rect.x, y: fchip.rect.y}
-			, wm = {x: cellhto((baseCm.x * 2) + 1) + 2, y:cellhto((baseCm.y * 2) + 1)}
+		// var fchip = this.frameChunks[this.frameChunksKeys.baseKeyDisp[0]]
+			// , baseCm = {x: fchip.rect.x, y: fchip.rect.y}
+		var fchip = this.frameSprites.baseKeyDisp
+			, baseCm = {x: fchip.cx, y: fchip.cy}
+			// , wm = {x: cellhto((baseCm.x * 2) + 1) + 2, y:cellhto((baseCm.y * 2) + 1)}
+			, wm = {x: cellhto(baseCm.x + 1) + 2, y:cellhto(baseCm.y + 1) - 3}
 			, name = (code != null) ? this.baseKeysDrawName[code] : '', select
 			, word = this.word
 			;
@@ -5368,7 +5466,7 @@ function drawLitroScreen()
 	, pbg2, pbg1
 	, spmax = ltkb.debugCell == null ? null : 3200
 	;
-	
+
 	if(ltkb.firstDraw != null && ltkb.imageLoaded){
 		ltkb.firstDraw();
 		ltkb.firstDraw = null;
