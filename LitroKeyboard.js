@@ -2,7 +2,7 @@
  * Litro Keyboard Interface
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.11.04
+ * ver 0.11.05
  */
 
 //環境判定
@@ -259,6 +259,11 @@ function LitroKeyboard() {
 	
 	this.seekLineCount= 0; //note をセットする位置アニメ
 	this.drawNotesCount = 0;
+	
+	this.envelopeBeamClock = 0;
+	this.beemsCurrentNote = makeLitroElement();
+	
+	this.tempPlaySeekTime = -1;
 
 	this.titleSprites = {title: 49, user: 50, vol: 51, thumb_1: 65, thumb_2: 66, gauge: 67}; //タイトルアイコン
 	this.titleCmargin = {x: 2, y: 17};
@@ -270,6 +275,7 @@ function LitroKeyboard() {
 	this.seekSprite = 242; //ノートカーソル
 	this.seekWaitSprite = 243; //ノート待ちカーソル
 	this.arrowSprite = 240; //左右カーソル
+	this.seekBarSprite = 241; //ノートカーソル線
 	this.seekCmargin = {x: 2, y: 0};
 
 	this.menuDispCmargin = {x: 24, y: 17};
@@ -423,7 +429,6 @@ LitroKeyboard.prototype = {
 		
 		//基本キー
 		this.initKeys();
-
 		
 		//チャンネルデータ初期
 		// for(i = 0; i < this.player.channel.length; i++){
@@ -694,9 +699,11 @@ LitroKeyboard.prototype = {
 		});
 		this.player.setOnNoteKeyEvent(function(ch, key){
 		// this.sePlayer.setOnNoteKeyEvent(function(ch, key){
-			if(ch == self.paramCursor.x){
+			if(ch == self.editChannel()){
 				self.status_on[0] = self.key2Char(key);
+				self.refreshCurrentNote();
 			}
+			
 			return;
 		});
 		this.player.setOffNoteKeyEvent(function(ch, chr){
@@ -856,6 +863,12 @@ LitroKeyboard.prototype = {
 			//Not openframe
 			ocsLineV: msq('5+1:4+1'),
 			ocsLineH: msq('6+1:4+1'),
+			
+			//
+			envelopeBeam1: ms(73),
+			envelopeBeam2: ms(74),
+			envelopeBeam_s: ms(75),
+			
 			//ScoreBoard
 			noteStart: ms(5),
 			notePeriod: ms(6),
@@ -1085,6 +1098,9 @@ LitroKeyboard.prototype = {
 			, skip = 0
 		;
 		key = key - start;
+		if(key < 0){
+			return -1;
+		}
 		while(this.octaveInKeys < key - 1){
 			key = key - this.octaveInKeys;
 			append++;
@@ -1139,6 +1155,16 @@ LitroKeyboard.prototype = {
 		return  60 / ((scale / this.noteRangeCells) / MILLI_SECOND);
 	},
 	
+	time2pixel: function(time)
+	{
+		return time * (DISPLAY_WIDTH / this.noteRangeScale);
+	},
+	
+	pixel2time: function(pixel)
+	{
+		return (pixel * this.noteRangeScale / DISPLAY_WIDTH) | 0;
+	},
+		
 	getCodeNameFromKeyChar: function(chr){
 		var chars, row, i;
 		for(row in this.ROW_CHARS){
@@ -1303,8 +1329,8 @@ LitroKeyboard.prototype = {
 		sendToAPIServer('POST', 'login', {session: 1}, function(data){
 			if(data == null){return;}
 			if(data.error_code != null){
-				console.error(data.error_code + ": " + data.message);
-				self.changeEditMode('error');
+				console.info(data.error_code + ": " + data.message);
+				// self.changeEditMode('error');
 				return;
 			}
 			// self.drawMenu();
@@ -1350,9 +1376,21 @@ LitroKeyboard.prototype = {
 		return this.paramCursor.x;
 	},
 	
+	getCurrentNote: function()
+	{
+		return this.beemsCurrentNote;
+	},
+		
+	refreshCurrentNote: function()
+	{
+		var note = this.player.searchNearBack(this.editChannel(), this.player.noteSeekTime, 0, 'note');
+		this.beemsCurrentNote = note != null ? note : makeLitroElement();
+		this.envelopeBeamClock = 0;
+	},
+	
 	/**
 	 * 位置調整系
-	 * @param {Object} pos
+	 * @param pos
 	 */
 	getNoteDispPos: function(pos)
 	{
@@ -1399,6 +1437,62 @@ LitroKeyboard.prototype = {
 			return;
 		}
 		this.updateForwardSeek();
+	},
+	
+	/**
+	 * 仮再生 
+	 */
+	playLitroTemporary: function()
+	{
+		var player = this.player
+			, self = this;
+		if(this.getMode() == 'manual'){return;}
+		if(this.getMode() == 'error'){return;}
+		
+		if(!player.isPlay() && this.tempPlaySeekTime < 0){
+			this.tempPlaySeekTime = player.noteSeekTime;
+			this.initCatchEvent();
+			this.initSelect();
+			this.drawSelectEvents({time: -1});
+			player.setSeekPosition(player.noteSeekTime);
+			this.updateBackSeek();
+			this.prevEditMode = this.editMode;
+			this.changeEditMode('tune');
+			// this.editMode = 'play';
+			this.drawMenu('tune');
+			// this.drawOscillo();
+			// this.drawPlayTitle();
+			this.initFingerState(this.fingers);
+			this.player.setOnStopFunc(function(){
+				// self.stopPlayer();
+				// self.tempPlaySeekTime = -1;
+				self.stopLitroTemporary();
+			});
+			this.drawStackCallback = function(){
+				player.play();
+			};
+
+		}
+		
+	},
+	
+	stopLitroTemporary: function()
+	{
+		var player = this.player
+			, mode = this.prevEditMode
+		;
+		if(player.isPlay() && this.tempPlaySeekTime >= 0){
+			player.stop();
+			player.setSeekPosition(this.tempPlaySeekTime);
+			this.tempPlaySeekTime = -1;
+			this.changeEditMode(mode);
+			this.prevEditMode = mode != 'note' ? 'note' : 'tune';
+			this.updateBackSeek();
+			// this.drawMenu('tune');
+			this.drawMenu();
+
+		}
+
 	},
 	
 	appendClickableItem: function(rect, func, name)
@@ -1731,6 +1825,8 @@ LitroKeyboard.prototype = {
 			this.drawNoteScroll(seekPage + 1);
 		}
 		this.drawNoteScroll(null, true);
+		
+		this.refreshCurrentNote();
 
 	},
 	
@@ -1976,21 +2072,16 @@ LitroKeyboard.prototype = {
 		try{
 			this.player.listFromServer(this.loginParams.user_id, page, limit, 
 				function(list){
-					if(list == null || list.error_code != null){
-						// self.setError(list, 'file');
-						list = {};
-						// self.changeEditMode('error');
-						// self.drawMenu();
-						// return;
-					}
-					// append = append.length == null ? [append] : append;
-
+					//TODO finishLoadListで処理する(空リストの処理)
+					// if(list == null || list.error_code != null){
+						// list = {};
+					// }
 					self.finishLoadList(list);
 					self.drawMenu();
 					
-				}, function(){
+				}, function(error){
 					// self.setError(commonError, 'file');
-					self.finishLoadList(null);
+					self.finishLoadList(error);
 					// self.drawMenu();
 				});
 		}catch(e){
@@ -2003,9 +2094,12 @@ LitroKeyboard.prototype = {
 	{
 		var i, player = self.player, com1 = this.getLastCommand(1), com0 = this.getLastCommand(0)
 			, mode = '', curX = 0, title = '', isError = false, clear = false
-			, commonError = {error_code: 0, message: 'server error'};
+			, commonError = {error_code: 0, message: 'server error'}
+			, error
+			
 		;
 		if(list == null || list.error_code != null){
+			error = list;
 			list = {};
 			isError = true;
 			this.player.fileList(list);
@@ -2028,14 +2122,15 @@ LitroKeyboard.prototype = {
 			curX = 1;
 			this.packMenuCursor.x = curX;
 		}
-		list[0] = {sound_id: 0, user_id: this.loginParams.user_id, title: title, packed: false};
 		
 		if(isError){
-			console.log(list);
-			this.setError(commonError, mode, clear);
+			// console.log(list);
+			title = com1 == 'SAVE' ? error.message : title;
+			this.setError(error, mode, clear);
 		}else{
 			this.changeEditMode(mode, false);
 		}
+		list[0] = {sound_id: 0, user_id: this.loginParams.user_id, title: title, packed: false};
 
 		if(mode == 'pack'){
 			this.drawPackedFileList();
@@ -2081,8 +2176,9 @@ LitroKeyboard.prototype = {
 			
 				function(data){
 					if(data == null || data === false || data.error_code != null){
-						self.changeEditMode('error');
-						self.drawMenu();
+						// self.setError(data != null ? data : {error_code: 0, message: 'error'});
+						// self.drawMenu();
+						self.setError(commonError, mode, false);
 						return;
 					}
 					self.changeEditMode('note');
@@ -2093,8 +2189,9 @@ LitroKeyboard.prototype = {
 					return;
 				},
 				function(){
-					self.changeEditMode('error');
-					self.drawMenu();
+					self.setError(commonError, mode, false);
+					// self.changeEditMode('error');
+					// self.drawMenu();
 				}); break;
 		}
 	},
@@ -2190,7 +2287,6 @@ LitroKeyboard.prototype = {
 	setBg2Position: function(scrollPos)
 	{
 		var pos = scrollPos | 0
-			// , pos = ((DISPLAY_WIDTH * (scrollPos / this.noteRangeScale)) | 0)
 			, pre = (this.bg2x.t / DISPLAY_WIDTH) | 0
 		;
 		this.bg2x.t = - (((pos + DISPLAY_WIDTH) % (DISPLAY_WIDTH * 2)) - DISPLAY_WIDTH);
@@ -3415,6 +3511,7 @@ LitroKeyboard.prototype = {
 		// cur.y = 0;
 
 	},
+	
 	playKeyOn: function(ext)
 	{
 		var  player = this.player
@@ -3422,11 +3519,12 @@ LitroKeyboard.prototype = {
 			, cch = player.COMMON_TUNE_CH
 			, self = this
 			;
+		if(ext){return;}
 		if(this.getMode() == 'manual'){return;}
 		this.initCatchEvent();
 		this.initSelect();
 		this.drawSelectEvents({time: -1});
-
+		
 		if(!player.isPlay()){
 			if(ext){
 				this.deleteAtTime(cch, player.commonEventTime('tmpend'), 'event');
@@ -3441,7 +3539,6 @@ LitroKeyboard.prototype = {
 			this.drawMenu('play');
 			this.drawOscillo();
 			this.drawPlayTitle();
-			
 			this.player.setOnStopFunc(function(){
 				self.stopPlayer();
 			});
@@ -3490,12 +3587,33 @@ LitroKeyboard.prototype = {
 				case '>': this.playSE('ok'); break;
 				case '<': this.playSE('cancel'); break;
 			}
+			
+			this.refreshCurrentNote();
 		}
 	},
 	
-	holdKeyCommon: function(key, ext)
+	holdKeyCommon: function(key, ext, hold)
 	{
-		this.baseKeyOn(key, ext);
+		if(key == 'space' && ext){
+			this.playLitroTemporary();
+			return;
+		}else{
+			if(key == 'space' && hold){
+				return;
+			}
+			this.baseKeyOn(key, ext);
+			
+		}
+	},
+	
+	unTrigCommon: function(key, ext)
+	{
+		if(key == 'space'){
+			this.stopLitroTemporary();
+			return;
+		}else{
+//			this.baseKeyOn(key, ext);
+		}
 	},
 	
 	moveCursor: function(dir, ext)
@@ -3514,6 +3632,8 @@ LitroKeyboard.prototype = {
 			case 'manual': this.moveManualMenuCursor(dir, ext);break;
 			// case 3: this.baseKeyOnChannel(dir);break;
 		}
+		
+		this.refreshCurrentNote();
 		isMove = true;
 		if(this.editMode == 'catch'){
 			isMove = false;
@@ -3629,21 +3749,21 @@ LitroKeyboard.prototype = {
 			captureScreen('view');
 			return;
 		}
-
+		
 		//操作キー
 		ckeys = this.baseKeys; klen = ckeys.length;
 		for(i = 0; i < klen; i++){
 			key = ckeys[i];
-			if(getTrig(key) || getHold(key)){
-				this.holdKeyCommon(key, ext_s);
+			hold = getHold(key);
+			if(getTrig(key) || hold){
+				this.holdKeyCommon(key, ext_s, hold);
 				this.drawOnBaseKey(key, true);
 			}
 			if(getUntrig(key)){
+				this.unTrigCommon(key, ext_s);
 				this.drawOnBaseKey(key, false);
 			}
 		}
-		// this.baseKeys.forEach(function(key){
-		// }, this);
 		//ズームキー
 		ckeys = this.zoomKeys; klen = ckeys.length;
 		for(i = 0; i < klen; i++){
@@ -3656,8 +3776,6 @@ LitroKeyboard.prototype = {
 				this.drawOnBaseKey(key, false);
 			}
 		}
-		// Object.keys(this.ZOOM_KEYCODE).forEach(function(key){
-		// },this);
 		if(getState('[') && getState(']')){
 			this.zoomKeyOn('[]', ext_s);
 		}
@@ -3745,15 +3863,15 @@ LitroKeyboard.prototype = {
 			 ? makeSprite(this.uiImageName, this.seekSprite) : makeSprite(this.uiImageName, this.seekWaitSprite)
 			, arrow = makeSprite(this.uiImageName, this.arrowSprite)
 			, arrow_l = makeSprite(this.uiImageName, this.arrowSprite)
+			, bar = makeSprite(this.uiImageName, this.seekBarSprite)
 			, scr = scrollByName('sprite')
 			, mc = this.seekCmargin
-			, i, mode, ch = this.editChannel()
-			, from, to
+			, i, ch = this.editChannel()
 			, min_y, max_y
 			, centerPos = (cellhto(this.noteRangeCells) * this.noteRange / 2)
 			// , x = (this.player.noteSeekTime) * this.noteRange * (cellhto(this.noteRangeCells) / this.noteRangeScale)
-			, x = this.seekPosition()
-			, px = Math.sin(this.seekLineCount / 20) * 4
+			, x = this.seekPosition(), y
+			, px = Math.sin(this.seekLineCount * (Math.PI / DISPLAY_HEIGHT) * 16) * 4
 			, arrowDisps = {'note': 0, 'catch': 0, 'eventset': 0}
 		;
 		// printDebug(cellhto(mc.x) + x, 1);
@@ -3767,24 +3885,106 @@ LitroKeyboard.prototype = {
 			scr.drawSprite(arrow_l, cellhto(mc.x - 2) + x - px, mc.y);
 		}
 		
-		from = {x: cellhto(mc.x + 2) + x - 1, y: mc.y + this.seekLineCount + cellhto(2)};
-		to = {x: from.x, y: mc.y + this.seekLineCount + cellhto(3)};
-		
+		x = cellhto(mc.x + 2) + x - 1;
 		min_y = cellhto(2);
 		max_y = (cellhto(this.octaveRangeCells + 2) / 2) + min_y;
-		for(i = -5; i < 0; i++){
-			from.y = this.seekLineCount + cellhto(i * 2);
-			to.y = this.seekLineCount + cellhto(1 + (i * 2));
-			from.y = from.y < min_y ? min_y : from.y;
-			to.y = to.y < min_y ? min_y : to.y;
-			from.y = from.y > max_y ? max_y : from.y;
-			to.y = to.y > max_y ? max_y : to.y;
-			if(from.y == to.y){continue;}
-			scr.spriteLine(from, to, COLOR_ARRAY[ch]);
+		bar.swapColor(COLOR_ARRAY[ch], COLOR_WHITE);
+		for(i = -4; i < 0; i++){
+			y = (((this.seekLineCount * 30) + (this.seekLineCount * 16) + 80) % ((DISPLAY_HEIGHT) | 0));
+			y = (DISPLAY_HEIGHT - y) + cellhto(i * 2);
+
+			if(y >= max_y || y < min_y){continue;}
+			scr.drawSprite(bar, Math.round(x), y);
+			
 		}
 		
-		this.seekLineCount = (this.seekLineCount + 4) % DISPLAY_HEIGHT;
+		this.seekLineCount = (this.seekLineCount + 1) % DISPLAY_HEIGHT;
 	},
+	
+	drawEnvelopeBeam: function()
+	{
+		var scr = scrollByName('sprite')
+			, mc = this.seekCmargin
+			, ncm = this.noteCmargin
+			, sprites = {
+				a: this.frameSprites.envelopeBeam1
+				, b: this.frameSprites.envelopeBeam2
+				, c: this.frameSprites.envelopeBeam_s
+			},
+			cto = cellhto
+			, self = this
+			, player = this.player
+			, t2p = function(t){return self.time2pixel(t);}
+			, ch = this.editChannel()
+			, cnote = this.getCurrentNote()
+			, clk = this.envelopeBeamClock
+			// , centerPos = (cto(this.noteRangeCells) * this.noteRange / 2)
+			, baseX = t2p(cnote.time - this.pixel2time(this.noteScrollPos.x)) 
+			, baseY = cto(ncm.y - (this.noteCurrentHeight(cnote.value)) / 2) + cto(1)
+			, cycle = (player.channel[ch].envelopeDistance() / MIN_CLOCK) | 0, mul = 2
+			, ampSize = WAVE_VOLUME_RESOLUTION
+			, envelopes = player.getEnvelopes(ch)
+			, sumDist = t2p(player.channel[ch].envelopeDistance())
+			, dists = {
+				a: t2p(envelopes.attack), 
+				b: t2p(envelopes.hold), 
+				c: t2p(envelopes.decay), 
+				d: t2p(envelopes.length), 
+				e: t2p(envelopes.release), 
+			}
+			, fdists = {}
+			, vol = envelopes.volumeLevel
+			, sus = envelopes.sustain
+			;
+			fdists.a = dists.a;
+			fdists.b = fdists.a + dists.b;
+			fdists.c = fdists.b + dists.c;
+			fdists.d = fdists.c + dists.d; 
+			fdists.e = fdists.d + dists.e;
+			function beam(clock, sprite){
+				var y = baseY
+					, x = baseX
+					, pos = ((sumDist / cycle) * clock) | 0
+					, color
+				;
+				if(pos < dists.a){
+					color = COLOR_ARRAY[0];
+					y -= (vol - ((vol / ampSize) * (((fdists.a - pos) / dists.a) * ampSize))) * mul;
+				}else if(pos < fdists.b){
+					color = COLOR_ARRAY[2];
+					y -= vol * mul;
+				}else if(pos < fdists.c){
+					color = COLOR_ARRAY[4];
+					y -= (sus + (((vol - sus) / ampSize) * (((fdists.c - pos) / dists.c) * ampSize))) * mul;
+				}else if(pos < fdists.d){
+					color = COLOR_ARRAY[5];
+					y -= sus * mul;
+				}else if(pos < fdists.e){
+					color = COLOR_ARRAY[6];
+					y -= (((sus / ampSize) * (((fdists.e - pos) / dists.e) * ampSize))) * mul;
+				}else{
+					color = COLOR_ARRAY[0];
+				}
+					
+				// console.log(this.getCurrentNote().time);
+				// x = x < centerPos? x : centerPos;
+				x += cto(mc.x) + pos + 8;
+				// console.log(dDist);
+				sprite.setSwapColor(color, COLOR_WHITE);
+				scr.drawSprite(sprite, Math.round(x), Math.round(y));
+				sprite = null;
+			};
+			beam(clk, (((clk) / 10) | 0) % 2 == 0 ? sprites.a : sprites.b);
+			beam((clk + cycle - 4) % cycle, sprites.c);
+			beam((clk + cycle - 8) % cycle, sprites.c);
+			this.envelopeBeamClock = (clk + 1) % cycle;
+			cto = null;
+			t2p = null;
+			self = null;
+			player = null;
+			beam = null;
+	},
+
 	
 	drawScoreBoard: function(bottom)
 	{
@@ -3947,6 +4147,9 @@ LitroKeyboard.prototype = {
 			, thumbRot = ((vol / thumbSep) | 0)
 			, thumbSpr = thumbRot % 2 == 0 ? makeSprite(image, sprs.thumb_1) : makeSprite(image, sprs.thumb_2)
 		;
+		if(this.editMode == 'tune'){
+			return;
+		}
 		thumbSpr.rot(((thumbRot / 2) | 0) % 4);
 		scr.drawSprite(thumbSpr, cellhto(cm.x), cellhto(cm.y));
 		scr.drawSprite(makeSprite(image, sprs.vol), cellhto(cm.x), cellhto(cm.y));
@@ -3961,11 +4164,16 @@ LitroKeyboard.prototype = {
 			, crate = this.litroSound.clockRate
 			, bcell = cellhto(1)
 		;
+		if(this.editMode == 'tune'){
+			return;
+		}
+
 		crate += 0.001;
 		// scr.drawSprite(thumbSpr, cellhto(cm.x), cellhto(cm.y));
 		// scr.drawSprite(makeSprite(image, sprs.vol), cellhto(cm.x), cellhto(cm.y));
 		// scr.drawSprite(makeSprite(image, sprs.gauge), cellhto(cm.x + 2), cellhto(cm.y));
 		// scr.clear(COLOR_BLACK, makeRect(cellhto(cm.x), cellhto(cm.y - 2), bcell, bcell);
+		this.word.setFontSize('4v6px');
 		this.word.print('R:' + str_pad(crate, 4, '0', 'STR_PAD_RIGHT'), cellhto(cm.x), cellhto(cm.y - 2), COLOR_WHITE, COLOR_BLACK);
 		// this.word.print('RATE:' + str_pad(sec, 2, '0', 'STR_PAD_LEFT'));
 		
@@ -5006,6 +5214,7 @@ LitroKeyboard.prototype = {
 		}
 		// console.time('rep');
 		this.drawSeek();
+		this.drawEnvelopeBeam();
 		// console.timeEnd('rep');
 		this.drawScrollTime();
 		this.blinkDraw();
@@ -5487,6 +5696,7 @@ function drawLitroScreen()
 		ltkb.word.setScroll(spr);
 		cx = ltkb.debugCellPos.x, cy = ltkb.debugCellPos.y;
 		x = cellhto(cx), y = cellhto(cy);
+		x = Math.round(x);
 		ltkb.word.print((cx < 10 ? 'x:0' : 'x:') + cx + '', x - cellhto(3), y - cellhto(2));
 		ltkb.word.print((cy < 10 ? 'y:0' : 'y:') + cy + '', x - cellhto(3), y - cellhto(1));
 		spr.drawSprite(ltkb.cellCursorSprite, x, y);
