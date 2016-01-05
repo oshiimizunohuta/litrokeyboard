@@ -1487,7 +1487,10 @@ LitroKeyboard.prototype = {
 			this.tempPlaySeekTime = -1;
 			this.changeEditMode(mode);
 			this.prevEditMode = mode != 'note' ? 'note' : 'tune';
+			this.updateScrollPage();
+			// this.updateForwardSeek();
 			this.updateBackSeek();
+			this.drawEventsetBatch();
 			// this.drawMenu('tune');
 			this.drawMenu();
 
@@ -2298,7 +2301,7 @@ LitroKeyboard.prototype = {
 		}
 	},
 	
-	updateForwardSeek: function(pos)
+	updateForwardSeek: function()
 	{
 		var centerPos = this.seekCenterPosition()
 			, setPos = this.seekPosition()
@@ -3947,21 +3950,25 @@ LitroKeyboard.prototype = {
 					, pos = ((sumDist / cycle) * clock) | 0
 					, color
 				;
+				if(pos < 0){
+					return;
+				}
 				if(pos < dists.a){
 					color = COLOR_ARRAY[0];
-					y -= (vol - ((vol / ampSize) * (((fdists.a - pos) / dists.a) * ampSize))) * mul;
+					y -= dists.a == 0 ? vol * mul : (vol - ((vol / ampSize) * (((fdists.a - pos) / dists.a) * ampSize))) * mul;
+					// console.log(vol, ampSize, fdists.a, pos, mul);
 				}else if(pos < fdists.b){
 					color = COLOR_ARRAY[2];
 					y -= vol * mul;
 				}else if(pos < fdists.c){
 					color = COLOR_ARRAY[4];
-					y -= (sus + (((vol - sus) / ampSize) * (((fdists.c - pos) / dists.c) * ampSize))) * mul;
+					y -= dists.c == 0 ? sus * mul : (sus + (((vol - sus) / ampSize) * (((fdists.c - pos) / dists.c) * ampSize))) * mul;
 				}else if(pos < fdists.d){
 					color = COLOR_ARRAY[5];
 					y -= sus * mul;
 				}else if(pos < fdists.e){
 					color = COLOR_ARRAY[6];
-					y -= (((sus / ampSize) * (((fdists.e - pos) / dists.e) * ampSize))) * mul;
+					y -= dists.e == 0 ? 0 : (((sus / ampSize) * (((fdists.e - pos) / dists.e) * ampSize))) * mul;
 				}else{
 					color = COLOR_ARRAY[0];
 				}
