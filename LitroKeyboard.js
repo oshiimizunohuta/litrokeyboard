@@ -2,7 +2,7 @@
  * Litro Keyboard Interface
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.11.05
+ * ver 0.11.06
  */
 
 //環境判定
@@ -437,13 +437,16 @@ LitroKeyboard.prototype = {
 		
 		//ファイルメニュー設定
 		this.fileMenuMap = {
-			LOAD: this.fileTypeList,
-			SAVE: this.fileTypeList,
+			// LOAD: this.fileTypeList,
+			// SAVE: this.fileTypeList,
+			LOAD: this.fileListList,
+			SAVE: this.fileListList,
 			CLEAR: this.clearMenuList,
 			COOKIE: this.finalConf,
 			STRINGS: this.finalConf,
 			FILESELECT: this.finalConf,
-			SERVER: this.fileListList,
+			//in fileTypeList
+			SERVER: this.fileListList, 
 			TITLE: this.fileTitleList,
 			LOGIN: this.fileLoginList,
 			FILE: this.fileMenuList,
@@ -2108,11 +2111,11 @@ LitroKeyboard.prototype = {
 			this.player.fileList(list);
 		}
 		
-		if(com1 == 'SAVE'){
+		if(com0 == 'SAVE'){
 			title = 'NEW FILE';
 			mode = 'file';
 			clear = true;
-		}else if(com1 == 'LOAD'){
+		}else if(com0 == 'LOAD'){
 			//最初にスコア削除を入れておく
 			title = '！！CLEAR　NOTES！！';
 			mode = 'file';
@@ -2150,15 +2153,16 @@ LitroKeyboard.prototype = {
 	commandExecute: function()
 	{
 		var com_conf = this.getLastCommand()
-			, com_type = this.getLastCommand(1)
+			// , com_type = this.getLastCommand(1)
+			// , com_method = this.getLastCommand(2)
+			// , com_submethod = this.getLastCommand(3)
+			, com_type = 'SERVER'
 			, com_method = this.getLastCommand(2)
-			, com_submethod = this.getLastCommand(3)
 		;
-		if(this.commandPath.indexOf('COOKIE') == -1){
-			com_type = com_method;
-			com_method = com_submethod;
-		}
-		
+		// if(this.commandPath.indexOf('COOKIE') == -1){
+			// com_type = com_method;
+			// com_method = com_submethod;
+		// }
 		// this.player.listFromSever()
 		if(com_conf != 'OK'){
 			return;
@@ -2687,23 +2691,28 @@ LitroKeyboard.prototype = {
 	
 	moveFileMenuCursor: function(dir, ext)
 	{
-		if(this.getLastCommand() == 'TITLE'){
-			this.moveCharBoardCursor(dir, ext);
-			return;
-		}else if(this.getLastCommand() == 'SERVER'){
-			this.moveFileListCursor(dir, ext);
-			this.drawFileList();
-			this.drawFileListCursor();
-
-			return;
-		}
 		var cur = this.fileMenuCursor
 			, limit
 			, chLength = this.player.channel.length
 			, paramsLength = this.paramKeys.length
 			, list = this.getFileMenuList()
 			, currentLength
+			, com = this.getLastCommand()
 		;
+		if(com == 'TITLE'){
+			this.moveCharBoardCursor(dir, ext);
+			return;
+		}else if(com == 'SAVE' || com == 'LOAD'){
+			this.moveFileListCursor(dir, ext);
+			this.drawFileList();
+			this.drawFileListCursor();
+			return;
+		}else if(com == 'SERVER'){
+			this.moveFileListCursor(dir, ext);
+			this.drawFileList();
+			this.drawFileListCursor();
+			return;
+		}
 		if(list == null){
 			 return;
 		}
@@ -3049,26 +3058,9 @@ LitroKeyboard.prototype = {
 				this.initSelect();
 				break;
 			case 'PASTE': 
-				// if(key == '<'){
-					// cur.y = 0;
-					// break;
-				// }
-				// this.pasteNote(cur.x, this.player.noteSeekTime, this.catchNotes.note);
-				// this.pasteEventCange(this.paramCursor.x, this.player.noteSeekTime, this.catchEventset);
-				// this.commandPath = [];
+
 				break;
-			// case 'REMOVE':
-				// if(key == '<'){
-					// cur.y = 0;
-					// break;
-				// }
-				// console.log(key);
-				// // this.deleteNote(this.catchNotes.ch, this.catchNotes.note);
-				// deldat = this.deleteEventChange(this.selectNote.ch, this.catchEventset);
-				// this.initCatchEvent(deldat);
-				// // this.initSelect();
-				// this.commandPath = [];
-				// break;
+
 			case 'EVENTSET': 
 				//未使用
 				if(key == '<'){
@@ -3100,6 +3092,18 @@ LitroKeyboard.prototype = {
 				this.openManual();
 				break;
 			case 'SAVE':
+			case 'LOAD':
+				cur = this.fileMenuCursor;
+				if(key == '<'){
+					cur.y = 0;
+				}else{
+					this.changeEditMode('loading', false);
+					this.loadList(this.fileListPage, this.fileListLoadLimit);
+					this.getActiveModeCursor().y = 0;
+					this.drawMenu();
+				}
+				break;
+
 				cur = this.fileMenuCursor;
 				cur.y = 0;
 				break;
@@ -3319,8 +3323,10 @@ LitroKeyboard.prototype = {
 		if(key == 'select'){
 			this.commonTabKey(true);
 			return;
-		}		
+		}
+		//共通処理		
 		com = this.baseKeyMenuCommon(fcur, key);
+		
 		if(key == '<' && (this.fileMenuList.indexOf(com) >= 0 || this.fileMenuList_login.indexOf(com) >= 0)){
 			this.changeEditMode('note');
 			this.drawMenu();
@@ -4972,6 +4978,7 @@ LitroKeyboard.prototype = {
 	},
 
 //左柱描画
+//TODO 毎フレーム表示廃止
 	drawScrollTime: function(time, init)
 	{
 		var cm = {x: 1, y: 8}, word = this.word
@@ -4992,7 +4999,8 @@ LitroKeyboard.prototype = {
 		}
 		
 		sec = (time / 1000) | 0;
-		msec = Math.round(time - (sec * 100));
+		// msec = Math.round(time - (sec * 100));
+		msec = (time - (sec * 1000)) | 0;
 		if(sec != this.scrollTime || init){
 			this.scrollTime = sec;
 			word.print(str_pad(sec, 4, '0', 'STR_PAD_LEFT'), x, y + (ycel * 1), c1, c2);
