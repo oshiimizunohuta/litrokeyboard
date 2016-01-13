@@ -2,7 +2,7 @@
  * Litro Keyboard Interface
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.11.06
+ * ver 0.11.07
  */
 
 //環境判定
@@ -878,6 +878,7 @@ LitroKeyboard.prototype = {
 			
 			//左右カーソル
 			arrow: ms(240),
+			arrow_l: ms(240),
 			//ノートカーソル線
 			seekBar: ms(241),
 			//ノートカーソル
@@ -3953,10 +3954,10 @@ LitroKeyboard.prototype = {
 	drawSeek: function()
 	{
 		var sprite = this.editMode == 'note' || this.editMode == 'eventset' || this.editMode == 'catch' || this.player.isPlay()
-			 ? makeSprite(this.uiImageName, this.seekSprite) : makeSprite(this.uiImageName, this.seekWaitSprite)
+			 ? this.iconSprites.seek : this.iconSprites.seekWait
 			, arrow = this.iconSprites.arrow
-			, arrow_l = makeSprite(this.uiImageName, this.arrowSprite)
-			, bar = makeSprite(this.uiImageName, this.seekBarSprite)
+			, arrow_l = this.iconSprites.arrow_l
+			, bar = this.iconSprites.seekBar
 			, scr = scrollByName('sprite')
 			, mc = this.seekCmargin
 			, i, ch = this.editChannel()
@@ -3981,7 +3982,9 @@ LitroKeyboard.prototype = {
 		x = cellhto(mc.x + 2) + x - 1;
 		min_y = cellhto(2);
 		max_y = (cellhto(this.octaveRangeCells + 2) / 2) + min_y;
-		bar.swapColor(COLOR_ARRAY[ch], COLOR_WHITE);
+		// bar.swapColor(COLOR_ARRAY[ch], COLOR_WHITE);
+		bar.setSwapColor(COLOR_ARRAY[ch], COLOR_WHITE);
+		
 		for(i = -4; i < 0; i++){
 			y = (((this.seekLineCount * 30) + (this.seekLineCount * 16) + 80) % ((DISPLAY_HEIGHT) | 0));
 			y = (DISPLAY_HEIGHT - y) + cellhto(i * 2);
@@ -4635,7 +4638,8 @@ LitroKeyboard.prototype = {
 		;
 		
 		if(esp.swap){
-			icon.swapColor(COLOR_ARRAY[this.editChannel()], COLOR_WHITE);
+			// icon.swapColor(COLOR_ARRAY[this.editChannel()], COLOR_WHITE);
+			icon.setSwapColor(COLOR_ARRAY[this.editChannel()], COLOR_WHITE);
 		}
 		this.drawMenuList(menu);
 		this.drawMenuListCursor(this.eventsetMenuList, cur.y);
@@ -4961,10 +4965,7 @@ LitroKeyboard.prototype = {
 		for(i = 0; i < limit; i++){
 			index = i + offset;
 			if(keys.length < index){break;}
-			// word.setStr(str_pad(keys[index], sublen, "　", "STR_PAD_RIGHT"));
 			word.setPos(cellhto(mc.x), cellhto(mc.y + i));
-			// word.setColor(printCol, COLOR_BLACK);
-			// word.draw();
 			word.print(str_pad(keys[index], sublen, "　", "STR_PAD_RIGHT"), cellhto(mc.x), cellhto(mc.y + i), printCol, COLOR_BLACK);
 		}
 	},
