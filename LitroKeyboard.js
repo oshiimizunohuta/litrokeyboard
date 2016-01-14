@@ -200,6 +200,7 @@ function LitroKeyboard() {
 	this.frameChunks = []; //背景フレーム用ChunkRepeat
 	this.frameSprites = {}; //背景フレーム用spriteChunk
 	this.frameChunksKeys = {}; //framechunksのkeyインデックス重複はArray
+	this.iconSprites = {};
 	
 	this.catchNotes = {}; //キャッチ操作
 	this.selectNote = {}; //選択中
@@ -219,27 +220,19 @@ function LitroKeyboard() {
 	this.debgCell = false;
 	this.debugCellPos = {x: 0, y :0};
 	this.cellCursorSprite = 88; //font8
-	this.noteSprite = 176;
-	this.eventsetSprite = {
-		0: {id: 192, ofx: 0, swap: true},
-		1: {id: 193, ofx: 0, swap: true},
-		2: {id: 194, ofx: 0, swap: true},
-		3: {id: 195, ofx: 0, swap: true},
-		4: {id: 196, ofx: 0, swap: true},
-		5: {id: 197, ofx: 0, swap: true},
-		6: {id: 198, ofx: 0, swap: true},
-		7: {id: 199, ofx: 0, swap: true},
-	};
+	this.noteSprite = [];
+	this.rnoteSprite = [];
+	this.eventsetSprite = [];
 	
 	this.eventSprite = {
-		restart: {id: 208, ofx: -CW, swap: false},
-		'return': {id: 209, ofx: CW, swap: false},
-		noteoff: {id: 210, ofx: 0, swap: true},
-		noteextend: {id: 211, ofx: 0, swap: true},
-		tmpstart: {id: 212, ofx: -CW, swap: false},
-		tmpend: {id: 213, ofx: CW, swap: false},
-		sweepnotes: {id: 214, ofx: -CW, swap: true},
-		meeknotes: {id: 215, ofx: CW, swap: true},
+		// restart: {id: 208, ofx: -CW, swap: false},
+		// 'return': {id: 209, ofx: CW, swap: false},
+		// noteoff: {id: 210, ofx: 0, swap: true},
+		// noteextend: {id: 211, ofx: 0, swap: true},
+		// tmpstart: {id: 212, ofx: -CW, swap: false},
+		// tmpend: {id: 213, ofx: CW, swap: false},
+		// sweepnotes: {id: 214, ofx: -CW, swap: true},
+		// meeknotes: {id: 215, ofx: CW, swap: true},
 	};
 	
 	this.noteScrollCmargin = {x: 3, y: 3};
@@ -818,6 +811,7 @@ LitroKeyboard.prototype = {
 			, ms = function(id){return makeSprite(img, id);}
 			,bftop = 14
 			,bdtop = 22
+			, ic
 		;
 		
 		this.iconSprites = {
@@ -839,6 +833,15 @@ LitroKeyboard.prototype = {
 			note6:  ms(181),
 			note7:  ms(182),
 			note8:  ms(183),
+
+			rnote1:  ms(176),
+			rnote2:  ms(177),
+			rnote3:  ms(178),
+			rnote4:  ms(179),
+			rnote5:  ms(180),
+			rnote6:  ms(181),
+			rnote7:  ms(182),
+			rnote8:  ms(183),
 			
 			tune1: ms(192),
 			tune2: ms(193),
@@ -885,9 +888,33 @@ LitroKeyboard.prototype = {
 			seek: ms(242),
 			 //ノート待ちカーソル
 			seekWait: ms(243),
-			
 		};
 		
+		ic = this.iconSprites;
+		this.noteSprite = [
+			ic.note1, ic.note2, ic.note3, ic.note4, ic.note5, ic.note6, ic.note7, ic.note8 
+		];
+		this.rnoteSprite = [
+			ic.rnote1, ic.rnote2, ic.rnote3, ic.rnote4, ic.rnote5, ic.rnote6, ic.rnote7, ic.rnote8 
+		];
+		this.rnoteSprite.forEach(function(s){
+			s.rot(3);
+		});
+		
+		this.eventSprite = {
+			restart: {sprite: ic.restart, ofx: -CW, swap: false},
+			'return': {sprite: ic['return'], ofx: CW, swap: false},
+			noteoff: {sprite: ic.noteoff, ofx: 0, swap: true},
+			noteextend: {sprite: ic.noteextend, ofx: 0, swap: true},
+			tmpstart: {sprite: ic.tmpstart, ofx: -CW, swap: false},
+			tmpend: {sprite: ic.tmpend, ofx: CW, swap: false},
+			sweepnotes: {sprite: ic.sweepnotes, ofx: -CW, swap: true},
+			meeknotes: {sprite: ic.meeknotes, ofx: CW, swap: true},
+		};
+		this.eventsetSprite = [
+			ic.tune1, ic.tune2, ic.tune3, ic.tune4, ic.tune5, ic.tune6, ic.tune7, ic.tune8,
+		];
+
 		this.frameSprites = {
 		//上半分左
 			topRollLeft: mccf(msq('9+2:1+1'), 0, 0),
@@ -966,99 +993,6 @@ LitroKeyboard.prototype = {
 			eventSpace: ms(15),
 			
 		};
-		
-		// this.frameSprites = {
-			// topRollLeft: msc([9, 1, 2, 1]),
-			// leftDispMiddle: msc([9, 3, 2, 1]),
-			// leftDispEdge: msc([9, 2, 2, 1]),
-			// noteRollLeft: msc([1, 0, 2, 1]),
-			// eventRollRight: msc([11, 0, 2, 1]),
-			// leftFrame: msc([0, 1, 1, 8]),
-			// rightFrame: msc([7, 1, 2, 5]),
-			// baseKeyDisp: msc([7, 6, 2, 3]),
-			// topFrameLeft: msc([1, 1, 2, 2]),
-			// topFrameRight: msc([5, 1, 2, 2]),
-			// topFrameCenter_2: msc([4, 1, 1, 2]),
-			// topFrameCenter_1: msc([3, 1, 1, 2]),
-			// boardFrameLeft_1: msc([1, 5, 1, 4]),
-			// boardFrameCenter_1: msc([2, 5, 1, 4]),
-			// boardFrameRight_1: msc([3, 5, 1, 4]),
-			// boardFrameLeft_2: msc([4, 5, 1,4]),
-			// boardFrameCenter_2: msc([5, 5, 1, 4]),
-			// boardFrameRight_2: msc([6, 5, 1, 4]),
-// 			
-			// octaveRoll: msc([3, 0, 2, 1]),
-// 			
-// 			
-			// //Not openframe
-			// ocsLineV: msc([5, 4, 1, 1]),
-			// ocsLineH: msc([6, 4, 1, 1]),
-			// //ScoreBoard
-			// noteStart: ms(5),
-			// notePeriod: ms(6),
-			// noteLine: ms(7),
-			// noteSpaceStart: ms(8),
-			// noteSpacePeriod: ms(9),
-			// noteSpace: ms(10),
-			// eventSpaceStart: ms(13),
-			// eventSpacePeriod: ms(14),
-			// eventSpace: ms(15),
-		// };
-		
-		// //上半分左
-		// mcc('topRollLeft', [0, 0, 1, 1]);
-		// mcc('topRollLeft', [0, 0.5, 1, 1]);
-// 	
-		// mcc('leftDispMiddle', [0, 1.5, 1, 2]);
-		// mcc('leftDispEdge', [0, 3, 1, 1]);
-// 
-		// mcc('leftDispMiddle', [0, 4, 1, 3]);
-		// mcc('leftDispEdge', [0, 6.5, 1, 1]);
-// 		
-		// //上半分
-		// mcc('noteRollLeft', [18, 1, 1, 6]);
-		// mcc('eventRollRight', [18, 0, 1, 1]);
-// 		
-		// //下半分
-		// mcc('leftFrame', [0, 7, 1, 1]);
-		// mcc('rightFrame', [18, 7, 1, 1]);
-		// mcc('baseKeyDisp', [18, 12, 1, 1]);
-		// mcc('topFrameLeft', [1, 7, 1, 1]);
-		// mcc('topFrameRight', [16, 7, 1, 1]);
-// 		
-		// mcc('topFrameCenter_2', [3, 7, 2, 1]);
-		// mcc('topFrameCenter_1', [5, 7, 6, 1]);
-		// mcc('topFrameCenter_2', [11, 7, 2, 1]);
-		// mcc('topFrameCenter_1', [13, 7, 1, 1]);
-		// mcc('topFrameCenter_2', [14, 7, 1, 1]);
-		// mcc('topFrameCenter_1', [15, 7, 1, 1]);
-// 		
-		// //鍵盤
-		// mcc('boardFrameLeft_1', [1, 11, 1, 1]);
-		// mcc('boardFrameCenter_1', [2, 11, 1, 1]);
-		// mcc('boardFrameRight_2', [3, 11, 1, 1]);
-// 		
-		// mcc('boardFrameLeft_2', [4, 11, 1, 1]);
-		// mcc('boardFrameCenter_1', [5, 11, 1, 1]);
-		// mcc('boardFrameCenter_1', [6, 11, 1, 1]);
-		// mcc('boardFrameRight_1', [7, 11, 1, 1]);
-// 		
-		// mcc('boardFrameLeft_1', [8, 11, 1, 1]);
-		// mcc('boardFrameCenter_1', [9, 11, 1, 1]);
-		// mcc('boardFrameRight_1', [10, 11, 1, 1]);
-// 		
-		// mcc('boardFrameLeft_2', [11, 11, 1, 1]);
-		// mcc('boardFrameCenter_2', [12, 11, 1, 1]);
-		// mcc('boardFrameCenter_1', [13, 11, 1, 1]);
-		// mcc('boardFrameRight_2', [14, 11, 1, 1]);
-// 		
-		// mcc('boardFrameLeft_1', [15, 11, 1, 1]);
-		// mcc('boardFrameCenter_1', [16, 11, 1, 1]);
-		// mcc('boardFrameRight_1', [17, 11, 1, 1]);
-		
-		// mcc('baseKeyDisp', [18, 12, 1, 1]),
-		
-		// this.frameChunksKeys = {};
 	},
 	
 	initControllDisp: function(){
@@ -4335,18 +4269,25 @@ LitroKeyboard.prototype = {
 			x -= rot == 3 ? cellhto(1) / 2 : 0;
 			y = cellhto(noteCm.y) - (y / 2);
 			y += rot == 3 ? cellhto(1) / 2 : 0;
-			sprite = makeSprite(this.uiImageName, this.noteSprite + ch);
+			// sprite = makeSprite(this.uiImageName, this.noteSprite + ch);
+			sprite = rot != 3 ? this.noteSprite[ch] : this.rnoteSprite[ch];
+		}else if(this.eventSprite[type] == null){
+			y = 0;
+			sprite = this.eventsetSprite[ch];
+			sprite.swapColor(COLOR_ARRAY[ch], COLOR_WHITE);
+			sprite.swapStart();
 		}else{
 			y = 0;
-			esp = this.eventSprite[type] != null ? this.eventSprite[type] : this.eventsetSprite[ch];
-			sprite = makeSprite(this.uiImageName, esp.id);
+			// sprite = makeSprite(this.uiImageName, esp.id);
+			esp = this.eventSprite[type];
+			sprite = esp.sprite;
 			if(esp.swap){
 				sprite.swapColor(COLOR_ARRAY[ch], COLOR_WHITE);
+				sprite.swapStart();
 			}
 			x += esp.ofx;
-				
 		}
-		sprite.rot(rot);
+		// sprite.rot(rot);
 
 		if(!catchMode){
 			y += bottom ? DISPLAY_HEIGHT / 2 : 0;
@@ -4633,7 +4574,8 @@ LitroKeyboard.prototype = {
 		, key = menu[cur.y]
 		, type = this.ltSoundCommonParamskeys[key]
 		, esp = this.eventSprite[type] != null ? this.eventSprite[type] : this.eventsetSprite[this.editChannel()]
-		, icon = makeSprite(this.uiImageName, esp.id)
+		// , icon = makeSprite(this.uiImageName, esp.id)
+		, icon = esp.sprite
 		, cm = this.modeSubCmargin
 		;
 		
@@ -5060,7 +5002,7 @@ LitroKeyboard.prototype = {
 //左柱描画
 	drawScrollTime: function(time, init)
 	{
-		var cm = {x: 1, y: 8}, word = this.word
+		var cm = {x: 1, y: 8}, word = this.word4
 			, c1 = COLOR_WHITE
 			, c2 = COLOR_BLACK
 			, sec, msec, bg = scrollByName('bg1')
@@ -5068,7 +5010,7 @@ LitroKeyboard.prototype = {
 		;
 		init = init == null ? false : init;
 		time = time == null ? this.player.noteSeekTime : time;
-		word.setFontSize('4v6px');
+		// word.setFontSize('4v6px');
 		word.setScroll(bg);
 		if(init){
 			bg.clear(COLOR_BLACK, makeRect(x, y, cellhto(2), cellhto(5)));
@@ -5093,7 +5035,7 @@ LitroKeyboard.prototype = {
 	drawZoomScale: function(scale)
 	{
 		var cm = {x: 1, y: 3}, x = cellhto(cm.x), y = cellhto(cm.y), celly = cellhto(1)
-			, stepTime, bg = scrollByName('bg1'), word = this.word
+			, stepTime, bg = scrollByName('bg1'), word = this.word4
 			, c1 = COLOR_WHITE
 			, c2 = COLOR_BLACK
 		;
@@ -5101,7 +5043,7 @@ LitroKeyboard.prototype = {
 		
 		stepTime = (scale / this.noteRangeCells) | 0;
 		
-		word.setFontSize('4v6px');
+		// word.setFontSize('4v6px');
 		word.setScroll(bg);
 		word.print('STEP', x, y, COLOR_STEP, c2);
 		word.print(str_pad(stepTime, 4, '0', 'STR_PAD_LEFT'), x, y + (celly * 1), c1, c2);
@@ -5552,9 +5494,9 @@ LitroKeyboard.prototype = {
 			// , wm = {x: cellhto((baseCm.x * 2) + 1) + 2, y:cellhto((baseCm.y * 2) + 1)}
 			, wm = {x: cellhto(baseCm.x + 1) + 2, y:cellhto(baseCm.y + 1) - 3}
 			, name = (code != null) ? this.baseKeysDrawName[code] : '', select
-			, word = this.word
+			, word = this.word4
 			;
-		word.setFontSize('4v6px');
+		// word.setFontSize('4v6px');
 		word.setMarkAlign('horizon');
 		word.setMaxRows(5);
 		word.setLineCols(0);
@@ -5740,7 +5682,7 @@ function printDebug(val, row){
 		// if(litroKeyboardInstance == null){return;}
 		if(!imageResource.isload()){return;}
 		var scr = scrollByName('sprite'), ltkb = litroKeyboardInstance
-			, word = ltkb.word
+			, word = ltkb.word4
 			, mc = {x: 0, y: 29};
 		;
 		if(row == null){
@@ -5749,7 +5691,7 @@ function printDebug(val, row){
 		if(word == null){
 			return;
 		}
-		word.setFontSize('4v6px');
+		// word.setFontSize('4v6px');
 		word.setMarkAlign('horizon');
 		word.setScroll(scr);
 		word.setColor(COLOR_WHITE, COLOR_BLACK);
