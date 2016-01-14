@@ -2,7 +2,7 @@
  * Litro Keyboard Interface
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.11.07
+ * ver 0.11.08
  */
 
 //環境判定
@@ -870,6 +870,15 @@ LitroKeyboard.prototype = {
 			ntab7: ms(166),
 			ntab8: ms(167),
 			
+			bgtab1: ms(20),
+			bgtab2: ms(19),
+			bgtab3: ms(19),
+			bgtab4: ms(19),
+			bgtab5: ms(19),
+			bgtab6: ms(19),
+			bgtab7: ms(19),
+			bgtab8: ms(20),
+			
 			restart: ms(208),
 			'return': ms(209),
 			noteoff: ms(210),
@@ -888,6 +897,11 @@ LitroKeyboard.prototype = {
 			seek: ms(242),
 			 //ノート待ちカーソル
 			seekWait: ms(243),
+			
+		 	mode_tune: msq('8+2:9+2'),  mode_note: msq('10+2:9+2'),  mode_file: msq('12+2:9+2'),  mode_play: msq('14+2:9+2')
+ 			, mode_catch: msq('8+2:11+2'),  mode_eventset: msq('10+2:11+2'),  mode_loading: msq('12+2:11+2'),  mode_error: msq('14+2:11+2')
+	 		, mode_manual: msq('12+2:11+2'),  mode_pack: msq('8+2:13+2'),   mode_share: msq('10+2:3+2')
+			
 		};
 		
 		ic = this.iconSprites;
@@ -4168,7 +4182,8 @@ LitroKeyboard.prototype = {
 			, max = this.VOLUME_MAX, min = this.VOLUME_MIN
 			, bcell = (cellhto(2) - ((vol / this.VOLUME_MAX) * cellhto(2))) | 0
 			, thumbRot = ((vol / thumbSep) | 0)
-			, thumbSpr = thumbRot % 2 == 0 ? makeSprite(image, sprs.thumb_1) : makeSprite(image, sprs.thumb_2)
+			// , thumbSpr = thumbRot % 2 == 0 ? makeSprite(image, sprs.thumb_1) : makeSprite(image, sprs.thumb_2)
+			, thumbSpr = thumbRot % 2 == 0 ? this.iconSprites.thumb1 : this.iconSprites.thumb2
 		;
 		if(this.editMode == 'tune'){
 			return;
@@ -4192,10 +4207,6 @@ LitroKeyboard.prototype = {
 		}
 
 		crate += 0.001;
-		// scr.drawSprite(thumbSpr, cellhto(cm.x), cellhto(cm.y));
-		// scr.drawSprite(makeSprite(image, sprs.vol), cellhto(cm.x), cellhto(cm.y));
-		// scr.drawSprite(makeSprite(image, sprs.gauge), cellhto(cm.x + 2), cellhto(cm.y));
-		// scr.clear(COLOR_BLACK, makeRect(cellhto(cm.x), cellhto(cm.y - 2), bcell, bcell);
 		this.word.setFontSize('4v6px');
 		this.word.print('R:' + str_pad(crate, 4, '0', 'STR_PAD_RIGHT'), cellhto(cm.x), cellhto(cm.y - 2), COLOR_WHITE, COLOR_BLACK);
 		// this.word.print('RATE:' + str_pad(sec, 2, '0', 'STR_PAD_LEFT'));
@@ -4212,8 +4223,10 @@ LitroKeyboard.prototype = {
 			, str_t = title.substr(0, 16)
 			, str_b = title.substr(16, 16)
 			, user = this.player.fileUserName.substr(0, 16)
-			, titleSpr = makeSprite(this.uiImageName, this.titleSprites.title)
-			, userSpr = makeSprite(this.uiImageName, this.titleSprites.user)
+			, titleSpr = this.iconSprites.title
+			, userSpr = this.iconSprites.user
+			// , titleSpr = makeSprite(this.uiImageName, this.titleSprites.title)
+			// , userSpr = makeSprite(this.uiImageName, this.titleSprites.user)
 		;
 		this.clearLeftScreen();
 		scr.drawSprite(titleSpr, cellhto(tcm.x), cellhto(tcm.y));
@@ -5082,27 +5095,31 @@ LitroKeyboard.prototype = {
 			, scr = scrollByName('bg1')
 			, chOnId = 144, chOffId = 160, chOffset = 1
 			, tabsprite, cm = {x: 6, y: 14}
-			, x, y
+			, x, y, iconName
 		;
-		chId = toggle == null || toggle ? chOnId : chOffId;
+		// chId = toggle == null || toggle ? chOnId : chOffId;
+		iconName = toggle == null || toggle ? 'tab' : 'ntab';
 		if(ch == null){
 			ch = [0, 1, 2, 3, 4, 5, 6, 7];
 			//背景
-			for(i = 0; i < this.topFrameCenter.lenth; i++){
-				tabsprite = makeSprite(this.uiImageName, this.topFrameCenter[i]);
+			for(i = 0; i < ch.length; i++){
+				// tabsprite = makeSprite(this.uiImageName, this.topFrameCenter[i]);
+				tabsprite = this.iconSprites['bgtab'+ (i + chOffset)];
 				scr.drawSpriteChunk(tabsprite, cellhto(cm.x + (i * 2)), cellhto(cm.y));
 			}
 			for(i = 0; i < ch.length; i++){
-				tabsprite = makeSprite(this.uiImageName, chId + ch[i]);
+				// tabsprite = makeSprite(this.uiImageName, chId + ch[i]);
+				tabsprite = this.iconSprites[iconName + (ch[i] + chOffset)];
 				scr.drawSpriteChunk(tabsprite, cellhto(cm.x + ((ch[i] + chOffset) * 2)), cellhto(cm.y));
 			}
 		}
 		else{
 			x = cellhto(cm.x + ((ch + chOffset) * 2));
 			y = cellhto(cm.y);
-			tabsprite = makeSprite(this.uiImageName, this.topFrameCenter[ch + chOffset]);
-			scr.drawSpriteChunk(tabsprite, x, y);
-			tabsprite = makeSprite(this.uiImageName, ch + chId);
+			// tabsprite = makeSprite(this.uiImageName, this.topFrameCenter[ch + chOffset]);
+			scr.drawSpriteChunk(this.iconSprites['bgtab' + (ch  + chOffset)], x, y);
+			// tabsprite = makeSprite(this.uiImageName, ch + chId);
+			tabsprite = this.iconSprites[iconName + (ch  + chOffset)];
 			scr.drawSpriteChunk(tabsprite, x, y);
 		}
 		
@@ -5142,15 +5159,18 @@ LitroKeyboard.prototype = {
 	{
 		var modeName = mode == null ? this.editMode : mode
 			, sprite
-			, cm = this.modeCmargin
+			, cm = this.modeCmargin, iconName
 			;
 		if(modeName == null){
 			return;
 		}
-		if(this.modeRect[modeName] == null){
+		iconName = 'mode_' + modeName;
+		// if(this.modeRect[modeName] == null){
+		if(this.iconSprites[iconName] == null){
 			return;
 		}
-		sprite = makeSpriteChunk(this.uiImageName, makeRect(this.modeRect[modeName]));
+		// sprite = makeSpriteChunk(this.uiImageName, makeRect(this.modeRect[modeName]));
+		sprite = this.iconSprites[iconName];
 		scrollByName('bg1').drawSpriteChunk(sprite, cellhto(cm.x), cellhto(cm.y));
 	},
 	
