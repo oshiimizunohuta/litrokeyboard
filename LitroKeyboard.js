@@ -165,6 +165,8 @@ function LitroKeyboard() {
 		'RETURN': 'return',
 	};
 	
+	this.keyCkeys = {};
+	
 	this.corsolKeys = ['up', 'down', 'left', 'right'];
 	this.baseKeys = ['<', '>', 'select', 'space'];
 	this.zoomKeys = ['[', ']'];
@@ -423,6 +425,7 @@ LitroKeyboard.prototype = {
 		
 		//基本キー
 		this.initKeys();
+		this.initKeyCkeys();
 		
 		//チャンネルデータ初期
 		// for(i = 0; i < this.player.channel.length; i++){
@@ -500,11 +503,6 @@ LitroKeyboard.prototype = {
 				this.CHARS_CODE_NAME[chars[i]] = this.CODE_NAME[codeNameCount % this.CODE_NAME.length];
 				this.CHARS_INDEX[codeNameCount] = chars[i];
 				codeNameCount++;
-				// if(row == 'top'){
-					// this.CHARS_CODE_NAME[chars[i]] = this.CODE_NAME[i % this.CODE_NAME.length];
-				// }else{
-					// this.CHARS_CODE_NAME[chars[i]] = this.CODE_NAME[(i + 5) % this.CODE_NAME.length];
-				// }
 				
 				
 				//補完
@@ -617,6 +615,12 @@ LitroKeyboard.prototype = {
 			
 		}
 		return;
+	},
+	
+	initKeyCkeys: function(){
+		this.keyCkeys.row = Object.keys(this.ROW_CHARS);
+		this.keyCkeys.octave = Object.keys(this.OCTAVE_KEYCODE);
+		// this.keysCkeys.corsol = this.corsolKeys;
 	},
 	
 	initSoundEffect: function(){
@@ -3734,14 +3738,12 @@ LitroKeyboard.prototype = {
 			, getUntrig = function(t){return cont.getUntrig(t);}
 			, getHold = function(t){return cont.getHold(t);}
 			, getState = function(t){return cont.getState(t);}
-			, ckeys = [], klen
+			, ckeys = [], klen, rowKeys, rowlen
 		;
 		chars = this.ROW_CHARS;
-		// console.time('chars');
-		
-		// console.log(cont.getHold(this.corsolKeys));
-		Object.keys(chars).forEach(function(row){
-			ckeys = chars[row]; klen = ckeys.length;
+		rowKeys = this.keyCkeys.row; rowlen = rowKeys.length;
+		for(row = 0; row < rowlen; row++){
+			ckeys = chars[rowKeys[row]]; klen = ckeys.length;
 			for(i = 0; i < klen; i++){
 				key = ckeys[i];
 				if(getTrig(key)){
@@ -3751,10 +3753,10 @@ LitroKeyboard.prototype = {
 					this.offCode(key);
 				}
 			}
-		}, this);
+		}
 		
 		chars = this.OCTAVE_KEYCODE;
-		ckeys = Object.keys(chars); klen = ckeys.length;
+		ckeys = this.keyCkeys.octave; klen = ckeys.length;
 		for(i = 0; i < klen; i++){
 			key = ckeys[i];
 			trigs = getTrig(key);
