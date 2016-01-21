@@ -2,7 +2,7 @@
  * Litro Keyboard Interface
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.11.08
+ * ver 0.11.09
  */
 
 //環境判定
@@ -814,7 +814,8 @@ LitroKeyboard.prototype = {
 				keys[name].push(self.frameChunks.length);
 				self.frameChunks.push(self.makeChipChunk(name, self.frameSprites[name], makeRect(rr)));
 			}
-			, fspr = this.frameSprites
+			, fspr
+			, swaps = []
 			, ms = function(id){return makeSprite(img, id);}
 			,bftop = 14
 			,bdtop = 22
@@ -950,8 +951,8 @@ LitroKeyboard.prototype = {
 			leftDispEdge2: mccf(msq('9+2:2+1'), 0, 13),
 			
 		//上半分
-			noteRollLeft: mccf(msq('(1+2:0+1)^6'), 36, 2),
-			eventRollRight: mccf(msq('11+2:0+1'), 36, 0),
+			noteRollLeft: mccf(msq('(14+2:0+1)^6'), 36, 2),
+			eventRollRight: mccf(msq('14+2:2+1'), 36, 0),
 			
 		// //下半分
 			leftFrame: mccf(msq('0+1:1+8'), 0, bftop),
@@ -992,7 +993,7 @@ LitroKeyboard.prototype = {
 			boardFrameRight_1d: mccf(msq('3+1:5+4'), 34, bdtop),
 			
 			
-			octaveRoll: msq('3+2:0+1'),
+			octaveRoll: msq('14+2:1+1'),
 			
 			// '0:0 1:1')),
 			
@@ -1004,6 +1005,17 @@ LitroKeyboard.prototype = {
 			envelopeBeam1: ms(73),
 			envelopeBeam2: ms(74),
 			envelopeBeam_s: ms(75),
+			
+			//ScoreBoardMSQ
+			scoreTune4: msq('27 29*3 (28 29*3)*4'),
+			scoreBoard4: msq(
+				'59 61*3 (60 61*3)*4!;'
+				+'43 45*3 (44 45*3)*4!;'
+				+'27 29*3 (28 29*3)*4!;'
+				+ '59 61*3 (60 61*3)*4!;'
+				+ '59 61*3 (60 61*3)*4!;'
+				+ '11 13*3 (12 13*3)*4!;'
+			),
 			
 			//ScoreBoard
 			noteStart: ms(5),
@@ -1017,6 +1029,26 @@ LitroKeyboard.prototype = {
 			eventSpace: ms(15),
 			
 		};
+		fspr = this.frameSprites;
+		['scoreTune4', 'eventRollRight'].forEach(function(s, i){
+			var spr = fspr[s].sprites == null ? fspr[s] : fspr[s].sprites;
+			swapColorSpriteRecursive(spr, 'push'
+				, [88, 248, 152, 255], [248, 216, 120, 255]);
+			swapColorSpriteRecursive(spr, 'push'
+				, [184, 248, 184, 255], [252, 224, 168, 255]);
+			swapColorSpriteRecursive(spr, 'push'
+				, [0, 168, 0, 255], [168, 16, 0, 255]);
+			swapColorSpriteRecursive(spr, 'push'
+				, [88, 216, 84, 255], [252, 160, 68, 255]);
+			swapColorSpriteRecursive(spr, 'start');
+			
+			if(fspr[s].sprites == null){
+				fspr[s] = spr;
+			}else{
+				fspr[s].sprites = spr;
+			}
+		});
+		
 	},
 	
 	initControllDisp: function(){
@@ -1861,6 +1893,19 @@ LitroKeyboard.prototype = {
 			this.status_on[channel] = chr;
 		}
 		
+		//仮使用
+		if(channel == editch){
+			this.setEventChange(editch, this.makeEventset('note', code + (octave * this.octaveInKeys)));
+		}
+		
+		this.refreshCurrentNote();
+		
+		
+		if(this.editMode == 'catch'){
+			this.moveCatchCursor(null, false);
+			return;
+		}
+				
 		// this.player.setPreSwapTune(channel, this.player.getTuneParams(editch));
 		this.sePlayCode(channel, code, octave);
 		
@@ -1868,10 +1913,7 @@ LitroKeyboard.prototype = {
 			this.onkeyEvent(chr);
 		}
 		
-		//仮使用
-		if(channel == editch){
-			this.setEventChange(editch, this.makeEventset('note', code + (octave * this.octaveInKeys)));
-		}
+
 		this.drawNoteScroll(seekPage);
 		if(pos < cellhto(2) ){
 			this.drawNoteScroll(seekPage - 1);
@@ -1880,7 +1922,6 @@ LitroKeyboard.prototype = {
 		}
 		this.drawNoteScroll(null, true);
 		
-		this.refreshCurrentNote();
 
 	},
 	
@@ -1910,6 +1951,23 @@ LitroKeyboard.prototype = {
 		// this.litroSound.offNoteFromCode(channel);
 		// this.player.channel[channel].refChannel = -1;
 		this.sePlayer.fadeOutNote(channel, paramChannel);
+	},
+	/**
+	 * setDirect inpput Octave level 
+	 * return @bool refreshDrawEnable
+	 */
+	setOctave: function(level)
+	{
+		level = level <= OCTAVE_MAX ? level : OCTAVE_MAX;
+		level = level > 0 ? level : 0;
+		
+		if(this.octaveLevel == level){
+			return false;
+		}
+		this.octaveLevel = level;
+		this.drawOctaveMeter(this.octaveLevel);
+		this.drawEventsetBatch();
+		return true;
 	},
 	
 	incOctave: function()
@@ -2404,15 +2462,21 @@ LitroKeyboard.prototype = {
 		
 		// console.log(moveTime, divTime);
 		switch(dir){
-			case 'up': cur.y = (cur.y + limit - 1) % limit;
-					// this.drawNoteMenu();
-					// this.drawNoteCursor();
+			case 'up':
+					if(ext){
+						this.incOctave();
+						break;
+					}
+					cur.y = (cur.y + limit - 1) % limit;
 					this.drawMenuList(list);
 					this.drawMenuListCursor(list, cur.y);
 					break;
-			case 'down': cur.y = (cur.y + 1) % limit;
-					// this.drawNoteMenu();
-					// this.drawNoteCursor();
+			case 'down':
+					if(ext){
+						this.decOctave();
+						break;
+					}
+					cur.y = (cur.y + 1) % limit;
 					this.drawMenuList(list);
 					this.drawMenuListCursor(list, cur.y);
 					break;
@@ -2542,6 +2606,7 @@ LitroKeyboard.prototype = {
 			, prevNote
 			, ch = this.editChannel()
 			, player = this.player
+			, octave
 			// , player = this.sePlayer
 		;
 		
@@ -2556,10 +2621,12 @@ LitroKeyboard.prototype = {
 						this.decNotekeys(this.catchEventset);
 						this.drawEventsetBatch();
 						break;
-					case 'left': this.channelMove(dir);
-									break;
-					case 'right': this.channelMove(dir);
-									break;
+					case 'left':
+						this.channelMove(dir);
+						break;
+					case 'right':
+						this.channelMove(dir);
+						break;
 				}
 				
 			}else{
@@ -2581,6 +2648,7 @@ LitroKeyboard.prototype = {
 							break;
 			case 'right': eventset = player.searchNearForward(ch, player.noteSeekTime, -1, this.catchType, ignore);
 							break;
+			default: eventset = player.searchNearForward(ch, player.noteSeekTime, -1, this.catchType);
 		}
 		this.drawMenu(this.editMode);
 
@@ -2616,9 +2684,19 @@ LitroKeyboard.prototype = {
 			}
 			
 			this.catchEventset[eventset.type][eventset.time] = eventset;
+			this.drawSelectEvents(this.selectNote);
+			
+			if(eventset.type == 'note'){
+				octave = (eventset.value / KEY_FREQUENCY[0].length) | 0;
+				if(octave > this.octaveLevel){
+					octave = octave > this.octaveLevel + 2 ? octave - 2 : this.octaveLevel;
+				}
+				if(this.setOctave(octave)){
+					return eventset;
+				};
+			}
 			
 			// console.log(this.catchEventset);
-			this.drawSelectEvents(this.selectNote);
 			this.drawEventsetBatch();
 		}else{
 			eventset = player.searchNearBack(ch, player.noteSeekTime, 0, this.catchType);
@@ -4093,34 +4171,39 @@ LitroKeyboard.prototype = {
 	drawScoreBoard: function(bottom)
 	{
 		var scr = scrollByName('bg3')
-			, i, xc, s
+			// , i, xc, s
 			, xCells = (DISPLAY_WIDTH / cellhto(1)) | 0
 			, len
-			, line5 = [2, 4, 7, 9, 10]
-			, spaces = [5, 12]
+			// , line5 = [2, 4, 7, 9, 10]
+			// , spaces = [5, 12]
 			, btmOffset
 			, sprites = this.frameSprites
-			, dfunc = function(yLine, startSprite, periodSprite, lineSprite){
-				for(xc = 0; xc < xCells; xc += 2){
-					s = xc % 5 == 0 ? periodSprite : lineSprite;
-					if(xc == 0){s = startSprite;}
-					scr.drawSprite(s, cellhto(xc), cellhto(yLine) + btmOffset);
-				}
-			}
+			// , dfunc = function(yLine, startSprite, periodSprite, lineSprite){
+				// for(xc = 0; xc < xCells; xc += 2){
+					// s = xc % 5 == 0 ? periodSprite : lineSprite;
+					// if(xc == 0){s = startSprite;}
+					// scr.drawSprite(s, cellhto(xc), cellhto(yLine) + btmOffset);
+				// }
+			// }
 			;
-			
 		bottom == bottom == null ? false : bottom;
 		btmOffset = bottom ? (DISPLAY_HEIGHT / 2) | 0 : 0;
-		len = line5.length;
-		for(i = 0; i < len; i++){
-			dfunc(line5[i], sprites.noteStart, sprites.notePeriod, sprites.noteLine);
-		}
-		len = spaces.length;
-		for(i = 0; i < len; i++){
-			dfunc(spaces[i], sprites.noteSpaceStart, sprites.noteSpacePeriod, sprites.noteSpace);
-		}
-		dfunc(0, sprites.eventSpaceStart, sprites.eventSpacePeriod, sprites.eventSpace);
 		
+		scr.drawSpriteChunk(sprites.scoreTune4, 0, btmOffset);
+		scr.drawSpriteChunk(sprites.scoreBoard4, 0, cellhto(2) + btmOffset);
+		// return;
+// 		
+// 		
+		// len = line5.length;
+		// for(i = 0; i < len; i++){
+			// dfunc(line5[i], sprites.noteStart, sprites.notePeriod, sprites.noteLine);
+		// }
+		// len = spaces.length;
+		// for(i = 0; i < len; i++){
+			// dfunc(spaces[i], sprites.noteSpaceStart, sprites.noteSpacePeriod, sprites.noteSpace);
+		// }
+		// dfunc(0, sprites.eventSpaceStart, sprites.eventSpacePeriod, sprites.eventSpace);
+// 		
 	},
 	
 	// drawTitleCursor: function()
