@@ -2294,6 +2294,7 @@ LitroKeyboard.prototype = {
 	{
 		var self = this, tid
 			, commonError = {error_code: 0, message: 'server error'}
+			, mode = 'file';
 		;
 		switch(type){
 			case 'COOKIE': this.player.saveToCookie(); this.changeEditMode('note'); break;
