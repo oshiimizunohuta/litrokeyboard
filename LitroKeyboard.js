@@ -2,7 +2,7 @@
  * Litro Keyboard Interface
  * Since 2013-11-19 07:43:37
  * @author しふたろう
- * ver 0.11.09
+ * ver 0.11.10
  */
 
 //環境判定
@@ -1532,6 +1532,7 @@ LitroKeyboard.prototype = {
 		if(this.getMode() == 'manual'){return;}
 		if(this.getMode() == 'error'){return;}
 		
+// 		
 		if(!player.isPlay() && this.tempPlaySeekTime < 0){
 			this.tempPlaySeekTime = player.noteSeekTime;
 			this.initCatchEvent();
@@ -1565,7 +1566,10 @@ LitroKeyboard.prototype = {
 			, mode = this.prevEditMode
 		;
 		if(player.isPlay() && this.tempPlaySeekTime >= 0){
+			console.log(this.prevEditMode);
 			player.stop();
+		}
+		if(this.tempPlaySeekTime >= 0){
 			player.setSeekPosition(this.tempPlaySeekTime);
 			this.tempPlaySeekTime = -1;
 			this.changeEditMode(mode);
@@ -1576,6 +1580,7 @@ LitroKeyboard.prototype = {
 			this.drawEventsetBatch();
 			// this.drawMenu('tune');
 			this.drawMenu();
+			this.initFingerState(this.fingers);
 
 		}
 
@@ -1849,9 +1854,15 @@ LitroKeyboard.prototype = {
 	
 	stopPlayer: function()
 	{
+		if(this.tempPlaySeekTime > -1){
+			this.stopLitroTemporary();
+			return;
+		}
+		
 		if(this.editMode != 'tune'){
 			this.getActiveModeCursor().y = 0;
 		}
+		
 		this.changeEditMode(this.prevEditMode);
 		this.prevEditMode = 'note';
 		
@@ -2281,7 +2292,9 @@ LitroKeyboard.prototype = {
 	
 	saveCommand: function(type)
 	{
-		var self = this, tid;
+		var self = this, tid
+			, commonError = {error_code: 0, message: 'server error'}
+		;
 		switch(type){
 			case 'COOKIE': this.player.saveToCookie(); this.changeEditMode('note'); break;
 			case 'SERVER': this.changeEditMode('loading'); this.player.playerAccount = this.getLoginParams().account;
@@ -2306,6 +2319,7 @@ LitroKeyboard.prototype = {
 					// self.changeEditMode('error');
 					// self.drawMenu();
 				}); break;
+			
 		}
 	},
 	
