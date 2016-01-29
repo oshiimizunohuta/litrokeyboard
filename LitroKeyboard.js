@@ -1101,6 +1101,8 @@ LitroKeyboard.prototype = {
 		word.setMaxRows(form.maxrows);
 		word.setLineCols(form.linecols);
 		word.setMarkAlign(form.malign);
+		
+		return form;
 	},
 	
 	selectEventset: function(ch, eventset, pop)
@@ -2833,6 +2835,7 @@ LitroKeyboard.prototype = {
 			, Tcur = this.titleCharCursor, Tlimit = this.player.titleMaxLength
 			, tlength = this.player.title.length + 1
 			, isScrollDown = false, isScrollUp= false, isClean = false
+			, maxID = 250
 		;
 
 		if(ext){
@@ -2855,6 +2858,17 @@ LitroKeyboard.prototype = {
 				case 'left': Ccur.x = Ccur.x - 1; break;
 				case 'right': Ccur.x = Ccur.x + 1; break;
 			}
+			
+			//MaxIDを超えたら
+			// if((Ccur.y * dispNum.x) + Ccur.x > maxID){
+				// switch(dir){
+					// case 'up': Ccur.y = (Ccur.y + Climit.y - 1) % Climit.y; break;
+					// case 'down': Ccur.y = (Ccur.y + 1) % Climit.y; break;
+					// case 'left': Ccur.x = maxID; Ccur.y = dispNum.y - 1; break;
+					// case 'right': Ccur.x = 0; Ccur.y = 0; break;
+				// }
+			// }
+			
 			//char列スクロール
 			if(Ccur.y - curr.y >= dispNum.y){
 				curr.y = Ccur.y - dispNum.y + 1;
@@ -2864,6 +2878,7 @@ LitroKeyboard.prototype = {
 				curr.y = Ccur.y;
 				isScrollUp = true;
 			}
+			
 			//char列外に出る
 			if(Ccur.x >= Climit.x || Ccur.x < 0){
 				 this.titleMenuCursor.x = 0;
@@ -3452,9 +3467,12 @@ LitroKeyboard.prototype = {
 			, fcur = this.titleMenuCursor, ccur = this.charBoardCursor, curr = this.charBoardCurrent
 			, cur = this.titleCharCursor, limit = parser.titleMaxLength
 			, Ccur = this.charBoardCursor, Climit = this.charBoardLimit
-			, title = this.player.title, cha = this.word8.indexOf(Ccur.x + (Ccur.y * Climit.x))
+			, word = this.word8
+			, title = this.player.title, cha = word.indexOf(Ccur.x + (Ccur.y * Climit.x))
+			, maxID = 250
 			;
 		;
+		cha = (cha < 0 ? word.indexOf(word.SPACE_CODE) : cha);
 		switch(key){
 			case '<': 
 				if(ext){
@@ -4306,7 +4324,6 @@ LitroKeyboard.prototype = {
 		;
 		
 		this.presetWordFormat('charboard');
-		console.log(this.player.title);
 		word.print(this.player.title, cellhto(cm.x), cellhto(tcm.y + 1), COLOR_NOTEFACE, COLOR_BLACK);
 		
 		for(x = 0; x < parser.titleMaxLength - this.player.title.length; x++){
