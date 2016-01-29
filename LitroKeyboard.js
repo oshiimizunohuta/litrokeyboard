@@ -4306,7 +4306,7 @@ LitroKeyboard.prototype = {
 		;
 		
 		this.presetWordFormat('charboard');
-		
+		console.log(this.player.title);
 		word.print(this.player.title, cellhto(cm.x), cellhto(tcm.y + 1), COLOR_NOTEFACE, COLOR_BLACK);
 		
 		for(x = 0; x < parser.titleMaxLength - this.player.title.length; x++){

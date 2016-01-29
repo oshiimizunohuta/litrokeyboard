@@ -27,12 +27,12 @@
 		
 		<link rel="stylesheet" type="text/css" href="./style.css" media="all">
 
-		<script src="./chunklekit/string.js"></script>
+		<script src="./chunklekit/util.js"></script>
 		<script src="./chunklekit/prop.js"></script>
-		<script src="./chunklekit/keyControll.js"></script>
+		<script src="./chunklekit/keycontroll.js"></script>
 		<script src="./chunklekit/canvasdraw.js"></script>
-		<script src="./chunklekit/wordPrint.js"></script>
-		<script src="./chunklekit/UITools.js"></script>
+		<script src="./chunklekit/wordprint.js"></script>
+		<script src="./chunklekit/uitools.js"></script>
 		<script src="./litrosound/Litrosound.js"></script>
 		<script src="./LitroKeyboard.js"></script>
 
