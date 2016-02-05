@@ -2,24 +2,26 @@
 <html lang="ja">
 	<head>
 		<meta charset="utf-8">
-		<title>8bitブラウザDTM | LitroKeyboard</title>
-		<meta name="description" content="キーボードで演奏しながら作曲できるWebアプリ　作曲したデータをSNS、HPに貼り付けて共有できるサービスの予定" />
-		<meta name="keywords" content="ブラウザDTM,WebAudioAPI,8bit,PSG,フリー鍵盤演奏ソフト,ケモノ,ドラゴン" />
-		<meta name="author" content="しふたろう">
 		<!-- <meta name="viewport" content="width=device-width; initial-scale=1.0"> -->
+		<title>8-bit style Ciptune Sequencer| LitroKeyboard</title>
+		<meta name="description" content="キーボードで演奏しながら作曲できるWebアプリ　作曲したデータをSNS、HPに貼り付けて共有できる" />
+		<meta name="keywords" content="ブラウザチップチューン,WebDTM,WebAudioAPI,8bit,PSG,フリー鍵盤演奏ソフト,ケモノ,ドラゴン" />
+		<meta name="author" content="しふたろう">
 		
 		<!-- SNS OG params -->
-		<meta property="og:title" content="LitroKeyBoard">
-		<meta property="og:type" content="website">
-		<meta property="og:url" content="<?php echo PROTOCOL_HOST_REQUEST; ?>">
-		<meta property="og:image" content="https://ltsnd.bitchunk.net/keyboard/img/twitter_card_summary.png">
-		<meta name="twitter:card" content="summary">
-		<meta name="twitter:site" content="@shiftal_on">
-		<meta name="twitter:title" content="LitroKeyBoard">
-		<meta name="twitter:description" content="8-bit style DTM on the browser">
-		<meta name="twitter:creator" content="@LitroSound">
-		<meta name="twitter:image:src" content="https://ltsnd.bitchunk.net/keyboard/img/twitter_card_summary.png">
-		<meta name="twitter:domain" content="ltsnd.bitchunk.net">
+		<meta property="og:title" content="LitroReceiver">
+		<meta property="og:type" content="player">
+		<meta property="og:url" content="<?php echo CARD_URL; ?>">
+		<meta property="og:image" content="https://ltsnd.bitchunk.net/receiver/img/twitter_card_player.png">
+		<meta name="twitter:card" content="player">
+		<meta name="twitter:site" content="@litrosound">
+		<meta name="twitter:title" content="LitroReceiver">
+		<meta name="twitter:image" content="https://ltsnd.bitchunk.net/receiver/img/twitter_card_player.png">
+		<meta name="twitter:description" content='"Litrosound" a browser chiptune.'>
+		<meta name="twitter:creator" content="@litrosound">
+		<meta name="twitter:player" content="<?php echo CARD_URL; ?>">
+		<meta name="twitter:player:width" content="320">
+		<meta name="twitter:player:height" content="320">
 
 		<!-- Replace favicon.ico & apple-touch-icon.png in the root of your domain and delete these references -->
 		<link rel="shortcut icon" href="./img/ltkb16.png">
