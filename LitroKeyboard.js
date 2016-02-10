@@ -1899,6 +1899,8 @@ LitroKeyboard.prototype = {
 		for(type in result){
 			this.player.eventsetData[ch][type] = result[type];
 		}
+		
+		this.setModified(ch);
 	},
 	
 	sePlayCode: function(ch, code, octave)
