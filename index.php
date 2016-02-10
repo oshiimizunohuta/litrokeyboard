@@ -2,11 +2,9 @@
 <html lang="ja">
 	<head>
 		<meta charset="utf-8">
+		<meta name="author" content="bitchunk">
 		<!-- <meta name="viewport" content="width=device-width; initial-scale=1.0"> -->
-		<title>8-bit style Ciptune Sequencer| LitroKeyboard</title>
 		<meta name="description" content="キーボードで演奏しながら作曲できるWebアプリ　作曲したデータをSNS、HPに貼り付けて共有できる" />
-		<meta name="keywords" content="ブラウザチップチューン,WebDTM,WebAudioAPI,8bit,PSG,フリー鍵盤演奏ソフト,ケモノ,ドラゴン" />
-		<meta name="author" content="しふたろう">
 		
 		<!-- SNS OG params -->
 		<meta property="og:title" content="LitroReceiver">
@@ -27,8 +25,11 @@
 		<link rel="shortcut icon" href="./img/ltkb16.png">
 		<link rel="apple-touch-icon-precomposed" href="./img/apple-touch-icon.png">
 		
+		<!-- styleseet -->
 		<link rel="stylesheet" type="text/css" href="./style.css" media="all">
 
+		<title>LitroKeyboard</title>
+		
 		<script src="./chunklekit/util.js"></script>
 		<script src="./chunklekit/prop.js"></script>
 		<script src="./chunklekit/keycontroll.js"></script>
