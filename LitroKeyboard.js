@@ -1049,13 +1049,13 @@ LitroKeyboard.prototype = {
 		['scoreTune4', 'eventRollRight'].forEach(function(s, i){
 			var spr = fspr[s].sprites == null ? fspr[s] : fspr[s].sprites;
 			swapColorSpriteRecursive(spr, 'push'
-				, [88, 248, 152, 255], [248, 216, 120, 255]);
+				, [248, 216, 120, 255], [88, 248, 152, 255]);
 			swapColorSpriteRecursive(spr, 'push'
-				, [184, 248, 184, 255], [252, 224, 168, 255]);
+				, [252, 224, 168, 255], [184, 248, 184, 255]);
 			swapColorSpriteRecursive(spr, 'push'
-				, [0, 168, 0, 255], [168, 16, 0, 255]);
+				, [168, 16, 0, 255], [0, 168, 0, 255]);
 			swapColorSpriteRecursive(spr, 'push'
-				, [88, 216, 84, 255], [252, 160, 68, 255]);
+				, [252, 160, 68, 255], [88, 216, 84, 255]);
 			swapColorSpriteRecursive(spr, 'start');
 			
 			if(fspr[s].sprites == null){
