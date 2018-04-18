@@ -422,6 +422,7 @@ LitroKeyboard.prototype = {
 		var self = this;
 		this.litroSound = new LitroSound();
 		litroKeyboardInstance = this;
+		this.userManipulated = false;
 		
 		//効果音用
 		this.sePlayer = new LitroPlayer();
@@ -4060,6 +4061,7 @@ LitroKeyboard.prototype = {
 			, getHold = function(t){return cont.getHold(t);}
 			, getState = function(t){return cont.getState(t);}
 			, ckeys = [], klen, rowKeys, rowlen
+			, keyon = false
 		;
 		chars = this.ROW_CHARS;
 		rowKeys = this.keyCkeys.row; rowlen = rowKeys.length;
@@ -4069,9 +4071,11 @@ LitroKeyboard.prototype = {
 				key = ckeys[i];
 				if(getTrig(key)){
 					this.onCode(key);
+					keyon = true;
 				}
 				if(getUntrig(key)){
 					this.offCode(key);
+					keyon = true;
 				}
 			}
 		}
@@ -4093,6 +4097,7 @@ LitroKeyboard.prototype = {
 					this.octaveEvent();
 				}
 				this.drawOnBaseKey(key, true);
+				keyon = true;
 			}
 			if(untrigs){
 				this.drawOnBaseKey(key, false);
@@ -4105,6 +4110,7 @@ LitroKeyboard.prototype = {
 			key = ckeys[i];
 			if(getTrig(key) || getHold(key)){
 				this.moveCursor(key, ext_s);
+				keyon = true;
 			}
 		}
 		// this.corsolKeys.forEach(function(key){
@@ -4123,6 +4129,7 @@ LitroKeyboard.prototype = {
 			if(getTrig(key) || hold){
 				this.holdKeyCommon(key, ext_s, hold);
 				this.drawOnBaseKey(key, true);
+				keyon = true;
 			}
 			if(getUntrig(key)){
 				this.unTrigCommon(key, ext_s);
@@ -4136,6 +4143,7 @@ LitroKeyboard.prototype = {
 			if(getTrig(key) || getHold(key)){
 				this.zoomKeyOn(key, ext_s);
 				this.drawOnBaseKey(key, true);
+				keyon = true;
 			}
 			if(getUntrig(key)){
 				this.drawOnBaseKey(key, false);
@@ -4143,11 +4151,19 @@ LitroKeyboard.prototype = {
 		}
 		if(getState('[') && getState(']')){
 			this.zoomKeyOn('[]', ext_s);
+			keyon = true;
 		}
 		
 		if(getTrig('ext') ||getUntrig('ext')){
 			this.drawOnBaseKey('ext', ext_s);
+		keyon = true;
 		}
+		
+		if(keyon && !this.userManipulated){
+			this.userManipulated = true;
+			this.litroSound.createContext();
+		}
+
 		// console.timeEnd('chars');
 	},
 	

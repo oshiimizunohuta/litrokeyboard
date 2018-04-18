@@ -4,7 +4,7 @@
 		<meta charset="utf-8">
 		<meta name="author" content="bitchunk">
 		<!-- <meta name="viewport" content="width=device-width; initial-scale=1.0"> -->
-		<meta name="description" content="キーボードで演奏しながら作曲できるWebアプリ　作曲したデータをSNS、HPに貼り付けて共有できる" />
+		<meta name="description" content="キーボードで演奏しながら作曲できるチップチューンシーケンサー　作曲したデータをSNS、HPに貼り付けて共有できる" />
 		
 		<!-- SNS OG params -->
 		<meta property="og:title" content="LitroReceiver">
