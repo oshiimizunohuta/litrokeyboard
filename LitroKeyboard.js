@@ -4161,7 +4161,7 @@ LitroKeyboard.prototype = {
 		
 		if(keyon && !this.userManipulated){
 			this.userManipulated = true;
-			this.litroSound.createContext();
+			this.litroSound.context.resume();
 		}
 
 		// console.timeEnd('chars');
