@@ -1,5 +1,5 @@
 IndexIgnore *
-Options -Indexes +FollowSymLinks
+Options -Indexes
 AddHandler cgi-script htaccess
 
 <Files ~ "\.(html|php|js|png|css)$">
